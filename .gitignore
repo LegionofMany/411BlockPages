@@ -1,0 +1,59 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+.next/
+out/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Coverage
+coverage/
+
+# Misc
+*.tgz
+*.log
+
+# Exclude local database and uploads
+*.sqlite
+uploads/
+
+# Exclude test snapshots
+__snapshots__/
+
+# Exclude heavy files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.bak
+*.tmp
+
+# Exclude local secrets
+secrets.*
+
+# Exclude MongoDB dump
+*.bson
+*.mongodump
