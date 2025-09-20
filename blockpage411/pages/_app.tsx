@@ -13,7 +13,9 @@ const config = createConfig({
 
 const queryClient = new QueryClient();
 
-export default function App({ Component, pageProps }: any) {
+import type { AppProps } from 'next/app';
+
+export default function App({ Component, pageProps }: AppProps) {
   return (
     <WagmiConfig config={config}>
       <QueryClientProvider client={queryClient}>

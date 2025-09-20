@@ -3,6 +3,10 @@ import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
 import jwt from 'jsonwebtoken';
 
+interface JwtPayload {
+  address: string;
+}
+
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -13,9 +17,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!token) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
-  let payload;
+  let payload: JwtPayload | string;
   try {
-    payload = jwt.verify(token, JWT_SECRET);
+    payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
   } catch {
     return res.status(401).json({ message: 'Invalid token' });
   }
@@ -23,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!address || !chain || !reason) {
     return res.status(400).json({ message: 'Address, chain, and reason required' });
   }
-  const userAddress = typeof payload === 'object' && payload !== null && 'address' in payload ? (payload as any).address : undefined;
+  const userAddress = typeof payload === 'object' && payload !== null ? payload.address : undefined;
   if (!userAddress) {
     return res.status(401).json({ message: 'Invalid token payload' });
   }

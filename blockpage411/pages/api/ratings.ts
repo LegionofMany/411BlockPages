@@ -3,6 +3,16 @@ import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
 import jwt from 'jsonwebtoken';
 
+interface JwtPayload {
+  address: string;
+}
+
+interface Rating {
+  user: string;
+  score: number;
+  date: Date;
+}
+
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -13,9 +23,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!token) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
-  let payload;
+  let payload: JwtPayload | string;
   try {
-    payload = jwt.verify(token, JWT_SECRET);
+    payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
   } catch {
     return res.status(401).json({ message: 'Invalid token' });
   }
@@ -23,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!address || !chain || typeof score !== 'number' || score < 1 || score > 5) {
     return res.status(400).json({ message: 'Address, chain, and valid score required' });
   }
-  const userAddress = typeof payload === 'object' && payload !== null && 'address' in payload ? (payload as any).address : undefined;
+  const userAddress = typeof payload === 'object' && payload !== null ? payload.address : undefined;
   if (!userAddress) {
     return res.status(401).json({ message: 'Invalid token payload' });
   }
@@ -33,13 +43,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     wallet = await Wallet.create({ address, chain });
   }
   // Only 1 rating per user per wallet per chain
-  const existing = wallet.ratings.find((r: any) => r.user === userAddress);
+  const existing = wallet.ratings.find((r: Rating) => r.user === userAddress);
   if (existing) {
     return res.status(429).json({ message: 'Already rated' });
   }
   wallet.ratings.push({ user: userAddress, score, date: new Date() });
   // Update avgRating
-  wallet.avgRating = wallet.ratings.reduce((sum: number, r: any) => sum + r.score, 0) / wallet.ratings.length;
+  wallet.avgRating = wallet.ratings.reduce((sum: number, r: Rating) => sum + r.score, 0) / wallet.ratings.length;
   await wallet.save();
   res.status(200).json({ success: true });
 }

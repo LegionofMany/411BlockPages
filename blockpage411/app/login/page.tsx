@@ -1,22 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { useAccount, useConnect, useSignMessage, useDisconnect } from "wagmi";
 import { injected, coinbaseWallet, walletConnect } from 'wagmi/connectors';
-import axios from "axios";
 import { useRouter } from "next/navigation";
 
 
 export default function LoginPage() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    // Check if user is already authenticated
+    axios.get("/api/me").then(() => {
+      router.replace("/search");
+    }).catch(() => {});
+  }, [router]);
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
 
   async function handleLogin() {
     setError("");
@@ -29,9 +35,10 @@ export default function LoginPage() {
       const signature = await signMessageAsync({ message });
       // 3. Verify signature
       await axios.post("/api/auth/verify", { address, signature });
-      router.push("/search");
-    } catch (e: any) {
-      setError(e?.response?.data?.message || "Login failed");
+      // On success, redirect or update UI as needed
+  router.push("/search");
+    } catch {
+      setError("Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -40,78 +47,56 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0a0f1a] overflow-hidden">
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 pointer-events-none z-0" aria-hidden="true">
-        <svg width="100%" height="100%" className="opacity-20" style={{position:'absolute',top:0,left:0}}>
-          <defs>
-            <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="2" fill="#334155" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#dots)" />
-        </svg>
-      </div>
-      <div className="relative z-10 bg-gray-950/90 rounded-3xl shadow-2xl border border-gray-800 p-10 w-full max-w-md flex flex-col items-center animate-fade-in backdrop-blur-md">
-        {/* Logo and Tagline */}
-        <div className="mb-7 flex flex-col items-center">
-          <div className="w-20 h-20 mb-3 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-500 shadow-xl border-4 border-gray-900">
-            <span className="text-white text-4xl font-extrabold select-none tracking-tight drop-shadow">411</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight mb-1">Blockpage411 Login</h1>
-          <p className="text-gray-400 text-sm font-medium text-center max-w-xs">Securely access the blockchain reputation network</p>
+    <div className="min-h-screen bg-blockchain-gradient flex items-center justify-center">
+      <div className="max-w-md w-full card p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold text-white">Connect your wallet</h1>
+          <p className="text-cyan-100">to continue to Blockpage411</p>
         </div>
         {!isConnected ? (
-          <div className="w-full flex flex-col gap-4">
+          <div className="space-y-4">
             <button
-              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 text-white font-semibold px-5 py-3 rounded-xl shadow-lg transition-all duration-150 border border-blue-700/30"
+              className="w-full btn-primary flex items-center justify-center gap-3"
               onClick={() => connect({ connector: injected() })}
             >
-              <span>🦊</span> Connect MetaMask
+              <span className="text-xl">🦊</span>
+              <span>Connect MetaMask</span>
             </button>
             <button
-              className="flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-500 focus:ring-2 focus:ring-yellow-300 text-gray-900 font-semibold px-5 py-3 rounded-xl shadow-lg transition-all duration-150 border border-yellow-500/30"
-              onClick={() => connect({ connector: coinbaseWallet({ appName: "Blockpage411" }) })}
+              className="w-full btn-primary flex items-center justify-center gap-3"
+              onClick={() => connect({ connector: walletConnect({ projectId: "demo" }) })}
             >
-              <span>💰</span> Connect Coinbase Wallet
+              <span className="text-xl">🔗</span>
+              <span>WalletConnect</span>
             </button>
             <button
-              className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:ring-2 focus:ring-green-400 text-white font-semibold px-5 py-3 rounded-xl shadow-lg transition-all duration-150 border border-green-600/30"
-              onClick={() => connect({ connector: walletConnect({ projectId: 'YOUR_WALLETCONNECT_PROJECT_ID' }) })}
+              className="w-full btn-primary flex items-center justify-center gap-3"
+              onClick={() => connect({ connector: coinbaseWallet() })}
             >
-              <span>🔗</span> Connect WalletConnect
+              <span className="text-xl">💼</span>
+              <span>Coinbase Wallet</span>
             </button>
           </div>
         ) : (
-          <div className="w-full flex flex-col gap-4 items-center">
-            <div className="mb-2 text-gray-300 text-sm">Connected: <span className="font-mono text-blue-400">{address}</span></div>
+          <div className="space-y-4">
+            <div className="text-green-400 font-semibold">Connected: {address}</div>
             <button
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 focus:ring-2 focus:ring-green-400 text-white font-bold px-5 py-3 rounded-xl shadow-lg transition-all duration-150 border border-green-600/30"
-              onClick={handleLogin}
-              disabled={loading}
-            >
-              {loading ? "Logging in..." : "Sign In"}
-            </button>
-            <button
-              className="w-full bg-gray-800 hover:bg-gray-900 focus:ring-2 focus:ring-gray-500 text-gray-200 font-semibold px-5 py-3 rounded-xl shadow-lg transition-all duration-150 border border-gray-700/30"
+              className="w-full btn-primary"
               onClick={() => disconnect()}
             >
               Disconnect
             </button>
+            <button
+              className="w-full btn-primary"
+              onClick={handleLogin}
+              disabled={loading}
+            >
+              {loading ? "Signing..." : "Sign In"}
+            </button>
           </div>
         )}
-        {error && <div className="text-red-500 mt-4 text-center">{error}</div>}
+        {error && <div className="text-red-400 text-center mt-4">{error}</div>}
       </div>
-      {/* Animation keyframes */}
-      <style>{`
-        .animate-fade-in {
-          animation: fadeIn 0.8s cubic-bezier(0.4,0,0.2,1);
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(24px) scale(0.98); }
-          to { opacity: 1; transform: none; }
-        }
-      `}</style>
     </div>
   );
 }

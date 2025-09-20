@@ -1,3 +1,60 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom blockchain design system */
+:root {
+	--color-primary: #2563eb;
+	--color-secondary: #0ea5e9;
+	--color-accent: #a21caf;
+	--color-bg-dark: #0f172a;
+	--color-bg-light: #1e293b;
+	--color-card: #1e293b;
+	--color-success: #22c55e;
+	--color-warning: #f59e42;
+	--color-danger: #ef4444;
+	--color-info: #38bdf8;
+	--color-gradient: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
+	--color-gradient-accent: linear-gradient(90deg, #a21caf 0%, #0ea5e9 100%);
+}
+
+.bg-blockchain-gradient {
+	background: var(--color-gradient);
+}
+.bg-blockchain-gradient-accent {
+	background: var(--color-gradient-accent);
+}
+.card {
+	background: var(--color-card);
+	border-radius: 1.25rem;
+	box-shadow: 0 4px 32px 0 rgba(16, 24, 40, 0.12);
+	padding: 2rem;
+	transition: box-shadow 0.2s;
+}
+.card:hover {
+	box-shadow: 0 8px 40px 0 rgba(16, 24, 40, 0.18);
+}
+.btn-primary {
+	background: var(--color-gradient);
+	color: #fff;
+	border-radius: 0.75rem;
+	font-weight: 700;
+	padding: 0.75rem 2rem;
+	box-shadow: 0 2px 8px 0 rgba(37, 99, 235, 0.15);
+	transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+.btn-primary:hover {
+	background: var(--color-gradient-accent);
+	box-shadow: 0 4px 16px 0 rgba(37, 99, 235, 0.22);
+	transform: translateY(-2px) scale(1.03);
+}
+.badge {
+	display: inline-block;
+	border-radius: 9999px;
+	font-size: 0.875rem;
+	font-weight: 600;
+	padding: 0.25rem 0.75rem;
+	background: var(--color-gradient-accent);
+	color: #fff;
+}

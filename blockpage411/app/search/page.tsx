@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+
 
 
 export default function SearchPage() {
@@ -15,7 +17,12 @@ export default function SearchPage() {
     e.preventDefault();
     // Validate address format for each chain
     if (chain === "bitcoin") {
-      if (!/^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address)) {
+      if (
+        !(
+          /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address) || // Legacy/P2SH
+          /^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{11,71}$/.test(address) // Bech32
+        )
+      ) {
         setError("Invalid Bitcoin address");
         return;
       }
@@ -40,26 +47,26 @@ export default function SearchPage() {
   }
 
   return (
-  <div className="min-h-screen bg-[#f3f6fa] flex flex-col">
-  <Navbar variant="search" />
+    <div className="min-h-screen bg-blockchain-gradient flex flex-col">
+      <Navbar variant="search" />
       <div className="flex-1 flex items-center justify-center">
-        <div className="relative z-10 bg-white rounded-3xl shadow-2xl border border-gray-200 p-10 w-full max-w-md flex flex-col items-center animate-fade-in">
-        {/* Icon and Title */}
-        <div className="mb-6 flex flex-col items-center">
-          <div className="w-16 h-16 mb-3 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-500 shadow-xl border-4 border-gray-900">
-            <span className="text-white text-3xl select-none">🔍</span>
+        <div className="relative z-10 card w-full max-w-md flex flex-col items-center animate-fade-in">
+          {/* Icon and Title */}
+          <div className="mb-6 flex flex-col items-center">
+            <div className="w-16 h-16 mb-3 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-500 shadow-xl border-4 border-blue-400">
+              <span className="text-white text-3xl select-none">🔍</span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight mb-1">Search Wallet</h1>
+            <p className="text-cyan-100 text-sm font-medium text-center max-w-xs">
+              Enter a wallet address and select a chain (Ethereum, BSC, Polygon, Bitcoin, Solana, or Tron) to view its reputation, flags, ratings, and transaction history.
+            </p>
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">Search Wallet</h1>
-          <p className="text-gray-400 text-sm font-medium text-center max-w-xs">
-            Enter a wallet address and select a chain (Ethereum, BSC, Polygon, Bitcoin, Solana, or Tron) to view its reputation, flags, ratings, and transaction history.
-          </p>
-        </div>
-        <form onSubmit={handleSearch} className="w-full flex flex-col items-center gap-3">
-          <div className="w-full flex flex-col gap-2">
-            <label className="text-gray-700 font-semibold mb-1" htmlFor="chain">Select Chain</label>
-            <select
+          <form onSubmit={handleSearch} className="w-full flex flex-col items-center gap-3">
+            <div className="w-full flex flex-col gap-2">
+              <label className="text-cyan-100 font-semibold mb-1" htmlFor="chain">Select Chain</label>
+              <select
               id="chain"
-              className="w-full px-4 py-2 rounded-lg border border-blue-400 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg border border-blue-400 bg-white text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={chain}
               onChange={e => setChain(e.target.value)}
             >
@@ -74,7 +81,7 @@ export default function SearchPage() {
           <div className="w-full flex items-center bg-gray-100 border-2 border-blue-500 rounded-full shadow-md px-3 py-2 focus-within:ring-2 focus-within:ring-blue-400 transition-all">
             <span className="text-blue-500 text-xl mr-2">🔎</span>
             <input
-              className="flex-1 bg-transparent outline-none text-gray-900 font-mono text-base placeholder-gray-400 px-2"
+              className="flex-1 bg-transparent outline-none text-white font-mono text-base placeholder-gray-400 px-2"
               placeholder={
                 chain === "bitcoin"
                   ? "e.g. 1A1zP1... (BTC address)"
@@ -125,13 +132,7 @@ export default function SearchPage() {
           to { opacity: 1; transform: none; }
         }
       `}</style>
-      <footer className="w-full bg-gradient-to-r from-[#e0e7ef] via-[#f3f6fa] to-[#e0e7ef] text-gray-700 py-3 px-4 border-t border-blue-100 flex items-center justify-between" style={{minHeight:'48px'}}>
-        <div className="flex items-center gap-2">
-          <img src="/block411-logo.svg" alt="Blockpage411 Logo" className="w-7 h-7" />
-          <span className="font-bold tracking-wide text-sm">Blockpage411</span>
-        </div>
-        <div className="text-xs text-gray-500">&copy; {new Date().getFullYear()} Blockpage411</div>
-      </footer>
+      <Footer />
     </div>
   );
 }
