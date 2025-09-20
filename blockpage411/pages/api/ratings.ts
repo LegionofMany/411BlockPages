@@ -19,20 +19,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch {
     return res.status(401).json({ message: 'Invalid token' });
   }
-  const { address, score } = req.body;
-  if (!address || typeof score !== 'number' || score < 1 || score > 5) {
-    return res.status(400).json({ message: 'Address and valid score required' });
+  const { address, chain, score } = req.body;
+  if (!address || !chain || typeof score !== 'number' || score < 1 || score > 5) {
+    return res.status(400).json({ message: 'Address, chain, and valid score required' });
   }
   const userAddress = typeof payload === 'object' && payload !== null && 'address' in payload ? (payload as any).address : undefined;
   if (!userAddress) {
     return res.status(401).json({ message: 'Invalid token payload' });
   }
   await dbConnect();
-  let wallet = await Wallet.findOne({ address });
+  let wallet = await Wallet.findOne({ address, chain });
   if (!wallet) {
-    wallet = await Wallet.create({ address });
+    wallet = await Wallet.create({ address, chain });
   }
-  // Only 1 rating per user per wallet
+  // Only 1 rating per user per wallet per chain
   const existing = wallet.ratings.find((r: any) => r.user === userAddress);
   if (existing) {
     return res.status(429).json({ message: 'Already rated' });

@@ -19,23 +19,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch {
     return res.status(401).json({ message: 'Invalid token' });
   }
-  const { address, reason } = req.body;
-  if (!address || !reason) {
-    return res.status(400).json({ message: 'Address and reason required' });
+  const { address, chain, reason } = req.body;
+  if (!address || !chain || !reason) {
+    return res.status(400).json({ message: 'Address, chain, and reason required' });
   }
   const userAddress = typeof payload === 'object' && payload !== null && 'address' in payload ? (payload as any).address : undefined;
   if (!userAddress) {
     return res.status(401).json({ message: 'Invalid token payload' });
   }
   await dbConnect();
-  let wallet = await Wallet.findOne({ address });
+  let wallet = await Wallet.findOne({ address, chain });
   if (!wallet) {
-    wallet = await Wallet.create({ address });
+    wallet = await Wallet.create({ address, chain });
   }
-  // Rate limit: max 5 flags/day per user
+  // Rate limit: max 5 flags/day per user across all chains
   const today = new Date();
   today.setHours(0,0,0,0);
-  const userFlagsToday = wallet.flags.filter((f: any) => f.user === userAddress && new Date(f.date) >= today);
+  const userFlagsToday = await Wallet.aggregate([
+    { $unwind: "$flags" },
+    { $match: { "flags.user": userAddress, "flags.date": { $gte: today } } },
+  ]);
   if (userFlagsToday.length >= 5) {
     return res.status(429).json({ message: 'Flag limit reached' });
   }
