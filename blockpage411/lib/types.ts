@@ -1,3 +1,35 @@
+// Blockpage411 v3: User profile and donation types
+export interface DonationRequest {
+  platform: string; // e.g. 'Gitcoin', 'OpenCollective', etc.
+  url: string;
+  description?: string;
+  active: boolean;
+}
+
+export type KycStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
+
+export interface UserProfile {
+  address: string;
+  displayName?: string;
+  avatarUrl?: string;
+  bio?: string;
+  telegram?: string;
+  twitter?: string;
+  discord?: string;
+  website?: string;
+  whatsapp?: string;
+  facebook?: string;
+  instagram?: string;
+  linkedin?: string;
+  phoneApps?: string[];
+  kycStatus?: KycStatus;
+  kycRequestedAt?: string;
+  kycVerifiedAt?: string;
+  donationRequests?: DonationRequest[];
+  verificationScore?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
 export interface Flag {
   reason: string;
   user: string;

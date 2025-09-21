@@ -29,5 +29,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) {
     return res.status(404).json({ message: 'User not found' });
   }
-  res.status(200).json({ address: user.address });
+  // Compute verification score and badge
+  let score = 0;
+  if (user.address) score += 10;
+  if (user.displayName) score += 10;
+  if (user.avatarUrl) score += 10;
+  if (user.bio) score += 5;
+  if (user.telegram) score += 10;
+  if (user.twitter) score += 10;
+  if (user.discord) score += 10;
+  if (user.website) score += 5;
+  if (user.phoneApps && user.phoneApps.length > 0) score += 10;
+  if (user.kycStatus === 'verified') score += 20;
+  // Add points for donationRequests
+  if (user.donationRequests && (user.donationRequests as import('../../lib/types').DonationRequest[]).some((d) => d.active)) score += 10;
+  // Badge logic
+  let badge = 'Bronze';
+  if (score >= 80) badge = 'Diamond';
+  else if (score >= 60) badge = 'Gold';
+  else if (score >= 40) badge = 'Silver';
+
+  res.status(200).json({
+    address: user.address,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    bio: user.bio,
+    telegram: user.telegram,
+    twitter: user.twitter,
+    discord: user.discord,
+    website: user.website,
+    phoneApps: user.phoneApps,
+    kycStatus: user.kycStatus,
+    kycRequestedAt: user.kycRequestedAt,
+    kycVerifiedAt: user.kycVerifiedAt,
+    donationRequests: user.donationRequests as import('../../lib/types').DonationRequest[],
+    verificationScore: score,
+    verificationBadge: badge,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  });
 }

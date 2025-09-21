@@ -1,0 +1,27 @@
+
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : [{"txid":"4f7d5f87eb51838f174ececdcedb1eccf28ad15586e1bfa4b4f1b917da1565d3","ver
+                    sion":2,"locktime":0,"vin":[{"txid":"ee1283f3ff2e9cb60d3cfba3777027dab15eb6798ce
+                    b67dc17711713063f8f15","vout":1,"prevout...
+RawContent        : HTTP/1.1 200 OK
+                    Connection: keep-alive
+                    Vary: Accept-Encoding
+                    Access-Control-Allow-Origin: *
+                    Access-Control-Expose-Headers: x-total-results
+                    X-Frame-Options: SAMEORIGIN
+                    Content-Security-Policy: de...
+Forms             : {}
+Headers           : {[Connection, keep-alive], [Vary, Accept-Encoding], 
+                    [Access-Control-Allow-Origin, *], [Access-Control-Expose-Headers, 
+                    x-total-results]...}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : System.__ComObject
+RawContentLength  : 2294314
+
+
+
+

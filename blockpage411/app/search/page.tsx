@@ -36,6 +36,12 @@ export default function SearchPage() {
         setError("Invalid Tron address");
         return;
       }
+    } else if (chain === "xrp") {
+      // XRP classic address: starts with r, 25-35 chars, base58
+      if (!/^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(address)) {
+        setError("Invalid XRP address");
+        return;
+      }
     } else {
       if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
         setError("Invalid EVM address");
@@ -76,6 +82,7 @@ export default function SearchPage() {
               <option value="bitcoin">Bitcoin</option>
               <option value="solana">Solana</option>
               <option value="tron">Tron</option>
+              <option value="xrp">XRP</option>
             </select>
           </div>
           <div className="w-full flex items-center bg-gray-100 border-2 border-blue-500 rounded-full shadow-md px-3 py-2 focus-within:ring-2 focus-within:ring-blue-400 transition-all">
@@ -93,6 +100,8 @@ export default function SearchPage() {
                   ? "e.g. 4Nd1m... (Solana address)"
                   : chain === "tron"
                   ? "e.g. TQJt... (Tron address)"
+                  : chain === "xrp"
+                  ? "e.g. rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv (XRP address)"
                   : "e.g. 0x1234...abcd (Ethereum address)"
               }
               value={address}
@@ -117,6 +126,8 @@ export default function SearchPage() {
               ? "Invalid Solana address. Please enter a valid Solana address."
               : chain === "tron"
               ? "Invalid Tron address. Please enter a valid Tron address."
+              : chain === "xrp"
+              ? "Invalid XRP address. Please enter a valid XRP address."
               : "Invalid EVM address. Please enter a valid Ethereum, BSC, or Polygon address (0x...)."}
           </div>
         )}

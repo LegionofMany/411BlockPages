@@ -1,11 +1,31 @@
+import axios from "axios";
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
 import { Transaction } from 'lib/types';
 
-import axios from 'axios';
+// ...existing code...
 import { fetchSolanaTxs } from '../../../../services/solscan';
 import { fetchTronTxs } from '../../../../services/tronscan';
+// (removed duplicate import)
+// Fetch XRP transactions using public API (xrpscan) and map to Transaction type
+async function fetchXrpTxs(address: string) {
+  try {
+    const { data } = await axios.get(`https://api.xrpscan.com/api/v1/account/${address}/transactions`);
+    // xrpscan returns {transactions: [...]}
+    const txs = Array.isArray(data.transactions) ? data.transactions : Array.isArray(data) ? data : [];
+    return txs.map((item: Record<string, unknown>) => ({
+      hash: typeof item.hash === 'string' ? item.hash : typeof item.tx_hash === 'string' ? item.tx_hash : '',
+      from: typeof item.tx === 'object' && item.tx !== null && 'Account' in item.tx ? (item.tx as Record<string, unknown>).Account as string : '',
+      to: typeof item.tx === 'object' && item.tx !== null && 'Destination' in item.tx ? (item.tx as Record<string, unknown>).Destination as string : '',
+      value: typeof item.tx === 'object' && item.tx !== null && typeof (item.tx as Record<string, unknown>).Amount === 'string' ? (item.tx as Record<string, unknown>).Amount as string : (typeof item.tx === 'object' && item.tx !== null && typeof (item.tx as Record<string, unknown>).Amount === 'object' ? ((item.tx as Record<string, unknown>).Amount as Record<string, unknown>).value as string : ''),
+      date: typeof item.date === 'string' ? item.date : typeof item.tx === 'object' && item.tx !== null && 'date' in item.tx ? (item.tx as Record<string, unknown>).date as string : '',
+      type: typeof item.tx === 'object' && item.tx !== null && 'TransactionType' in item.tx ? (item.tx as Record<string, unknown>).TransactionType as string : '',
+    }));
+  } catch {
+    return [];
+  }
+}
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY as string;
 
@@ -67,10 +87,30 @@ async function fetchEvmTxs(chain: string, address: string) {
   return [];
 }
 
+// Map Bitcoin txs to Transaction type
 async function fetchBitcoinTxs(address: string) {
   try {
     const { data } = await axios.get(`https://blockstream.info/api/address/${address}/txs`);
-    return data;
+    if (!Array.isArray(data)) return [];
+    return data.map((tx: Record<string, unknown>) => {
+      // Collect all input addresses
+      const vinArr = Array.isArray(tx.vin) ? tx.vin : [];
+      const fromAddresses = vinArr.map((vin) => typeof vin === 'object' && vin !== null && 'prevout' in vin && vin.prevout && typeof vin.prevout === 'object' && 'scriptpubkey_address' in vin.prevout ? (vin.prevout as Record<string, unknown>).scriptpubkey_address as string : '').filter(Boolean);
+      // Collect all output addresses and values
+      const voutArr = Array.isArray(tx.vout) ? tx.vout : [];
+      const outputs = voutArr.map((vout) => typeof vout === 'object' && vout !== null && 'scriptpubkey_address' in vout && 'value' in vout ? { to: vout.scriptpubkey_address as string, value: vout.value as number } : { to: '', value: 0 });
+      return {
+        txid: typeof tx.txid === 'string' ? tx.txid : '',
+        hash: typeof tx.txid === 'string' ? tx.txid : '',
+        from: fromAddresses.join(', '),
+        to: outputs.map(o => o.to).join(', '),
+        value: outputs.map(o => o.value).join(', '),
+        vout: voutArr,
+        block: tx.status && typeof tx.status === 'object' && tx.status !== null && 'block_height' in tx.status ? (tx.status as Record<string, unknown>).block_height as number : null,
+        date: tx.status && typeof tx.status === 'object' && tx.status !== null && 'block_time' in tx.status ? new Date(((tx.status as Record<string, unknown>).block_time as number) * 1000).toISOString() : '',
+        type: 'transfer',
+      };
+    });
   } catch {
     return [];
   }
@@ -107,6 +147,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         txs = await fetchSolanaTxs(address);
       } else if (chain === 'tron') {
         txs = await fetchTronTxs(address);
+      } else if (chain === 'xrp') {
+        txs = await fetchXrpTxs(address);
       } else {
         txs = await fetchEvmTxs(chain, address);
       }
