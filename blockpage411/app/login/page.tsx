@@ -13,7 +13,7 @@ export default function LoginPage() {
   useEffect(() => {
     setMounted(true);
     // Check if user is already authenticated
-    axios.get("/api/me").then(() => {
+    axios.get("/api/me", { withCredentials: true }).then(() => {
       router.replace("/search");
     }).catch(() => {});
   }, [router]);
@@ -33,8 +33,8 @@ export default function LoginPage() {
       const message = `Login nonce: ${data.nonce}`;
       // 2. Sign nonce
       const signature = await signMessageAsync({ message });
-      // 3. Verify signature
-      await axios.post("/api/auth/verify", { address, signature });
+  // 3. Verify signature
+  await axios.post("/api/auth/verify", { address, signature }, { withCredentials: true });
       // On success, redirect or update UI as needed
   router.push("/search");
     } catch {

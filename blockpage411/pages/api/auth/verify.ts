@@ -7,6 +7,7 @@ import { verifyMessage } from 'ethers';
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('AUTH VERIFY: method', req.method, 'body', req.body);
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -36,6 +37,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   // Issue JWT
   const token = jwt.sign({ address }, JWT_SECRET, { expiresIn: '1d' });
-  res.setHeader('Set-Cookie', `token=${token}; HttpOnly; Path=/; Secure; SameSite=Strict`);
+  const isProd = process.env.NODE_ENV === 'production';
+  const sameSite = isProd ? 'SameSite=Strict' : 'SameSite=Lax';
+  const cookie = [
+    `token=${token}`,
+    'HttpOnly',
+    'Path=/',
+    isProd ? 'Secure' : '',
+    sameSite,
+  ].filter(Boolean).join('; ');
+  console.log('AUTH VERIFY: setting cookie', cookie);
+  res.setHeader('Set-Cookie', cookie);
   res.status(200).json({ success: true });
 }

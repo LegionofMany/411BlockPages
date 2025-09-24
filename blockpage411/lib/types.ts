@@ -4,6 +4,7 @@ export interface DonationRequest {
   url: string;
   description?: string;
   active: boolean;
+  expiresAt?: string | number;
 }
 
 export type KycStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
@@ -51,4 +52,5 @@ export interface Transaction {
   from?: string;
   to?: string;
   value?: string;
+  date?: string | number;
 }

@@ -25,7 +25,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-  <body className={`bg-gradient-to-br from-gray-900 via-black to-blue-900 text-white min-h-screen ${geistSans.variable} ${geistMono.variable}`}>
+      <body
+        className={`bg-darkbg text-darktext min-h-screen ${geistSans.variable} ${geistMono.variable}`}
+        style={{
+          background: 'linear-gradient(135deg, #0a1020 0%, #1a223a 60%, #223366 100%)',
+          color: '#f8fafc',
+        }}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

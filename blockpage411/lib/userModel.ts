@@ -28,6 +28,13 @@ const UserSchema = new Schema({
   }],
   verificationScore: { type: Number, default: 0 },
   profileUpdateHistory: [{ type: Date }], // for rate limiting
+  // v4 admin fields
+  blacklisted: { type: Boolean, default: false },
+  blacklistReason: { type: String },
+  blacklistedAt: { type: Date },
+  banned: { type: Boolean, default: false },
+  bannedReason: { type: String },
+  bannedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

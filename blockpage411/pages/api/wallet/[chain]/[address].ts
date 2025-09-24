@@ -4,6 +4,26 @@ import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
 import { Transaction } from 'lib/types';
 
+// Types for Wallet document
+type WalletDoc = {
+  address: string;
+  chain: string;
+  ens?: string;
+  avgRating?: number;
+  nftCount?: number;
+  blacklisted?: boolean;
+  flags?: { reason: string; user: string; date: string }[];
+  kycStatus?: string;
+};
+// Helper to get status tags for a wallet
+function getStatusTags(wallet: WalletDoc) {
+  const tags = [];
+  if (wallet?.blacklisted) tags.push('Blacklisted');
+  if (wallet?.flags && wallet.flags.length > 0) tags.push(`Flagged (${wallet.flags.length})`);
+  if (wallet?.kycStatus === 'verified') tags.push('Verified');
+  return tags;
+}
+
 // ...existing code...
 import { fetchSolanaTxs } from '../../../../services/solscan';
 import { fetchTronTxs } from '../../../../services/tronscan';
@@ -124,6 +144,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   await dbConnect();
   let wallet = await Wallet.findOne({ address, chain });
+  if (wallet && wallet.blacklisted) {
+    return res.status(403).json({ message: 'This wallet is blacklisted.' });
+  }
   const now = new Date();
   let txs: Transaction[] = [];
   let shouldUpdate = false;
@@ -172,11 +195,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     address: wallet?.address || address,
     chain: wallet?.chain || chain,
     flags: wallet?.flags || [],
-    ratings: wallet?.ratings || [],
+    ratings: (wallet?.ratings || []).map((r: {
+      user: string;
+      score: number;
+      date: string;
+      text?: string;
+      approved?: boolean;
+      flagged?: boolean;
+      flaggedReason?: string;
+    }) => ({
+      user: r.user,
+      score: r.score,
+      date: r.date,
+      text: r.text,
+      approved: r.approved,
+      flagged: r.flagged,
+      flaggedReason: r.flaggedReason,
+    })),
     avgRating: wallet?.avgRating || 0,
     transactions: txs,
     ens: wallet?.ens || null,
     nftCount: wallet?.nftCount || 0,
     lastRefreshed: wallet?.lastRefreshed || null,
+    statusTags: getStatusTags(wallet),
   });
 }

@@ -10,23 +10,28 @@ interface JwtPayload {
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('API/ME: cookies', req.cookies);
   const token = req.cookies.token;
   if (!token) {
+    console.log('API/ME: No token cookie');
     return res.status(401).json({ message: 'Not authenticated' });
   }
   let payload: JwtPayload | string;
   try {
     payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
-  } catch {
+  } catch (e) {
+    console.log('API/ME: Invalid token', e);
     return res.status(401).json({ message: 'Invalid token' });
   }
   const userAddress = typeof payload === 'object' && payload !== null ? payload.address : undefined;
   if (!userAddress) {
+    console.log('API/ME: Invalid token payload', payload);
     return res.status(401).json({ message: 'Invalid token payload' });
   }
   await dbConnect();
   const user = await User.findOne({ address: userAddress });
   if (!user) {
+    console.log('API/ME: User not found', userAddress);
     return res.status(404).json({ message: 'User not found' });
   }
   // Compute verification score and badge
