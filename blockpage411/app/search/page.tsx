@@ -8,18 +8,39 @@
   export default function SearchPage() {
     const [address, setAddress] = useState("");
     const [chain, setChain] = useState("ethereum");
+      type SearchProfile = {
+        address: string;
+        chain: string;
+        ens?: string;
+        avgRating?: number;
+        nftCount?: number;
+        statusTags?: string[];
+      };
+      const [results, setResults] = useState<SearchProfile[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
     const router = useRouter();
 
-    function handleSearch(e: React.FormEvent) {
+    async function handleSearch(e: React.FormEvent) {
       e.preventDefault();
       if (!address.trim()) return;
-      router.push(`/wallet/${chain}/${address.trim()}`);
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(`/api/search?q=${address.trim()}&chain=${chain}`);
+        const data = await res.json();
+        setResults(data.results || []);
+      } catch {
+        setError("Failed to fetch search results");
+      } finally {
+        setLoading(false);
+      }
     }
 
     return (
       <div className="min-h-screen bg-darkbg flex flex-col">
         <Navbar variant="search" />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center">
           <div className="relative z-10 bg-darkbg-light rounded-2xl shadow-card w-full max-w-md flex flex-col items-center animate-fade-in border-2 border-blue-800 p-6">
             {/* Icon and Title */}
             <div className="mb-6 flex flex-col items-center">
@@ -83,6 +104,31 @@
                 </button>
               </div>
             </form>
+            {/* Search Results Section */}
+            {loading && <div className="mt-4 text-blue-400">Loading...</div>}
+            {error && <div className="mt-4 text-red-400">{error}</div>}
+            {results.length > 0 && (
+              <div className="mt-6 w-full">
+                <h2 className="text-lg font-bold text-blue-300 mb-2">Search Results</h2>
+                <ul className="space-y-4">
+                  {results.map((profile, i) => (
+                    <li key={i} className="bg-gray-900 border border-blue-700 rounded-xl p-4 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-cyan-200 text-base">{profile.address}</span>
+                        <span className="text-xs px-2 py-1 rounded bg-blue-800 text-blue-200">{profile.chain}</span>
+                        {profile.statusTags && profile.statusTags.map((tag:string, j:number) => (
+                          <span key={j} className={`text-xs px-2 py-1 rounded font-bold ${tag.includes('Blacklisted') ? 'bg-red-700 text-red-100' : tag.includes('Flagged') ? 'bg-yellow-700 text-yellow-100' : tag.includes('Verified') ? 'bg-green-700 text-green-100' : 'bg-blue-700 text-blue-100'}`}>{tag}</span>
+                        ))}
+                      </div>
+                      {profile.ens && <div className="text-blue-300 text-sm">ENS: {profile.ens}</div>}
+                      {profile.avgRating !== undefined && <div className="text-blue-300 text-sm">Avg Rating: {profile.avgRating}</div>}
+                      {profile.nftCount !== undefined && <div className="text-blue-300 text-sm">NFTs: {profile.nftCount}</div>}
+                      <button className="mt-2 px-3 py-1 rounded bg-blue-700 text-white font-bold" onClick={()=>router.push(`/wallet/${profile.chain}/${profile.address}`)}>View Profile</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
         {/* Animation keyframes */}

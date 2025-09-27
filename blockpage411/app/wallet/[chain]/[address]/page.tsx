@@ -6,8 +6,149 @@ import { useState } from "react";
 import Footer from "../../../components/Footer";
 import Image from "next/image";
 import type { DonationRequest } from "../../../../lib/types";
+import React from "react";
+
+// CommunityTab component for admin moderation
+type CommunityTabProps = {
+  data: {
+    flags?: Array<{ _id: string }>;
+    donationRequests?: Array<{ _id: string; active: boolean }>;
+  };
+  address: string;
+  mutate: () => void;
+};
+type ModalData = {
+  wallet?: string;
+  flagId?: string;
+  donationId?: string;
+};
+function CommunityTab({ data, address, mutate }: CommunityTabProps) {
+  const [showModal, setShowModal] = React.useState<string|null>(null);
+  const [modalData, setModalData] = React.useState<ModalData|null>(null);
+  // Toast notification state
+  const [toast, setToast] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // Helper to show toast
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+  return (
+    <div className="mb-6 bg-blue-950/60 border border-blue-700 rounded-xl p-4">
+      <h2 className="text-lg font-bold text-yellow-300 mb-2">Community Moderation (Admin)</h2>
+      <div className="flex flex-col gap-2">
+        <button className="px-4 py-2 rounded bg-red-700 text-white font-bold" onClick={()=>{setShowModal('blacklist');setModalData({wallet: address});}}>Blacklist Wallet</button>
+        {data?.flags && data.flags.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-base font-semibold text-yellow-200 mb-2">Flags</h3>
+            <ul className="space-y-2">
+              {data.flags.map((flag: any) => (
+                <li key={flag._id} className="bg-yellow-900/40 border border-yellow-700 rounded p-3 flex flex-col gap-1">
+                  <span className="text-yellow-100 text-sm">Flag ID: <span className="font-mono">{flag._id}</span></span>
+                  {flag.reason && <span className="text-yellow-200 text-xs">Reason: {flag.reason}</span>}
+                  {flag.date && <span className="text-yellow-200 text-xs">Date: {new Date(flag.date).toLocaleString()}</span>}
+                  {flag.flaggedBy && <span className="text-yellow-200 text-xs">Flagged By: {flag.flaggedBy}</span>}
+                  <button
+                    className="mt-2 px-3 py-1 rounded bg-yellow-700 text-white font-bold text-xs self-start"
+                    onClick={() => {
+                      setShowModal('dismissFlag');
+                      setModalData({ wallet: address, flagId: flag._id, reason: flag.reason, date: flag.date, flaggedBy: flag.flaggedBy });
+                    }}
+                  >
+                    Dismiss Flag
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {data?.donationRequests && data.donationRequests.some((d: { active: boolean })=>d.active) && (
+          <button
+            className="px-4 py-2 rounded bg-indigo-700 text-white font-bold"
+            onClick={() => {
+              const activeDonation = data?.donationRequests?.find((d: { active: boolean }) => d.active);
+              if (activeDonation?._id) {
+                setShowModal('deactivateDonation');
+                setModalData({ donationId: activeDonation._id });
+              }
+            }}
+          >
+            Deactivate Donation
+          </button>
+        )}
+      </div>
+      {/* Confirmation Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl p-6 border border-blue-700 shadow-xl w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4 text-yellow-200">Confirm Admin Action</h3>
+            {showModal === 'dismissFlag' && modalData && (
+              <div className="mb-4 text-blue-200 text-sm">
+                <div><b>Flag ID:</b> <span className="font-mono">{modalData.flagId}</span></div>
+                {modalData.reason && <div><b>Reason:</b> {modalData.reason}</div>}
+                {modalData.date && <div><b>Date:</b> {new Date(modalData.date).toLocaleString()}</div>}
+                {modalData.flaggedBy && <div><b>Flagged By:</b> {modalData.flaggedBy}</div>}
+              </div>
+            )}
+            <p className="mb-4 text-blue-200">Are you sure you want to {showModal === 'blacklist' ? 'blacklist this wallet' : showModal === 'dismissFlag' ? 'dismiss this flag' : 'deactivate this donation'}?</p>
+            <div className="flex gap-4">
+              <button className="px-4 py-2 rounded bg-green-700 text-white font-bold" onClick={async()=>{
+                if (!modalData) return;
+                try {
+                  if(showModal==='blacklist'){
+                    await fetch('/api/admin/blacklist', {method:'POST',headers:{'Content-Type':'application/json','x-admin-address':address},body:JSON.stringify({wallet:modalData.wallet,reason:'Admin action'})});
+                  }
+                  if(showModal==='dismissFlag'){
+                    await fetch('/api/admin/dismissFlag', {method:'POST',headers:{'Content-Type':'application/json','x-admin-address':address},body:JSON.stringify({wallet:modalData.wallet,flagId:modalData.flagId})});
+                  }
+                  if(showModal==='deactivateDonation'){
+                    await fetch('/api/admin/deactivateDonation', {method:'POST',headers:{'Content-Type':'application/json','x-admin-address':address},body:JSON.stringify({donationId:modalData.donationId})});
+                  }
+                  showToast('success', 'Action completed successfully');
+                  setShowModal(null); mutate();
+                } catch (err) {
+                  showToast('error', 'Action failed');
+                  setShowModal(null);
+                }
+             }}>Confirm</button>
+              <button className="px-4 py-2 rounded bg-gray-700 text-white font-bold" onClick={()=>setShowModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded shadow-xl z-50 text-white font-bold ${toast.type === 'success' ? 'bg-green-700' : 'bg-red-700'}`}>
+          {toast.message}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function WalletProfile() {
+  // ...existing code...
+  // Place debug JSX after all variable declarations
+  const router = useRouter();
+  const params = useParams();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminWallets, setAdminWallets] = useState<string[]>([]);
+  // Removed duplicate declaration of params
+  // Removed duplicate declaration of router
+  const chain = typeof params?.chain === 'string' ? params.chain : Array.isArray(params?.chain) ? params.chain[0] : '';
+  const address = typeof params?.address === 'string' ? params.address : Array.isArray(params?.address) ? params.address[0] : '';
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const envAdmins = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '').split(',').map(a => a.toLowerCase().trim());
+      setAdminWallets(envAdmins);
+      const currentAddress = address.toLowerCase();
+      const isAdminWallet = envAdmins.includes(currentAddress);
+      setIsAdmin(isAdminWallet);
+      // Debug logs
+      console.log('Admin Wallets:', envAdmins);
+      console.log('Current Wallet:', currentAddress);
+      console.log('Is Admin:', isAdminWallet);
+    }
+  }, [address]);
   // Flagging state
   const [flagReason, setFlagReason] = useState("");
   const [flagSendAddress, setFlagSendAddress] = useState("");
@@ -20,10 +161,7 @@ export default function WalletProfile() {
   const [avatarFile, setAvatarFile] = useState<File|null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string|null>(null);
-  const params = useParams();
-  const router = useRouter();
-  const chain = typeof params?.chain === 'string' ? params.chain : Array.isArray(params?.chain) ? params.chain[0] : '';
-  const address = typeof params?.address === 'string' ? params.address : Array.isArray(params?.address) ? params.address[0] : '';
+  // Use only one set of params, chain, and address declarations
   const { data, mutate } = useSWR(chain && address ? `/api/wallet/${chain}/${address}` : null, url => fetch(url).then(res => res.json()));
   const [editing, setEditing] = useState(false);
   const [editProfile, setEditProfile] = useState({ displayName: '', avatarUrl: '', bio: '', telegram: '', twitter: '', discord: '', website: '' });
@@ -53,6 +191,13 @@ export default function WalletProfile() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900 flex flex-col items-center">
+      {/* Navbar is fixed, so add margin-top to push debug info below it */}
+      <div style={{ marginTop: '80px' }} className="bg-gray-800 text-yellow-300 p-3 rounded mb-4 text-xs w-full max-w-xl">
+        <div><strong>Debug Info:</strong></div>
+        <div>Current Wallet: <span className="font-mono">{address}</span></div>
+        <div>Admin Wallets: <span className="font-mono">{adminWallets.join(", ")}</span></div>
+        <div>Is Admin: <span className="font-bold">{isAdmin ? "YES" : "NO"}</span></div>
+      </div>
   <Navbar variant="wallet" />
       <div className="max-w-xl w-full bg-gray-900/80 rounded-2xl shadow-xl mt-10 p-8 flex flex-col items-center border border-blue-700">
         <div className="flex flex-col items-center mb-6">
@@ -66,6 +211,12 @@ export default function WalletProfile() {
           <span className="text-2xl font-bold text-cyan-100">{data?.displayName || "Wallet Profile"}</span>
           <span className="font-mono text-lg text-cyan-200 break-all mt-2">{address}</span>
           <span className="text-cyan-400 mt-1">Chain: {chain}</span>
+          {/* Status tags on profile page */}
+          <div className="flex gap-2 mt-2">
+            {data?.blacklisted && <span className="px-2 py-1 rounded bg-red-700 text-red-100 text-xs font-bold">Blacklisted</span>}
+            {data?.flags && data.flags.length > 0 && <span className="px-2 py-1 rounded bg-yellow-700 text-yellow-100 text-xs font-bold">Flagged ({data.flags.length})</span>}
+            {data?.kycStatus === 'verified' && <span className="px-2 py-1 rounded bg-green-700 text-green-100 text-xs font-bold">Verified</span>}
+          </div>
           {data?.verificationBadge && <span className="px-2 py-1 rounded bg-yellow-700 text-yellow-200 text-xs font-semibold mt-2">{data.verificationBadge} Badge</span>}
         </div>
         <div className="w-full text-left text-blue-200">
@@ -120,6 +271,10 @@ export default function WalletProfile() {
             <div className="mt-2 text-sm text-red-300">This wallet has been flagged {data.flags.length} time{data.flags.length > 1 ? "s" : ""}.</div>
           )}
         </div>
+        {/* Community Tab for Admins */}
+        {isAdmin && (
+          <CommunityTab data={data} address={address} mutate={mutate} />
+        )}
           <h2 className="text-lg font-semibold mb-2">Profile Info</h2>
           {editing ? (
             <form className="space-y-3" onSubmit={async e => {

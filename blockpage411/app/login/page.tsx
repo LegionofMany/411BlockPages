@@ -13,9 +13,17 @@ export default function LoginPage() {
   useEffect(() => {
     setMounted(true);
     // Check if user is already authenticated
-    axios.get("/api/me", { withCredentials: true }).then(() => {
-      router.replace("/search");
-    }).catch(() => {});
+    axios.get("/api/me", { withCredentials: true })
+      .then(() => {
+        router.replace("/search");
+      })
+      .catch((err) => {
+        if (err.response && err.response.status !== 401) {
+          // Only log unexpected errors
+          console.warn("Unexpected /api/me error:", err);
+        }
+        // Do not redirect or show warning for 401 (not logged in yet)
+      });
   }, [router]);
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
@@ -33,10 +41,12 @@ export default function LoginPage() {
       const message = `Login nonce: ${data.nonce}`;
       // 2. Sign nonce
       const signature = await signMessageAsync({ message });
-  // 3. Verify signature
-  await axios.post("/api/auth/verify", { address, signature }, { withCredentials: true });
+      // 3. Verify signature
+      await axios.post("/api/auth/verify", { address, signature }, { withCredentials: true });
+      // Save wallet address for admin panel access
+  window.localStorage.setItem("wallet", address || "");
       // On success, redirect or update UI as needed
-  router.push("/search");
+      router.push("/search");
     } catch {
       setError("Login failed. Please try again.");
     } finally {
