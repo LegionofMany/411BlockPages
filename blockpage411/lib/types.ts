@@ -32,9 +32,11 @@ export interface UserProfile {
   updatedAt?: string;
 }
 export interface Flag {
+  _id: string;
   reason: string;
   user: string;
   date: string;
+  flaggedBy?: string;
 }
 
 export interface Vout {

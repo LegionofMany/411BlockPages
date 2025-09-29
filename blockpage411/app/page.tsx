@@ -95,11 +95,11 @@ export default function Home() {
             ))}
           </div>
         </section>
-        {/* What's New in v4 Section */}
+        {/* What's New in v5 Section */}
         <section className="w-full max-w-5xl mx-auto py-12">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-extrabold text-white mb-2">What&apos;s New in v4</h2>
-            <p className="text-lg text-cyan-100">Major upgrades for trust, reputation, and community safety.</p>
+            <h2 className="text-3xl font-extrabold text-white mb-2">What&apos;s New in v5</h2>
+            <p className="text-lg text-cyan-100">Full automation, multi-chain support (BTC, ETH, BSC, Polygon, XRP), admin dashboards, background jobs, real-time suspicious wallet detection, and more.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div className="card flex flex-col items-center p-6">
@@ -125,6 +125,18 @@ export default function Home() {
             <div className="card flex flex-col items-center p-6">
               <span className="badge bg-red-500 text-white mb-3">Moderation & Safety</span>
               <p className="text-cyan-100 text-center">Flag, report, and moderate wallets for community safety.</p>
+            </div>
+            <div className="card flex flex-col items-center p-6">
+              <span className="badge bg-blue-700 text-white mb-3">Admin Dashboards</span>
+              <p className="text-cyan-100 text-center">Special admin panel, suspicious wallet detection, and real-time automation.</p>
+            </div>
+            <div className="card flex flex-col items-center p-6">
+              <span className="badge bg-orange-500 text-white mb-3">Background Jobs</span>
+              <p className="text-cyan-100 text-center">Automated transaction refresh and suspicious wallet scanning for all chains.</p>
+            </div>
+            <div className="card flex flex-col items-center p-6">
+              <span className="badge bg-gray-700 text-white mb-3">Multi-Chain Automation</span>
+              <p className="text-cyan-100 text-center">Bitcoin, Ethereum, BSC, Polygon, XRP, and more supported for real-time detection.</p>
             </div>
           </div>
         </section>

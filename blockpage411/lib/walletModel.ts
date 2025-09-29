@@ -29,6 +29,12 @@ const WalletSchema = new Schema({
   blacklisted: { type: Boolean, default: false },
   blacklistReason: { type: String },
   blacklistedAt: { type: Date },
+  // v5 fields for detection logic
+  txCount: { type: Number, default: 0 },
+  lastTxWithinHours: { type: Number, default: 9999 },
+  kycStatus: { type: String, default: 'unknown' },
+  suspicious: { type: Boolean, default: false },
+  flagsList: [{ type: String }], // for admin/manual flags
 });
 
 WalletSchema.index({ address: 1, chain: 1 }, { unique: true });
