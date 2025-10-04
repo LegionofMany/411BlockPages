@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
-export default function Navbar({ variant = "landing" }: { variant?: "landing" | "search" | "wallet" }) {
+export default function Navbar({ variant = "landing" }: { variant?: "landing" | "search" | "wallet" | "admin" }) {
   const router = useRouter();
   return (
     <nav className="w-full flex items-center justify-between px-4 md:px-8 py-3 md:py-4 bg-gradient-to-br from-darkbg via-darkbg-light to-darkbg-accent shadow-card border-b-2 border-blue-700 fixed top-0 z-50">
@@ -38,6 +38,22 @@ export default function Navbar({ variant = "landing" }: { variant?: "landing" | 
           </>
         )}
         {variant === "wallet" && (
+          <>
+            <button
+              className="btn-primary bg-darkbg-light border-2 border-blue-700 text-darktext font-bold hover:bg-darkbg-accent hover:scale-105 transition-all duration-200"
+              onClick={() => router.push("/")}
+            >
+              Home
+            </button>
+            <button
+              className="btn-primary bg-gradient-to-r from-accent-blue to-accent-indigo border-2 border-blue-700 text-darktext font-bold hover:from-accent-indigo hover:to-accent-blue hover:scale-105 transition-all duration-200"
+              onClick={() => router.push("/search")}
+            >
+              Search
+            </button>
+          </>
+        )}
+        {variant === "admin" && (
           <>
             <button
               className="btn-primary bg-darkbg-light border-2 border-blue-700 text-darktext font-bold hover:bg-darkbg-accent hover:scale-105 transition-all duration-200"

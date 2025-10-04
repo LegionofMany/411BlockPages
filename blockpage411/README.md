@@ -1,16 +1,17 @@
 
 
-# Blockpage411 v3
 
-Blockpage411 is a professional, multi-chain 411 directory for blockchain wallets. Now with identity, community, and donation features. Search, flag, and rate wallet addresses across Ethereum, BSC, Polygon, and Bitcoin. Build trust, reputation, and support in Web3.
+# Blockpage411 v5
+
+Blockpage411 is a professional, multi-chain 411 directory for blockchain wallets. Now with advanced identity, community, and donation features. Search, flag, and rate wallet addresses across Ethereum, BSC, Polygon, Bitcoin, Solana, Avalanche, Cardano, Tron, and XRP. Build trust, reputation, and support in Web3 with a modern, glassmorphic, blockchain-themed landing page and dynamic navigation.
 
 ---
 
 
-## 🚀 Features (v3)
+## 🚀 Features (v5)
 
-- **Multi-chain wallet lookup**: Search and view wallet profiles on Ethereum, BSC, Polygon, and Bitcoin
-- **Expanded user profiles**: Add display name, avatar, bio, social links (Telegram, Twitter, Discord, website), and phone apps
+- **Multi-chain wallet lookup**: Search and view wallet profiles on Ethereum, BSC, Polygon, Bitcoin, Solana, Avalanche, Cardano, Tron, XRP, and more
+- **Expanded user profiles**: Display name, avatar, bio, social links (Telegram, Twitter, Discord, website), phone apps
 - **KYC status**: Request and display KYC verification (unverified, pending, verified, rejected)
 - **Donation requests**: Add links to Gitcoin, OpenCollective, Patreon, and more
 - **Verification score**: Community-driven trust metric
@@ -18,7 +19,10 @@ Blockpage411 is a professional, multi-chain 411 directory for blockchain wallets
 - **Transaction history**: View recent transactions per chain
 - **Flagging & rating**: Community can flag and rate wallets per chain
 - **Profile enrichment**: ENS name and NFT count for Ethereum wallets
-- **Modern, responsive UI**: Accessible, mobile-friendly, and professional design
+- **Modern, responsive UI**: Accessible, mobile-friendly, and professional blockchain design
+- **Glassmorphism & animated backgrounds**: Professional blockchain landing page with glassmorphism, animated SVG gradients, and feature highlight cards
+- **Dynamic chain logo carousel**: Responsive carousel showing supported chain logos, adjusts to all screen sizes
+- **Dropdown navigation**: Separate, animated dropdown navigation button for easy access to all pages
 
 ---
 
@@ -66,6 +70,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 ---
 
 
+
 ## 🧩 Usage
 
 - **Login**: Connect your wallet (MetaMask, Coinbase, WalletConnect)
@@ -74,6 +79,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 - **Edit Profile**: Update your display name, avatar, bio, socials, phone apps, and donation links
 - **KYC**: Request KYC verification and view status
 - **Flag/Rate**: Community can flag (e.g. scam, trusted) and rate (1-5 stars) per chain
+- **Navigation**: Use the separate dropdown navigation button at the top for quick access to Search, Admin Dashboard, Login, Demo Wallet, and Home
 
 ---
 
@@ -91,6 +97,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 ---
 
 
+
 ## 🏗️ Architecture
 
 - **Frontend**: Next.js (app directory, SWR, wagmi, ethers, tailwindcss)
@@ -98,6 +105,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 - **APIs**: Etherscan, BscScan, Polygonscan, Blockstream
 - **Database**: Wallets collection (address, chain, flags, ratings, avgRating, ens, nftCount, lastRefreshed)
 - **User collection**: Expanded user profiles (address, displayName, avatarUrl, bio, socials, phoneApps, kycStatus, donationRequests, verificationScore, timestamps)
+- **UI/UX**: Glassmorphism, animated SVG backgrounds, dynamic chain logo carousel, feature highlight cards, dropdown navigation
 
 ### API Endpoints (v3)
 
@@ -118,9 +126,12 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 
 ---
 
+
 ## 📦 Deployment
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+Deploy on [Vercel](https://vercel.com/) or your preferred platform. See [Next.js deployment docs](https://nextjs.org/docs/app/building-your-application/deploying).
 
 ## Learn More
 

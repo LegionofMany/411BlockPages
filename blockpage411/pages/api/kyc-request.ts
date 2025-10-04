@@ -40,5 +40,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   user.kycStatus = 'pending';
   user.kycRequestedAt = new Date();
   await user.save();
-  res.status(200).json({ success: true, kycStatus: user.kycStatus });
+  // Stub: In production, call Sumsub API and get a KYC session URL
+  res.status(200).json({ success: true, kycStatus: user.kycStatus, kycUrl: 'https://sumsub.com/demo-kyc' });
 }

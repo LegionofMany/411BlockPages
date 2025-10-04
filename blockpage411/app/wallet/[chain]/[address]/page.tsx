@@ -1,5 +1,5 @@
 "use client";
-import useSWR from "swr";
+import React, { useState, useEffect } from "react";
 import Navbar from "../../../components/Navbar";
 import ProfileInfo from "./ProfileInfo";
 import StatusBadges from "./StatusBadges";
@@ -8,21 +8,20 @@ import DonationSection from "./DonationSection";
 import V5UpgradeInfo from "./V5UpgradeInfo";
 import WalletFlagSection from "./WalletFlagSection";
 import WalletRatingSection from "./WalletRatingSection";
-import { useState } from "react";
 import Footer from "../../../components/Footer";
-import { useRouter, useParams } from "next/navigation";
-import type { DonationRequest, Flag } from "../../../../lib/types";
-import React from "react";
+import { useRouter } from "next/navigation";
+import type { Flag, DonationRequest } from "../../../../lib/types";
+import useSWR from 'swr';
 
-function WalletProfile() {
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function WalletProfile({ params }: { params: { chain: string; address: string } }) {
+  const { chain, address } = params;
+  const { data, error } = useSWR(`/api/wallet/${chain}/${address}`, fetcher);
   const router = useRouter();
-  const params = useParams();
   const [isAdmin, setIsAdmin] = useState(false);
-  const chain = typeof params?.chain === 'string' ? params.chain : Array.isArray(params?.chain) ? params.chain[0] : '';
-  const address = typeof params?.address === 'string' ? params.address : Array.isArray(params?.address) ? params.address[0] : '';
-  const { data, mutate } = useSWR(chain && address ? `/api/wallet/${chain}/${address}` : null, url => fetch(url).then(res => res.json()));
-  const hasActiveDonation = data?.donationRequests?.some((d: DonationRequest) => d.active);
-  React.useEffect(() => {
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const envAdmins = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '').split(',').map(a => a.toLowerCase().trim());
       const currentAddress = address.toLowerCase();
@@ -30,6 +29,12 @@ function WalletProfile() {
       setIsAdmin(isAdminWallet);
     }
   }, [address]);
+
+  if (error) return <div>Failed to load</div>;
+  if (!data) return <div>Loading...</div>;
+
+  const hasActiveDonation = data?.donationRequests?.some((d: DonationRequest) => d.active);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900 flex flex-col items-center">
       <Navbar variant="wallet" />
@@ -37,22 +42,26 @@ function WalletProfile() {
         <V5UpgradeInfo />
         <ProfileInfo displayName={data?.displayName} avatarUrl={data?.avatarUrl} address={address} chain={chain} />
         <StatusBadges suspicious={data?.suspicious} popular={data?.popular} blacklisted={data?.blacklisted} flagsCount={data?.flags?.length} kycStatus={data?.kycStatus} verificationBadge={data?.verificationBadge} />
-  <WalletFlagSection flags={data?.flags} onFlag={async (reason, comment) => {
+        <WalletFlagSection flags={data?.flags} onFlag={async (reason, comment) => {
           await fetch("/api/flags", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ address, chain, reason, comment })
           });
-          mutate();
         }} />
         {isAdmin && (
-          <CommunityTab data={data} address={address} mutate={mutate} />
+          <CommunityTab data={data} address={address} mutate={() => {}} />
         )}
-        {data?.kycStatus && (
-          <div className="mt-4 w-full text-left">
-            <span className="font-bold text-cyan-300">KYC Status:</span> <span className="text-cyan-200">{data.kycStatus}</span>
-          </div>
-        )}
+        <div className="mt-4 w-full text-left">
+          <span className="font-bold text-cyan-300">KYC Status:</span>
+          {data?.kycStatus === 'verified' && <span className="text-green-300 ml-2">Verified</span>}
+          {data?.kycStatus === 'pending' && <span className="text-yellow-300 ml-2">Pending</span>}
+          {data?.kycStatus === 'rejected' && <span className="text-red-300 ml-2">Rejected</span>}
+          {!data?.kycStatus && <span className="text-gray-300 ml-2">Not requested</span>}
+          {data?.kycStatus !== 'verified' && (
+            <KYCRequestButton />
+          )}
+        </div>
         <DonationSection donationRequests={data?.donationRequests} />
         <WalletRatingSection
           address={address}
@@ -66,7 +75,6 @@ function WalletProfile() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ address, chain, rating: score, text })
             });
-            mutate();
           }}
         />
         {!hasActiveDonation && (
@@ -83,7 +91,41 @@ function WalletProfile() {
   );
 }
 
-// CommunityTab component for admin moderation
+
+
+function KYCRequestButton() {
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string|null>(null);
+  return (
+    <span className="inline-block">
+      <button
+        className="ml-4 px-3 py-1 rounded bg-cyan-700 text-white font-bold disabled:opacity-60"
+        disabled={loading}
+        onClick={async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const res = await fetch('/api/kyc-request', { method: 'POST', credentials: 'include' });
+            const result = await res.json();
+            if (result.kycUrl) {
+              window.open(result.kycUrl, '_blank');
+            } else {
+              setError(result.message || 'KYC request failed');
+            }
+          } catch {
+            setError('Network error');
+          } finally {
+            setLoading(false);
+          }
+        }}
+      >
+        {loading ? 'Requesting...' : 'Request KYC'}
+      </button>
+      {error && <span className="ml-2 text-red-400 text-xs">{error}</span>}
+    </span>
+  );
+}
+
 type CommunityTabProps = {
   data: {
     flags?: Array<Flag & { _id: string; flaggedBy?: string }>;
@@ -103,9 +145,7 @@ type ModalData = {
 function CommunityTab({ data, address, mutate }: CommunityTabProps) {
   const [showModal, setShowModal] = React.useState<string|null>(null);
   const [modalData, setModalData] = React.useState<ModalData|null>(null);
-  // Toast notification state
   const [toast, setToast] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  // Helper to show toast
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3000);
@@ -154,7 +194,6 @@ function CommunityTab({ data, address, mutate }: CommunityTabProps) {
           </button>
         )}
       </div>
-      {/* Confirmation Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-gray-900 rounded-xl p-6 border border-blue-700 shadow-xl w-full max-w-md">
@@ -193,7 +232,6 @@ function CommunityTab({ data, address, mutate }: CommunityTabProps) {
           </div>
         </div>
       )}
-      {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded shadow-xl z-50 text-white font-bold ${toast.type === 'success' ? 'bg-green-700' : 'bg-red-700'}`}>
           {toast.message}
@@ -203,4 +241,5 @@ function CommunityTab({ data, address, mutate }: CommunityTabProps) {
   );
 }
 
-export default WalletProfile;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default WalletProfile as any;
