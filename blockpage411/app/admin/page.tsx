@@ -30,13 +30,33 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gray-900 text-white">
-      <Navbar variant="wallet" />
-      <div className="mt-32 w-full max-w-2xl bg-gray-800 rounded-xl shadow-xl p-8">
-        <h1 className="text-4xl font-extrabold mb-6">Admin Panel</h1>
-        <p className="mb-4">Welcome, admin wallet: <span className="font-mono text-green-400">{address}</span></p>
-        {/* Add admin tools/components here */}
-      </div>
+    <div className="min-h-screen flex flex-col items-center text-white">
+      <Navbar variant="admin" />
+      <main className="flex-1 flex flex-col items-center justify-center w-full px-4 text-center">
+        <div className="w-full max-w-4xl bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
+          <h1 className="text-4xl font-extrabold mb-2 text-white">Admin Dashboard</h1>
+          <p className="text-cyan-200 mb-6">Welcome, {address}</p>
+          {/* Admin tools and components will go here */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+            <div className="bg-gray-800/50 p-6 rounded-lg">
+              <h2 className="text-2xl font-bold text-white mb-4">User Management</h2>
+              <p className="text-gray-400">Manage users, roles, and permissions.</p>
+            </div>
+            <div className="bg-gray-800/50 p-6 rounded-lg">
+              <h2 className="text-2xl font-bold text-white mb-4">Content Moderation</h2>
+              <p className="text-gray-400">Review and moderate user-submitted content.</p>
+            </div>
+            <div className="bg-gray-800/50 p-6 rounded-lg">
+              <h2 className="text-2xl font-bold text-white mb-4">System Analytics</h2>
+              <p className="text-gray-400">View system-wide analytics and reports.</p>
+            </div>
+            <div className="bg-gray-800/50 p-6 rounded-lg">
+              <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
+              <p className="text-gray-400">Configure system settings and parameters.</p>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

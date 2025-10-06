@@ -3,28 +3,27 @@ import Image from "next/image";
 export default function SampleWallet() {
   return (
     <div className="mt-10 flex justify-center animate-fade-in delay-400">
-      <div className="card bg-gray-900/80 p-6 rounded-xl shadow-xl flex flex-col items-center w-80">
+      <div className="card bg-gray-900/80 p-6 rounded-xl shadow-xl flex flex-col items-center w-96">
         <Image
           src="/avatars/sample-avatar.png"
           alt="Sample Avatar"
-          width={72}
-          height={72}
-          className="rounded-full mb-3 border-4 border-blue-500"
+          width={80}
+          height={80}
+          className="rounded-full mb-4 border-4 border-blue-500"
         />
+        <h3 className="text-2xl font-bold text-white mb-2">Vitalik Buterin</h3>
         <div className="flex gap-2 mb-2">
           <span className="badge bg-green-600">KYC Verified</span>
-          <span className="badge bg-yellow-500">4.9 ★</span>
+          <span className="badge bg-yellow-500">4.9 ★ (1,234 reviews)</span>
         </div>
         <div className="flex gap-2 mb-2">
-          <span className="badge bg-blue-500">Twitter</span>
-          <span className="badge bg-indigo-500">Discord</span>
-          <span className="badge bg-pink-500">Instagram</span>
+          <span className="badge bg-blue-500">@VitalikButerin</span>
+          <span className="badge bg-indigo-500">vitalik.eth</span>
         </div>
         <span className="text-cyan-100 text-sm mb-2">
-          Donation Request:{" "}
-          <span className="font-bold text-green-400">0.05 ETH</span>
+          Accepting Donations for Public Goods
         </span>
-        <span className="text-xs text-gray-300">0xDemoWallet</span>
+        <span className="text-xs text-gray-300">0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045</span>
       </div>
     </div>
   );

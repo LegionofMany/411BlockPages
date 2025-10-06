@@ -26,9 +26,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`bg-darkbg text-darktext min-h-screen ${geistSans.variable} ${geistMono.variable}`}
+        className={`min-h-screen ${geistSans.variable} ${geistMono.variable}`}
         style={{
-          background: 'linear-gradient(135deg, #0a1020 0%, #1a223a 60%, #223366 100%)',
+          background: 'radial-gradient(circle at top, #1a223a, #0a1020)',
           color: '#f8fafc',
         }}
       >

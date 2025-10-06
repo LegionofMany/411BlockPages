@@ -34,6 +34,12 @@ export default function UserProfile() {
           <span className="badge bg-yellow-500">
             {user.rating ? `${user.rating} ★` : "No Rating"}
           </span>
+          <span className="badge bg-purple-500">
+            {user.verificationBadge}
+          </span>
+          <span className="badge bg-blue-500">
+            Score: {user.verificationScore}
+          </span>
         </div>
         <div className="flex gap-2 mb-2">
           {user.socials?.map((s: string) => (

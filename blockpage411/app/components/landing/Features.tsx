@@ -58,6 +58,14 @@ export default function Features() {
           Personalize your wallet profile with custom avatars.
         </p>
       </div>
+      <div className="bg-gradient-to-br from-[#181f2f] to-[#232b45] rounded-xl shadow-lg p-6 border border-blue-800 backdrop-blur-lg">
+        <span className="text-teal-400 text-2xl font-bold mb-2 block">
+          Wallet Tags
+        </span>
+        <p className="text-cyan-200 text-sm">
+          Organize and categorize wallets with custom tags.
+        </p>
+      </div>
     </div>
   );
 }

@@ -15,39 +15,21 @@ const chains = [
 export default function ChainCarousel() {
   return (
     <div className="w-full mb-12 animate-fade-in delay-150 py-2">
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-4 md:gap-6 hidden sm:grid">
+      <h2 className="text-2xl font-bold text-center mb-6 text-cyan-200">Supported Chains</h2>
+      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-4 md:gap-6">
         {chains.map((chain) => (
           <div
             key={chain.name}
-            className="flex flex-col items-center bg-gradient-to-br from-[#181f2f] to-[#232b45] rounded-xl shadow-lg px-2 py-2 md:px-4 md:py-3 backdrop-blur-lg border border-blue-800 hover:scale-105 transition-all duration-200"
+            className="flex flex-col items-center bg-gray-800/50 p-3 rounded-lg shadow-lg hover:bg-gray-700/50 transition-colors duration-200"
           >
             <Image
               src={chain.src}
               alt={chain.name}
-              width={44}
-              height={44}
-              className="mb-1 rounded-lg shadow-lg w-[36px] h-[36px] md:w-[44px] md:h-[44px] object-contain"
+              width={48}
+              height={48}
+              className="mb-2 rounded-full"
             />
-            <span className="text-xs text-cyan-200 mt-1 font-semibold tracking-wide text-center break-words">
-              {chain.name}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="flex sm:hidden overflow-x-auto gap-4 py-2 scrollbar-hide">
-        {chains.map((chain) => (
-          <div
-            key={chain.name}
-            className="flex flex-col items-center bg-gradient-to-br from-[#181f2f] to-[#232b45] rounded-xl shadow-lg px-2 py-2 min-w-[70px] backdrop-blur-lg border border-blue-800 hover:scale-105 transition-all duration-200"
-          >
-            <Image
-              src={chain.src}
-              alt={chain.name}
-              width={32}
-              height={32}
-              className="mb-1 rounded-lg shadow-lg w-[32px] h-[32px] object-contain"
-            />
-            <span className="text-xs text-cyan-200 mt-1 font-semibold tracking-wide text-center break-words">
+            <span className="text-xs text-cyan-200 font-semibold tracking-wide text-center">
               {chain.name}
             </span>
           </div>

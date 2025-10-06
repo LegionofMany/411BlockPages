@@ -28,15 +28,13 @@ export default function Hero() {
       </div>
       <div className="relative z-10">
         <h1 className="text-6xl md:text-7xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent drop-shadow-2xl mb-8 animate-fade-in">
-          Blockpage411: Blockchain Identity & Trust
+          Blockpage411: Your Web3 Reputation
         </h1>
         <p className="text-2xl md:text-3xl text-cyan-100 font-medium mb-10 animate-fade-in delay-100">
-          Discover, verify, and connect with blockchain wallets across all major
-          chains.
+          Build your on-chain identity, showcase your reputation, and connect with others in the decentralized world.
           <br />
           <span className="text-blue-200">
-            Avatar upload, advanced KYC, social profiles, wallet ratings,
-            reviews, donation requests, and moderation.
+            KYC verification, social profiles, wallet ratings, reviews, and more.
           </span>
         </p>
         <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-10 animate-fade-in delay-200">
@@ -45,14 +43,14 @@ export default function Hero() {
             onClick={() => router.push("/login")}
             className="text-lg font-bold shadow-xl px-10 py-4 rounded-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-400 hover:to-teal-400 border-2 border-green-400 hover:scale-105 transition-all duration-200"
           >
-            🚀 Get Started
+            🚀 Claim Your Profile
           </button>
           <button
             type="button"
-            onClick={() => router.push("/wallet/ethereum/0xDemoWallet")}
+            onClick={() => router.push("/search")}
             className="text-lg font-bold shadow-xl px-10 py-4 rounded-full border-2 border-blue-400 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 ml-0 sm:ml-4 hover:scale-105 transition-all duration-200"
           >
-            🧑‍💻 Try Demo
+            🔍 Explore Wallets
           </button>
         </div>
       </div>

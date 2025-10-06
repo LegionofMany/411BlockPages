@@ -57,51 +57,54 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-blockchain-gradient flex items-center justify-center">
-      <div className="max-w-md w-full card p-8">
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-white">Connect your wallet</h1>
-          <p className="text-cyan-100">to continue to Blockpage411</p>
+          <h1 className="text-4xl font-extrabold text-white">Connect Your Wallet</h1>
+          <p className="text-cyan-200 mt-2">to access your Web3 profile</p>
         </div>
         {!isConnected ? (
           <div className="space-y-4">
             <button
-              className="w-full btn-primary flex items-center justify-center gap-3"
+              className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-yellow-500 hover:to-orange-500 transition-all duration-200 transform hover:scale-105 py-3"
               onClick={() => connect({ connector: injected() })}
             >
-              <span className="text-xl">🦊</span>
-              <span>Connect MetaMask</span>
+              <span className="text-2xl">🦊</span>
+              <span className="font-bold">MetaMask</span>
             </button>
             <button
-              className="w-full btn-primary flex items-center justify-center gap-3"
+              className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-sky-500 hover:from-sky-500 hover:to-blue-500 transition-all duration-200 transform hover:scale-105 py-3"
               onClick={() => connect({ connector: walletConnect({ projectId: "demo" }) })}
             >
-              <span className="text-xl">🔗</span>
-              <span>WalletConnect</span>
+              <span className="text-2xl">🔗</span>
+              <span className="font-bold">WalletConnect</span>
             </button>
             <button
-              className="w-full btn-primary flex items-center justify-center gap-3"
+              className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-purple-500 hover:to-indigo-500 transition-all duration-200 transform hover:scale-105 py-3"
               onClick={() => connect({ connector: coinbaseWallet() })}
             >
-              <span className="text-xl">💼</span>
-              <span>Coinbase Wallet</span>
+              <span className="text-2xl">💼</span>
+              <span className="font-bold">Coinbase Wallet</span>
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="text-green-400 font-semibold">Connected: {address}</div>
+          <div className="space-y-6">
+            <div className="text-center bg-gray-800/50 p-4 rounded-lg">
+              <p className="text-green-400 font-semibold">Connected!</p>
+              <p className="text-white text-sm truncate mt-1">{address}</p>
+            </div>
             <button
-              className="w-full btn-primary"
-              onClick={() => disconnect()}
-            >
-              Disconnect
-            </button>
-            <button
-              className="w-full btn-primary"
+              className="w-full btn-primary bg-gradient-to-r from-green-500 to-teal-500 hover:from-teal-500 hover:to-green-500 transition-all duration-200 transform hover:scale-105 py-3 font-bold"
               onClick={handleLogin}
               disabled={loading}
             >
-              {loading ? "Signing..." : "Sign In"}
+              {loading ? "Verifying..." : "Sign In to Verify"}
+            </button>
+            <button
+              className="w-full text-sm text-gray-400 hover:text-white transition-colors"
+              onClick={() => disconnect()}
+            >
+              Disconnect
             </button>
           </div>
         )}

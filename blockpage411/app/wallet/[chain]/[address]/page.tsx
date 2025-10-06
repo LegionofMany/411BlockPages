@@ -4,6 +4,7 @@ import Navbar from "../../../components/Navbar";
 import ProfileInfo from "./ProfileInfo";
 import StatusBadges from "./StatusBadges";
 import TransactionList from "./TransactionList";
+import ShowTransactionsButton from "./ShowTransactionsButton";
 import DonationSection from "./DonationSection";
 import V5UpgradeInfo from "./V5UpgradeInfo";
 import WalletFlagSection from "./WalletFlagSection";
@@ -15,9 +16,9 @@ import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function WalletProfile({ params }: { params: { chain: string; address: string } }) {
-  const { chain, address } = params;
-  const { data, error } = useSWR(`/api/wallet/${chain}/${address}`, fetcher);
+function WalletProfile({ params }: { params: Promise<{ chain: string; address: string }> }) {
+  const { chain, address } = React.use(params);
+  const { data, error, mutate } = useSWR(`/api/wallet/${chain}/${address}`, fetcher);
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -30,62 +31,71 @@ function WalletProfile({ params }: { params: { chain: string; address: string } 
     }
   }, [address]);
 
-  if (error) return <div>Failed to load</div>;
-  if (!data) return <div>Loading...</div>;
+  if (error) return <div className="text-center py-10 text-red-400">Failed to load wallet data.</div>;
+  if (!data) return <div className="text-center py-10 text-cyan-200">Loading...</div>;
 
   const hasActiveDonation = data?.donationRequests?.some((d: DonationRequest) => d.active);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900 flex flex-col items-center">
+    <div className="min-h-screen flex flex-col items-center">
       <Navbar variant="wallet" />
-      <div className="max-w-xl w-full bg-gray-900/80 rounded-2xl shadow-xl mt-10 p-8 flex flex-col items-center border border-blue-700">
-        <V5UpgradeInfo />
-        <ProfileInfo displayName={data?.displayName} avatarUrl={data?.avatarUrl} address={address} chain={chain} />
-        <StatusBadges suspicious={data?.suspicious} popular={data?.popular} blacklisted={data?.blacklisted} flagsCount={data?.flags?.length} kycStatus={data?.kycStatus} verificationBadge={data?.verificationBadge} />
-        <WalletFlagSection flags={data?.flags} onFlag={async (reason, comment) => {
-          await fetch("/api/flags", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ address, chain, reason, comment })
-          });
-        }} />
-        {isAdmin && (
-          <CommunityTab data={data} address={address} mutate={() => {}} />
-        )}
-        <div className="mt-4 w-full text-left">
-          <span className="font-bold text-cyan-300">KYC Status:</span>
-          {data?.kycStatus === 'verified' && <span className="text-green-300 ml-2">Verified</span>}
-          {data?.kycStatus === 'pending' && <span className="text-yellow-300 ml-2">Pending</span>}
-          {data?.kycStatus === 'rejected' && <span className="text-red-300 ml-2">Rejected</span>}
-          {!data?.kycStatus && <span className="text-gray-300 ml-2">Not requested</span>}
-          {data?.kycStatus !== 'verified' && (
-            <KYCRequestButton />
-          )}
-        </div>
-        <DonationSection donationRequests={data?.donationRequests} />
-        <WalletRatingSection
-          address={address}
-          chain={chain}
-          ratings={data?.ratings || []}
-          userRating={Number(data?.userRating || 0)}
-          verificationScore={data?.verificationScore}
-          onRate={async (score, text) => {
-            await fetch("/api/ratings", {
+      <main className="flex-1 w-full max-w-4xl px-4 py-8 mt-16">
+        <div className="bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
+          <V5UpgradeInfo />
+          <ProfileInfo displayName={data?.displayName} avatarUrl={data?.avatarUrl} address={address} chain={chain} />
+          <StatusBadges suspicious={data?.suspicious} popular={data?.popular} blacklisted={data?.blacklisted} flagsCount={data?.flags?.length} kycStatus={data?.kycStatus} verificationBadge={data?.verificationBadge} />
+          <div className="my-6 border-t border-blue-800"></div>
+          <WalletFlagSection flags={data?.flags} onFlag={async (reason, comment) => {
+            await fetch("/api/flags", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ address, chain, rating: score, text })
+              body: JSON.stringify({ address, chain, reason, comment })
             });
-          }}
-        />
-        {!hasActiveDonation && (
-          <div className="mt-4 w-full text-left">
-            <button className="px-4 py-2 rounded bg-green-700 text-white font-bold" onClick={() => router.push(`/donate?address=${address}&chain=${chain}`)}>
-              Request Donation
-            </button>
+            mutate();
+          }} />
+          {isAdmin && (
+            <CommunityTab data={data} address={address} mutate={mutate} />
+          )}
+          <div className="my-6 border-t border-blue-800"></div>
+          <div className="flex flex-wrap items-center gap-4 mb-6">
+            <span className="font-bold text-cyan-300">KYC Status:</span>
+            {data?.kycStatus === 'verified' && <span className="badge bg-green-600">Verified</span>}
+            {data?.kycStatus === 'pending' && <span className="badge bg-yellow-500">Pending</span>}
+            {data?.kycStatus === 'rejected' && <span className="badge bg-red-600">Rejected</span>}
+            {!data?.kycStatus && <span className="text-gray-400">Not Requested</span>}
+            {data?.kycStatus !== 'verified' && (
+              <KYCRequestButton />
+            )}
           </div>
-        )}
-        <TransactionList transactions={data?.transactions} />
-      </div>
+          <DonationSection donationRequests={data?.donationRequests} />
+          {!hasActiveDonation && (
+            <div className="mt-6">
+              <button className="btn-primary bg-gradient-to-r from-green-500 to-teal-500 hover:from-teal-500 hover:to-green-500 transition-all duration-200 transform hover:scale-105 py-2 px-6 font-bold"
+                onClick={() => router.push(`/donate?address=${address}&chain=${chain}`)}>
+                Request Donation
+              </button>
+            </div>
+          )}
+          <div className="my-6 border-t border-blue-800"></div>
+          <WalletRatingSection
+            address={address}
+            chain={chain}
+            ratings={data?.ratings || []}
+            userRating={Number(data?.userRating || 0)}
+            verificationScore={data?.verificationScore}
+            onRate={async (score, text) => {
+              await fetch("/api/ratings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ address, chain, rating: score, text })
+              });
+              mutate();
+            }}
+          />
+          <div className="my-6 border-t border-blue-800"></div>
+          <ShowTransactionsButton chain={chain} address={address} />
+        </div>
+      </main>
       <Footer />
     </div>
   );
