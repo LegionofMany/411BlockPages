@@ -10,7 +10,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function WalletTransactionsPage() {
   const params = useParams();
-  // @ts-ignore
+  // @ts-expect-error params type is not inferred correctly by Next.js router
   const { chain, address } = params;
   const { data, error } = useSWR(`/api/wallet/${chain}/${address}`, fetcher);
   const router = useRouter();

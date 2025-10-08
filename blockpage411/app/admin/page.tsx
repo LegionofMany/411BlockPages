@@ -1,62 +1,81 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+
+import AdminWalletsTable from "../components/admin/AdminWalletsTable";
+import KYCDetailsModal from "../components/admin/KYCDetailsModal";
+import FlaggedWalletsTable from "../components/admin/FlaggedWalletsTable";
+import AuditLogTable from "../components/admin/AuditLogTable";
+import FlaggedTransactionsTable from "../components/admin/FlaggedTransactionsTable";
+import ContentModerationTable from "../components/admin/ContentModerationTable";
+import RecentTransactionsTable from "../components/admin/RecentTransactionsTable";
+import SystemSettingsPanel from "../components/admin/SystemSettingsPanel";
+import KYCAdminControls from "../components/admin/KYCAdminControls";
+import RoleAdminControls from "../components/admin/RoleAdminControls";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
 
-export default function AdminPanel() {
-  const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [address, setAddress] = useState("");
 
+export default function AdminPage() {
+  const [adminWallet, setAdminWallet] = useState<string>("");
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const router = useRouter();
+
+
+  const [checked, setChecked] = useState(false);
   useEffect(() => {
-    // Example: get wallet address from localStorage or wallet provider
-    const wallet = window.localStorage.getItem("wallet") || "";
-    setAddress(wallet);
-    const adminWallets = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || "").split(",").map(a => a.toLowerCase().trim());
-    setIsAdmin(adminWallets.includes(wallet.toLowerCase()));
-    if (wallet && !adminWallets.includes(wallet.toLowerCase())) {
-      router.replace("/"); // redirect non-admins
+    if (typeof window !== "undefined") {
+      const wallet = localStorage.getItem("wallet") || "";
+      setAdminWallet(wallet);
+      const adminWallets = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || "")
+        .split(",")
+        .map(a => a.toLowerCase().trim());
+      console.log("[ADMIN DEBUG] Wallet:", wallet);
+      console.log("[ADMIN DEBUG] Admin Wallets:", adminWallets);
+      if (wallet && adminWallets.includes(wallet.toLowerCase().trim())) {
+        setIsAdmin(true);
+        console.log("[ADMIN DEBUG] Access granted");
+      } else {
+        setIsAdmin(false);
+        console.log("[ADMIN DEBUG] Access denied");
+      }
+      setChecked(true);
     }
   }, [router]);
 
+  if (!checked) {
+    return <div className="text-center py-10 text-cyan-200">Checking admin access...</div>;
+  }
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-red-400">
-        <Navbar variant="wallet" />
-        <h1 className="text-3xl font-bold mt-32">Access Denied</h1>
-        <p className="mt-4">You must be an admin to view this page.</p>
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Navbar variant="admin" />
+        <div className="mt-32 text-center">
+          <h1 className="text-2xl font-bold text-red-400 mb-4">Access Denied</h1>
+          <p className="text-cyan-200 mb-4">Your wallet address is not recognized as an admin.</p>
+          <p className="text-cyan-400">Current wallet: <span className="font-mono">{adminWallet || "(none)"}</span></p>
+          <p className="text-cyan-400">Allowed admins:</p>
+          <ul className="text-cyan-300 font-mono text-sm mt-2">
+            {(process.env.NEXT_PUBLIC_ADMIN_WALLETS || "").split(",").map(a => <li key={a}>{a.trim()}</li>)}
+          </ul>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center text-white">
+    <div className="min-h-screen flex flex-col items-center">
       <Navbar variant="admin" />
-      <main className="flex-1 flex flex-col items-center justify-center w-full px-4 text-center">
-        <div className="w-full max-w-4xl bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
-          <h1 className="text-4xl font-extrabold mb-2 text-white">Admin Dashboard</h1>
-          <p className="text-cyan-200 mb-6">Welcome, {address}</p>
-          {/* Admin tools and components will go here */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-            <div className="bg-gray-800/50 p-6 rounded-lg">
-              <h2 className="text-2xl font-bold text-white mb-4">User Management</h2>
-              <p className="text-gray-400">Manage users, roles, and permissions.</p>
-            </div>
-            <div className="bg-gray-800/50 p-6 rounded-lg">
-              <h2 className="text-2xl font-bold text-white mb-4">Content Moderation</h2>
-              <p className="text-gray-400">Review and moderate user-submitted content.</p>
-            </div>
-            <div className="bg-gray-800/50 p-6 rounded-lg">
-              <h2 className="text-2xl font-bold text-white mb-4">System Analytics</h2>
-              <p className="text-gray-400">View system-wide analytics and reports.</p>
-            </div>
-            <div className="bg-gray-800/50 p-6 rounded-lg">
-              <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
-              <p className="text-gray-400">Configure system settings and parameters.</p>
-            </div>
-          </div>
-        </div>
+      <main className="flex-1 w-full max-w-5xl px-4 py-8 mt-16">
+        <h1 className="text-3xl font-bold text-cyan-300 mb-8">Admin Dashboard</h1>
+        <SystemSettingsPanel />
+        <ContentModerationTable />
+        <RecentTransactionsTable />
+        <FlaggedTransactionsTable adminWallet={adminWallet} />
+        <FlaggedWalletsTable adminWallet={adminWallet} />
+        <AdminWalletsTable />
+        <AuditLogTable adminWallet={adminWallet} />
       </main>
     </div>
   );
 }
+

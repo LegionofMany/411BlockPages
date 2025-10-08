@@ -1,11 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import redis from '../../../lib/redis';
 import Wallet from '../../../lib/walletModel';
+import dbConnect from '../../../lib/db';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     // Get popular wallets from Redis sorted set
     const popularWallets = await redis.zrevrange('popular_wallets', 0, 19);
+    // Ensure MongoDB connection before querying
+    await dbConnect();
     // Optionally fetch wallet details from MongoDB
     const walletDocs = await Wallet.find({ address: { $in: popularWallets } });
     // Map to include searchCount and lastRefreshed

@@ -33,8 +33,22 @@ const WalletSchema = new Schema({
   txCount: { type: Number, default: 0 },
   lastTxWithinHours: { type: Number, default: 9999 },
   kycStatus: { type: String, default: 'unknown' },
+  kycDetails: {
+    fullName: { type: String },
+    dob: { type: String },
+    country: { type: String },
+    idType: { type: String },
+    idNumber: { type: String },
+    idDocumentUrl: { type: String },
+    selfieUrl: { type: String },
+    submittedAt: { type: Date },
+    reviewedAt: { type: Date },
+    adminNote: { type: String },
+  },
   suspicious: { type: Boolean, default: false },
   flagsList: [{ type: String }], // for admin/manual flags
+  // role management
+  role: { type: String, enum: ['user', 'moderator', 'admin'], default: 'user' },
 });
 
 WalletSchema.index({ address: 1, chain: 1 }, { unique: true });
