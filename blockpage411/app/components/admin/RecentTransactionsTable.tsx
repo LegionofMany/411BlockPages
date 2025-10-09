@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import adminFetch from "./adminFetch";
 
 interface Transaction {
   txid: string;
@@ -20,13 +21,17 @@ const RecentTransactionsTable: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/admin/recent-transactions")
-      .then(res => res.json())
+    adminFetch("/api/admin/recent-transactions")
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         setTxs(data.txs || []);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('RecentTransactions fetch error', err);
         setError("Failed to load transactions");
         setLoading(false);
       });
@@ -48,16 +53,18 @@ const RecentTransactionsTable: React.FC = () => {
     : txs;
 
   return (
-    <section className="mb-12">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-green-200">Recent Transactions</h2>
-        <input
-          type="text"
-          placeholder="Filter by address, txid, chain..."
-          className="px-3 py-1 rounded bg-gray-800 text-green-100 border border-green-700"
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-        />
+    <section className="mb-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <h2 className="text-lg sm:text-xl font-semibold text-green-200">Recent Transactions</h2>
+        <div className="w-full sm:w-72">
+          <input
+            type="text"
+            placeholder="Filter by address, txid, chain..."
+            className="w-full px-3 py-2 rounded bg-gray-800 text-green-100 border border-green-700"
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+          />
+        </div>
       </div>
       {loading ? (
         <div className="text-green-200">Loading transactions...</div>
@@ -66,8 +73,9 @@ const RecentTransactionsTable: React.FC = () => {
       ) : filteredTxs.length === 0 ? (
         <div className="text-green-200">No transactions found.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
+        <div className="-mx-4 sm:mx-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
             <thead>
               <tr className="bg-green-900 text-green-200">
                 <th className="py-2 px-4">TxID</th>
@@ -104,6 +112,7 @@ const RecentTransactionsTable: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </section>

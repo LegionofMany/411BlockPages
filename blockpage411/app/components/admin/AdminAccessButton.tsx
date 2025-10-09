@@ -14,7 +14,7 @@ function getWalletAddress(): string | null {
 function getAdminWallets(): string[] {
   if (typeof window !== "undefined") {
     // Try window env first
-    // @ts-ignore
+      // @ts-expect-error window globals may be injected by the host env
     const env = window.NEXT_PUBLIC_ADMIN_WALLETS || process.env.NEXT_PUBLIC_ADMIN_WALLETS || "";
     return env.split(",").map((w: string) => w.trim().toLowerCase());
   }
@@ -66,14 +66,15 @@ const AdminAccessButton: React.FC = () => {
   return (
     <button
       onClick={handleClick}
-      className="btn-primary text-lg mt-8 cursor-pointer select-none"
-      style={{ letterSpacing: "0.03em" }}
+      className="btn-primary px-3 py-1 text-sm mt-2 cursor-pointer select-none rounded-md inline-flex items-center shadow-lg z-50"
+      style={{ letterSpacing: "0.02em" }}
       tabIndex={0}
       aria-label="Go to Admin Dashboard"
+      title="Admin Dashboard"
     >
       <span className="inline-flex items-center gap-2 select-none">
-        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="inline-block"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3-1.343 3-3 3-3-1.343-3-3zm0 0V7m0 4v4m0 0c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3z" /></svg>
-        Admin Dashboard
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="inline-block"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3-1.343 3-3 3-3-1.343-3-3zm0 0V7m0 4v4m0 0c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3z" /></svg>
+        <span className="truncate">Admin</span>
       </span>
     </button>
   );

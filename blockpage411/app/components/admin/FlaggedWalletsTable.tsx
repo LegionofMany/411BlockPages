@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import adminFetch from "./adminFetch";
 
 interface Flag {
   user: string;
@@ -26,15 +27,17 @@ const FlaggedWalletsTable: React.FC<FlaggedWalletsTableProps> = ({ adminWallet }
     if (!adminWallet) return;
     setLoading(true);
     setError(null);
-    fetch("/api/admin/flagged-wallets", {
-      headers: { "x-admin-address": adminWallet }
-    })
-      .then(res => res.json())
+    adminFetch("/api/admin/flagged-wallets")
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         setFlaggedWallets(data.flaggedWallets || []);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('FlaggedWallets fetch error', err);
         setError("Failed to load flagged wallets");
         setLoading(false);
       });

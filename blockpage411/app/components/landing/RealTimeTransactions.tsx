@@ -13,23 +13,63 @@ export default function RealTimeTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8080");
+    let cleanup: (() => void) | undefined;
 
-    ws.onmessage = (event) => {
+    // Prefer token-based auth via /api/realtime/token for secure client access to Ably
+    import('ably').then((AblyModule) => {
       try {
-        const transaction = JSON.parse(event.data);
-        setTransactions((prevTransactions) => [
-          transaction,
-          ...prevTransactions.slice(0, 9),
-        ]);
-      } catch {
-        // Ignore welcome message
-      }
-    };
+        type RealtimeCtor = new (opts: { authCallback?: (params: unknown, cb: (err: Error | null, tokenRequest?: unknown) => void) => void }) => {
+          channels: { get: (name: string) => { subscribe: (ev: string, cb: (msg: unknown) => void) => void; unsubscribe: () => void } };
+          close: () => void;
+        };
+        const RealtimeConstructor = (AblyModule as unknown as { Realtime: unknown }).Realtime as RealtimeCtor;
 
-    return () => {
-      ws.close();
-    };
+        const realtime = new RealtimeConstructor({
+          authCallback: (_params, cb) => {
+            fetch('/api/realtime/token')
+              .then((r) => r.json())
+              .then((tokenRequest) => cb(null, tokenRequest))
+              .catch((err) => cb(err as Error, undefined));
+          },
+        });
+
+        const channel = realtime.channels.get('transactions');
+        channel.subscribe('tx', (msg: unknown) => {
+          const m = msg as { data?: unknown } | undefined;
+          if (m && m.data) {
+            setTransactions((prev) => [(m.data as Transaction), ...prev].slice(0, 10));
+          }
+        });
+        cleanup = () => {
+          channel.unsubscribe();
+          realtime.close();
+        };
+      } catch (e) {
+        console.warn('Ably init error', e);
+      }
+    }).catch((e) => {
+      // If Ably isn't available for some reason, fallback to local WS
+      console.warn('Failed loading ably, falling back to local WS', e);
+      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const wsUrl = `${protocol}://${host}:8080`;
+      const ws = new WebSocket(wsUrl);
+      ws.onopen = () => {};
+      ws.onerror = (err) => {
+        console.warn('Realtime WS error', err);
+      };
+      ws.onmessage = (event) => {
+        try {
+          const transaction = JSON.parse(event.data);
+          setTransactions((prevTransactions) => [transaction, ...prevTransactions].slice(0, 10));
+        } catch {
+          // Ignore welcome message
+        }
+      };
+      cleanup = () => ws.close();
+    });
+
+    return () => cleanup && cleanup();
   }, []);
 
   return (

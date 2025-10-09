@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import adminFetch from "./adminFetch";
 
 interface Flag {
   user: string;
@@ -32,15 +33,17 @@ const FlaggedTransactionsTable: React.FC<FlaggedTransactionsTableProps> = ({ adm
     if (!adminWallet) return;
     setLoading(true);
     setError(null);
-    fetch("/api/admin/flagged-transactions", {
-      headers: { "x-admin-address": adminWallet }
-    })
-      .then(res => res.json())
+    adminFetch("/api/admin/flagged-transactions")
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         setFlaggedTxs(data.flaggedTxs || []);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('FlaggedTransactions fetch error', err);
         setError("Failed to load flagged transactions");
         setLoading(false);
       });
@@ -101,14 +104,16 @@ const FlaggedTransactionsTable: React.FC<FlaggedTransactionsTableProps> = ({ adm
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-pink-300">Flagged Transactions</h2>
-        <button
-          className="bg-pink-700 hover:bg-pink-800 text-white px-4 py-2 rounded text-sm font-bold"
-          onClick={handleExportCSV}
-        >
-          Download CSV
-        </button>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <h2 className="text-lg sm:text-xl font-semibold text-pink-300">Flagged Transactions</h2>
+        <div className="flex items-center gap-2">
+          <button
+            className="bg-pink-700 hover:bg-pink-800 text-white px-3 py-1.5 rounded text-sm font-bold"
+            onClick={handleExportCSV}
+          >
+            Download CSV
+          </button>
+        </div>
       </div>
       {loading ? (
         <div className="text-pink-200">Loading flagged transactions...</div>
@@ -117,8 +122,9 @@ const FlaggedTransactionsTable: React.FC<FlaggedTransactionsTableProps> = ({ adm
       ) : flaggedTxs.length === 0 ? (
         <div className="text-pink-200">No flagged transactions found.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
+        <div className="-mx-4 sm:mx-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
             <thead>
               <tr className="bg-pink-900 text-pink-200">
                 <th className="py-2 px-4">TxID</th>
@@ -167,6 +173,7 @@ const FlaggedTransactionsTable: React.FC<FlaggedTransactionsTableProps> = ({ adm
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </section>

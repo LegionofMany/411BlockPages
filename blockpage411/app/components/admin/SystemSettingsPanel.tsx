@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import adminFetch from "./adminFetch";
 
 interface Settings {
   NEXT_PUBLIC_ADMIN_WALLETS: string;
@@ -15,13 +16,17 @@ const SystemSettingsPanel: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/admin/system-settings")
-      .then(res => res.json())
+    adminFetch("/api/admin/system-settings")
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         setSettings(data.settings || {});
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('SystemSettings fetch error', err);
         setError("Failed to load system settings");
         setLoading(false);
       });

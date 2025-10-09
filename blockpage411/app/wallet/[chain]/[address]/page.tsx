@@ -3,7 +3,8 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../../../components/Navbar";
 import ProfileInfo from "./ProfileInfo";
 import StatusBadges from "./StatusBadges";
-import TransactionList from "./TransactionList";
+// TransactionList is currently unused; keep import commented until used
+// import TransactionList from "./TransactionList";
 import ShowTransactionsButton from "./ShowTransactionsButton";
 import DonationSection from "./DonationSection";
 import V5UpgradeInfo from "./V5UpgradeInfo";
@@ -251,5 +252,4 @@ function CommunityTab({ data, address, mutate }: CommunityTabProps) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default WalletProfile as any;
+export default WalletProfile;

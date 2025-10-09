@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import adminFetch from "./adminFetch";
 
 interface ModerationItem {
   id: string;
@@ -17,13 +18,17 @@ const ContentModerationTable: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/admin/moderation-items")
-      .then(res => res.json())
+    adminFetch("/api/admin/moderation-items")
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         setItems(data.items || []);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Moderation fetch error', err);
         setError("Failed to load moderation items");
         setLoading(false);
       });

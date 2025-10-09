@@ -64,7 +64,7 @@ export default function DonatePage() {
           }
           return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-10 mb-8 mt-2">
-              {wallets.map((w, idx) => (
+              {wallets.map((w) => (
                 <WalletCard key={w.label} label={w.label} address={w.address} img={w.qr} />
               ))}
             </div>

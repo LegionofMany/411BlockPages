@@ -5,7 +5,7 @@ export default function SampleWallet() {
     <div className="mt-10 flex justify-center animate-fade-in delay-400">
       <div className="card bg-gray-900/80 p-6 rounded-xl shadow-xl flex flex-col items-center w-96">
         <Image
-          src="/avatars/sample-avatar.png"
+          src="/logos/ethereum.png"
           alt="Sample Avatar"
           width={80}
           height={80}

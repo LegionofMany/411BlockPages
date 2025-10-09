@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import User from 'lib/userModel';
 import jwt from 'jsonwebtoken';
+import { serialize } from 'cookie';
 import { verifyMessage } from 'ethers';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -38,15 +39,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Issue JWT
   const token = jwt.sign({ address }, JWT_SECRET, { expiresIn: '1d' });
   const isProd = process.env.NODE_ENV === 'production';
-  const sameSite = isProd ? 'SameSite=Strict' : 'SameSite=Lax';
-  const cookie = [
-    `token=${token}`,
-    'HttpOnly',
-    'Path=/',
-    isProd ? 'Secure' : '',
-    sameSite,
-  ].filter(Boolean).join('; ');
-  console.log('AUTH VERIFY: setting cookie', cookie);
-  res.setHeader('Set-Cookie', cookie);
+  // Use cookie.serialize to ensure correct formatting across browsers
+  const serialized = serialize('token', token, {
+    httpOnly: true,
+    path: '/',
+    secure: isProd,
+    sameSite: isProd ? 'strict' : 'lax',
+    maxAge: 60 * 60 * 24, // 1 day
+  });
+  console.log('AUTH VERIFY: setting cookie', serialized);
+  res.setHeader('Set-Cookie', serialized);
   res.status(200).json({ success: true });
 }

@@ -21,7 +21,7 @@ export default function UserProfile() {
     <section className="w-full max-w-xl mx-auto text-center py-12 animate-fade-in">
       <div className="card bg-gray-900/80 p-6 rounded-xl shadow-xl flex flex-col items-center">
         <Image
-          src={user.avatarUrl || "/avatars/sample-avatar.png"}
+          src={user.avatarUrl || "/logos/ethereum.png"}
           alt="User Avatar"
           width={72}
           height={72}

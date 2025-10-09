@@ -7,17 +7,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "start:ws": "ts-node server.ts"
+    "start:ws": "ts-node scripts/ws_server.ts",
+    "simulate:tx": "ts-node scripts/publish_simulated_transactions.ts",
+    "simulate:api-tx": "node -e \"fetch('http://localhost:3000/api/realtime/simulate', { method: 'POST' }).then(r=>r.json()).then(console.log).catch(console.error)\""
   },
   "dependencies": {
     "@coinbase/wallet-sdk": "^4.3.7",
     "@react-native-async-storage/async-storage": "^1.24.0",
     "@tanstack/react-query": "^5.90.2",
     "@walletconnect/ethereum-provider": "^2.21.9",
+    "ably": "^1.2.0",
     "autoprefixer": "^10.4.21",
     "axios": "^1.12.2",
     "bull": "^4.16.5",
     "bullmq": "^5.58.9",
+    "cookie": "^1.0.2",
     "ethers": "^6.15.0",
     "formidable": "^3.5.4",
     "ioredis": "^5.8.0",

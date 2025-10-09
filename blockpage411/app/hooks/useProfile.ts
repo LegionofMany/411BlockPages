@@ -13,7 +13,16 @@ export default function useProfile() {
       try {
         setLoading(true);
         const res = await fetch("/api/me", { credentials: "include" });
-        if (!res.ok) throw new Error("Not authenticated");
+        if (res.status === 401) {
+          // Not authenticated — return null profile without spamming console
+          setProfile(null);
+          return;
+        }
+        if (!res.ok) {
+          console.warn('useProfile: /api/me returned', res.status);
+          setProfile(null);
+          return;
+        }
         const data = await res.json();
         setProfile(data);
       } catch (e) {

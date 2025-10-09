@@ -4,6 +4,7 @@ interface Flag {
   date: string;
 }
 import React, { useState, useEffect } from "react";
+import adminFetch from "./adminFetch";
 import KYCAdminControls from "./KYCAdminControls";
 import RoleAdminControls from "./RoleAdminControls";
 import KYCDetailsModal from "./KYCDetailsModal";
@@ -31,13 +32,17 @@ const AdminWalletsTable: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/admin/wallets")
-      .then(res => res.json())
+    adminFetch("/api/admin/wallets")
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         setWallets(data.wallets || []);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('AdminWallets fetch error', err);
         setError("Failed to load wallets");
         setLoading(false);
       });
@@ -89,15 +94,18 @@ const AdminWalletsTable: React.FC = () => {
   };
 
   return (
-    <section className="mb-12">
-      <h2 className="text-xl font-semibold text-cyan-200 mb-4">All Wallets</h2>
+    <section className="mb-0">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg sm:text-xl font-semibold text-cyan-200">All Wallets</h2>
+      </div>
       {loading ? (
         <div className="text-cyan-200">Loading wallets...</div>
       ) : error ? (
         <div className="text-red-400">{error}</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
+        <div className="-mx-4 sm:mx-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
             <thead>
               <tr className="bg-blue-900 text-cyan-200">
                 <th className="py-2 px-4">Address</th>
@@ -149,6 +157,7 @@ const AdminWalletsTable: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
       <KYCDetailsModal
