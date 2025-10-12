@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "api/poller/run.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/poller/run",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

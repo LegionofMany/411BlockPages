@@ -11,27 +11,105 @@ interface Transaction {
 
 export default function RealTimeTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'retrying' | 'failed'>('idle');
+  const [attempt, setAttempt] = useState(0);
+  const [tokenFetchMs, setTokenFetchMs] = useState<number | null>(null);
+  const [serverElapsedMs, setServerElapsedMs] = useState<number | null>(null);
+  const [tokenKeyName, setTokenKeyName] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
 
-    // Prefer token-based auth via /api/realtime/token for secure client access to Ably
-    import('ably').then((AblyModule) => {
+  // Ably with retry/backoff and status UI (no local WS fallback)
+  const maxRetries = 6; // try a few more times
+  const baseDelay = 1200; // ms (slightly larger base delay)
+
+    const connectWithRetry = async (attemptNum = 0): Promise<void> => {
+      setAttempt(attemptNum);
+      setStatus(attemptNum === 0 ? 'connecting' : 'retrying');
+
       try {
+        const AblyModule = await import('ably');
+
+        // Fetch tokenRequest from our server BEFORE creating the Ably client.
+        // Try a few quick attempts; if we can't get a token, try the whole connection later.
+        const fetchToken = async (tries = 5, delayMs = 1000): Promise<unknown> => {
+          let lastErr: Error | null = null;
+          for (let i = 0; i < tries; i++) {
+            try {
+              const tStart = performance.now();
+              const resp = await fetch('/api/realtime/token');
+              const tEnd = performance.now();
+              if (!resp.ok) throw new Error('token endpoint returned ' + resp.status);
+              const tokenRequest = await resp.json();
+              const tr = tokenRequest as Record<string, unknown>;
+              const nested = tr['tokenRequest'] as Record<string, unknown> | undefined;
+              const keyName = (nested?.['keyName'] ?? tr?.['keyName']) as string | undefined;
+              const srvElapsed = typeof tr['elapsedMs'] === 'number' ? (tr['elapsedMs'] as number) : undefined;
+              setTokenFetchMs(Math.round(tEnd - tStart));
+              if (typeof srvElapsed === 'number') setServerElapsedMs(srvElapsed);
+              if (keyName) setTokenKeyName(keyName);
+              setTokenError(null);
+              console.debug('[RealTimeTransactions] fetched token', { fetchMs: (tEnd - tStart), tokenSummary: { keyName }, serverElapsedMs: srvElapsed });
+              return tokenRequest as unknown;
+            } catch (err) {
+              lastErr = err as Error;
+              // small backoff
+              console.warn('[RealTimeTransactions] token fetch failed, attempt', i + 1, 'of', tries, err);
+              setTokenError((err as Error)?.message ?? String(err));
+              await new Promise((res) => setTimeout(res, delayMs));
+            }
+          }
+          throw lastErr;
+        };
+
+        // fetch tokenRequest payload (server now wraps tokenRequest in { tokenRequest, elapsedMs, serverTimestamp })
+        const tokenResponse = await fetchToken(5, 1000);
+        // tokenResponse is unknown; safely extract tokenRequest if present
+        let tokenRequest: unknown;
+        if (tokenResponse && typeof tokenResponse === 'object' && ('tokenRequest' in (tokenResponse as Record<string, unknown>))) {
+          tokenRequest = (tokenResponse as Record<string, unknown>)['tokenRequest'];
+        } else {
+          tokenRequest = tokenResponse;
+        }
+
         type RealtimeCtor = new (opts: { authCallback?: (params: unknown, cb: (err: Error | null, tokenRequest?: unknown) => void) => void }) => {
           channels: { get: (name: string) => { subscribe: (ev: string, cb: (msg: unknown) => void) => void; unsubscribe: () => void } };
           close: () => void;
+          connection?: { on: (ev: string, cb: (...args: unknown[]) => void) => void };
         };
         const RealtimeConstructor = (AblyModule as unknown as { Realtime: unknown }).Realtime as RealtimeCtor;
 
+        // Create the client, providing a synchronous authCallback that immediately
+        // returns the tokenRequest we already fetched. This avoids Ably waiting for
+        // an async token call that could time out.
         const realtime = new RealtimeConstructor({
-          authCallback: (_params, cb) => {
-            fetch('/api/realtime/token')
-              .then((r) => r.json())
-              .then((tokenRequest) => cb(null, tokenRequest))
-              .catch((err) => cb(err as Error, undefined));
-          },
+          authCallback: (_params, cb) => cb(null, tokenRequest),
         });
+
+  console.debug('[RealTimeTransactions] Ably.Realtime created; waiting for connection events');
+
+        // Listen for successful connection
+        try {
+          realtime.connection?.on('connected', () => {
+            setStatus('connected');
+            setAttempt(0);
+          });
+        } catch { /* ignore */ }
+
+        // If Ably disconnects or fails, trigger retry logic
+        try {
+          realtime.connection?.on('failed', async () => {
+            try { realtime.close(); } catch {}
+            if (attemptNum < maxRetries) {
+              const delay = baseDelay * Math.pow(2, attemptNum);
+              setTimeout(() => connectWithRetry(attemptNum + 1), delay);
+            } else {
+              setStatus('failed');
+            }
+          });
+        } catch { /* ignore */ }
 
         const channel = realtime.channels.get('transactions');
         channel.subscribe('tx', (msg: unknown) => {
@@ -40,34 +118,24 @@ export default function RealTimeTransactions() {
             setTransactions((prev) => [(m.data as Transaction), ...prev].slice(0, 10));
           }
         });
+
         cleanup = () => {
-          channel.unsubscribe();
-          realtime.close();
+          try { channel.unsubscribe(); } catch {}
+          try { realtime.close(); } catch {}
         };
-      } catch (e) {
-        console.warn('Ably init error', e);
-      }
-    }).catch((e) => {
-      // If Ably isn't available for some reason, fallback to local WS
-      console.warn('Failed loading ably, falling back to local WS', e);
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const wsUrl = `${protocol}://${host}:8080`;
-      const ws = new WebSocket(wsUrl);
-      ws.onopen = () => {};
-      ws.onerror = (err) => {
-        console.warn('Realtime WS error', err);
-      };
-      ws.onmessage = (event) => {
-        try {
-          const transaction = JSON.parse(event.data);
-          setTransactions((prevTransactions) => [transaction, ...prevTransactions].slice(0, 10));
-        } catch {
-          // Ignore welcome message
+      } catch (err) {
+        console.warn('Ably connection attempt failed', err);
+        if (attemptNum < maxRetries) {
+          const delay = baseDelay * Math.pow(2, attemptNum);
+          setTimeout(() => connectWithRetry(attemptNum + 1), delay);
+        } else {
+          setStatus('failed');
         }
-      };
-      cleanup = () => ws.close();
-    });
+      }
+    };
+
+    // Start first attempt
+    connectWithRetry(0);
 
     return () => cleanup && cleanup();
   }, []);
@@ -76,6 +144,23 @@ export default function RealTimeTransactions() {
     <section className="w-full max-w-6xl mx-auto text-center py-16">
       <h2 className="text-4xl font-bold mb-8 text-cyan-200">Live Transaction Feed</h2>
       <div className="bg-gray-800/50 p-4 rounded-lg shadow-lg">
+        <div className="flex items-center justify-center mb-4">
+          <span className="text-sm text-gray-300 mr-2">Status:</span>
+          <span className="text-sm font-medium">
+            {status === 'idle' && 'idle'}
+            {status === 'connecting' && 'connecting...'}
+            {status === 'connected' && 'connected'}
+            {status === 'retrying' && `retrying (attempt ${attempt + 1})`}
+            {status === 'failed' && 'failed to connect'}
+          </span>
+        </div>
+        {/* Debug panel - visible in dev to help diagnose token fetch/connect issues */}
+        <div className="mb-3 text-left text-xs text-gray-400">
+          <div>Token fetch: {tokenFetchMs !== null ? `${tokenFetchMs} ms` : 'n/a'}</div>
+          <div>Server token elapsed: {serverElapsedMs !== null ? `${serverElapsedMs} ms` : 'n/a'}</div>
+          <div>Token keyName: {tokenKeyName ?? 'n/a'}</div>
+          <div className="text-red-300">Last token error: {tokenError ?? 'none'}</div>
+        </div>
         <ul>
           {transactions.map((tx) => (
             <li key={tx.hash} className="border-b border-gray-700 py-3 px-2 hover:bg-gray-700/50 transition-colors duration-200">

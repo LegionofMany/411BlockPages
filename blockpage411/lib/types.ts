@@ -5,6 +5,25 @@ export interface DonationRequest {
   description?: string;
   active: boolean;
   expiresAt?: string | number;
+  // Optional extras used by the richer donation UI
+  goal?: number;
+  raised?: number;
+  recentDonors?: Array<{ name?: string; amount?: string }>; 
+}
+
+export interface Fundraiser {
+  id: string;
+  title: string;
+  description?: string;
+  target: number;
+  raised?: number;
+  walletAddress: string;
+  owner: string; // owner address
+  createdAt: string | number | Date;
+  expiresAt?: string | number | Date;
+  active?: boolean;
+  privacy?: 'public' | 'circle';
+  circle?: string[]; // list of addresses or emails included in circle
 }
 
 export type KycStatus = 'unverified' | 'pending' | 'verified' | 'rejected';

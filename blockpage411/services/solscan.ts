@@ -48,10 +48,11 @@ export async function fetchSolanaTxs(address: string) {
           type: tx.transactionType || '',
         }));
       }
-    } catch (fallbackErr: unknown) {
-      // Log both errors for debugging
-      console.error('Solscan error:', (err as { response?: { status?: number }, message?: string })?.response?.status, (err as { response?: { status?: number }, message?: string })?.message);
-      console.error('Solana.fm fallback error:', (fallbackErr as { response?: { status?: number }, message?: string })?.response?.status, (fallbackErr as { response?: { status?: number }, message?: string })?.message);
+    } catch {
+      // Log the original error for debugging
+      try {
+        console.error('Solscan error:', (err as { response?: { status?: number }, message?: string })?.response?.status, (err as { response?: { status?: number }, message?: string })?.message);
+      } catch {}
     }
   }
   return [];

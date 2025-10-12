@@ -18,16 +18,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' });
   }
   const form = new formidable.IncomingForm({ uploadDir, keepExtensions: true });
-  form.parse(req, (err, fields, files) => {
+  // formidable's types vary across versions; keep callback parameters as `any` to avoid missing exported types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  form.parse(req, (err: Error | null, fields: any, files: any) => {
     if (err) {
       return res.status(500).json({ message: 'Upload error', error: err.message });
     }
-    let file: formidable.File | undefined;
+  // formidable's File type may not be exported in some versions; use `any` here and disable lint for this local var
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let file: any | undefined;
     const avatarField = files.avatar;
     if (Array.isArray(avatarField)) {
       file = avatarField[0];
     } else if (avatarField) {
-      file = avatarField as unknown as formidable.File;
+      // avoid referencing formidable.File (not exported in some versions)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      file = avatarField as unknown as any;
     }
     if (!file) {
       return res.status(400).json({ message: 'No file uploaded' });

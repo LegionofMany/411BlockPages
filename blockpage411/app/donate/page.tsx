@@ -1,22 +1,29 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
+import { useRouter } from 'next/navigation';
+import useProfile from '../hooks/useProfile';
 
 const wallets = [
   {
     label: "Ethereum / EVM",
-  address: "Ox96Od558829ac2d136526b1c864c927e4O5afcd89",
-  qr: "/logos/ethereum.png"
+    address: "0x32f70478D25Cc1846F4b2AE7C977B5fA1e5C7969",
+    qr: "/logos/ethereum.png"
   },
   {
     label: "Bitcoin",
-    address: "bc1qdemobtcaddresshere",
-  qr: "/logos/bitcoin.png"
+    address: "bc1q8664htax0udktaj634ud7nc7smdn5edt0y7c0z",
+    qr: "/logos/bitcoin.png"
+  },
+  {
+    label: "BNB",
+    address: "0x32f70478D25Cc1846F4b2AE7C977B5fA1e5C7969",
+    qr: "/logos/binance.png"
   },
   {
     label: "Solana",
-    address: "So1anaDemoWalletAddre55",
-  qr: "/logos/solana.png"
+    address: "G5oEZV7nU9oo1b3MmFj5s1HBLKJHSFjwUVtyzU3NT7bi",
+    qr: "/logos/solana.png"
   }
 ];
 
@@ -24,6 +31,27 @@ export default function DonatePage() {
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
+  const { profile, loading: profileLoading } = useProfile();
+
+  const [queryAddress, setQueryAddress] = useState<string | null>(null);
+  const [queryChain, setQueryChain] = useState<string | null>(null);
+
+  // read query params client-side to avoid useSearchParams prerender issues
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    setQueryAddress(sp.get('address'));
+    setQueryChain(sp.get('chain'));
+  }, []);
+
+  // Create donation request form state
+  const [platform, setPlatform] = useState('');
+  const [url, setUrl] = useState('');
+  const [descriptionInput, setDescriptionInput] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createSuccess, setCreateSuccess] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,11 +59,48 @@ export default function DonatePage() {
     setTimeout(() => setSubmitted(false), 3500);
   }
 
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setCreateError(null);
+    if (!platform || !url) {
+      setCreateError('Platform and URL/address are required');
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await fetch('/api/donation-request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform, url, description: descriptionInput })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCreateError(data?.message || 'Failed to create donation request');
+      } else {
+        setCreateSuccess(true);
+        // redirect back to wallet page when created
+        setTimeout(() => {
+          router.push(queryChain && queryAddress ? `/wallet/${queryChain}/${queryAddress}` : '/');
+        }, 1200);
+      }
+    } catch (err) {
+      setCreateError((err as Error)?.message ?? 'Network error');
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const isOwner = !!(profile && queryAddress && profile.address && profile.address.toLowerCase() === queryAddress.toLowerCase());
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a0f1c] via-[#181f2f] to-[#1a2236] text-white">
       <div className="bg-gray-900/80 p-8 rounded-xl shadow-xl max-w-lg w-full text-center">
         <h1 className="text-3xl font-bold mb-4 text-cyan-300 animate-bounce">Support Blockpage411</h1>
         <p className="mb-6 text-cyan-100">You can support this project by sending donations to any of the wallet addresses below:</p>
+        {queryAddress && queryChain ? (
+          <div className="mb-4 text-sm text-slate-300">Creating a donation request for <span className="font-mono">{queryAddress}</span> on <span className="font-semibold">{queryChain}</span></div>
+        ) : null}
         {/* WalletCard component must be defined before usage */}
         {(() => {
           function WalletCard({ label, address, img }: { label: string; address: string; img: string }) {
@@ -70,6 +135,29 @@ export default function DonatePage() {
             </div>
           );
         })()}
+        {/* If query params provided AND user is owner, show creation form */}
+        {queryAddress && queryChain ? (
+          <div className="bg-gray-800 rounded-lg p-4 mb-6">
+            {profileLoading ? (
+              <div className="text-sm text-cyan-200">Checking account...</div>
+            ) : isOwner ? (
+              <form onSubmit={handleCreate} className="flex flex-col items-center gap-2">
+                <h2 className="text-lg font-semibold text-cyan-200">Create Donation Request</h2>
+                <input className="w-full max-w-md px-3 py-2 rounded bg-gray-900 text-white" placeholder="Platform (e.g. OpenCollective)" value={platform} onChange={e=>setPlatform(e.target.value)} />
+                <input className="w-full max-w-md px-3 py-2 rounded bg-gray-900 text-white" placeholder="URL or wallet address" value={url} onChange={e=>setUrl(e.target.value)} />
+                <textarea className="w-full max-w-md px-3 py-2 rounded bg-gray-900 text-white" placeholder="Description" value={descriptionInput} onChange={e=>setDescriptionInput(e.target.value)} />
+                <div className="flex gap-2">
+                  <button type="submit" disabled={creating} className="px-4 py-2 bg-emerald-600 rounded text-white">{creating ? 'Creating...' : 'Create Request'}</button>
+                  <button type="button" className="px-4 py-2 bg-gray-700 rounded text-white" onClick={()=>router.push(`/wallet/${queryChain}/${queryAddress}`)}>Cancel</button>
+                </div>
+                {createError && <div className="text-red-400 text-sm mt-2">{createError}</div>}
+                {createSuccess && <div className="text-green-400 text-sm mt-2">Request created — redirecting...</div>}
+              </form>
+            ) : (
+              <div className="text-sm text-yellow-200">To request donations for this wallet you must be the wallet owner and signed in. <button className="ml-2 underline" onClick={()=>router.push('/login')}>Sign in</button></div>
+            )}
+          </div>
+        ) : null}
         <form className="bg-gray-800 rounded-lg p-4 mb-6 flex flex-col items-center" onSubmit={handleSubmit}>
           <label className="text-cyan-200 font-semibold mb-2">Send a message or donation amount (optional):</label>
           <input

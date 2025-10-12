@@ -26,6 +26,20 @@ const UserSchema = new Schema({
     description: { type: String },
     active: { type: Boolean, default: true },
   }],
+  fundraisers: [{
+    id: { type: String },
+    title: { type: String },
+    description: { type: String },
+    target: { type: Number },
+    raised: { type: Number, default: 0 },
+    walletAddress: { type: String },
+    owner: { type: String },
+    createdAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date },
+    active: { type: Boolean, default: true },
+    privacy: { type: String, enum: ['public', 'circle'], default: 'public' },
+    circle: [{ type: String }],
+  }],
   verificationScore: { type: Number, default: 0 },
   profileUpdateHistory: [{ type: Date }], // for rate limiting
   // v4 admin fields

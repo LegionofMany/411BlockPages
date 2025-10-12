@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import User from 'lib/userModel';
+import type { DonationRequest } from '../../lib/types';
 import jwt from 'jsonwebtoken';
 
 interface JwtPayload {
-  address: string;
+  address: string;     
 }
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -40,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   user.donationRequests = user.donationRequests || [];
   // Expire old donations (set active=false if >60 days old)
   const now = new Date();
-  (user.donationRequests as (import('../../lib/types').DonationRequest & { createdAt?: string | Date })[]).forEach((don) => {
+  (user.donationRequests as (DonationRequest & { createdAt?: string | Date })[]).forEach((don) => {
     if (don.active && don.createdAt) {
       const created = new Date(don.createdAt);
       if (now.getTime() - created.getTime() > 60 * 24 * 60 * 60 * 1000) {
@@ -49,12 +50,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   });
   // Enforce max 1 active donation
-  const activeDonations = (user.donationRequests as import('../../lib/types').DonationRequest[]).filter((d) => d.active !== false);
+  const activeDonations = (user.donationRequests as DonationRequest[]).filter((d) => d.active !== false);
   if (activeDonations.length >= 1) {
     return res.status(400).json({ message: 'Only 1 active donation allowed at a time' });
   }
   // Add new donation with createdAt
-  user.donationRequests.push({ platform, url, description, active: true, createdAt: now } as import('../../lib/types').DonationRequest & { createdAt: Date });
+  user.donationRequests.push({ platform, url, description, active: true, createdAt: now } as DonationRequest & { createdAt: Date });
   user.updatedAt = now;
   await user.save();
   res.status(200).json({ success: true, donationRequests: user.donationRequests });

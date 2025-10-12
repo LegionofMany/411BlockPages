@@ -8,13 +8,45 @@
   export default function Search() {
     const [searchTerm, setSearchTerm] = useState("");
     const [chain, setChain] = useState("ethereum");
+    const [error, setError] = useState<string | null>(null);
+    const [detectedChain, setDetectedChain] = useState<string | null>(null);
     const router = useRouter();
 
     const handleSearch = (e: React.FormEvent) => {
       e.preventDefault();
-      if (searchTerm.trim()) {
-        router.push(`/wallet/${chain}/${searchTerm.trim()}`);
+      setError(null);
+      const term = searchTerm.trim();
+      if (!term) return;
+
+      // Simple address validators for major chains
+      const isEvm = /^0x[a-fA-F0-9]{40}$/.test(term);
+      const isBitcoin = /^([13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[0-9a-z]{25,39})$/i.test(term);
+      const isSolana = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(term);
+      const isTron = /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(term);
+      const isXrp = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(term);
+
+      const evmChains = ['ethereum','bsc','polygon','arbitrum','optimism'];
+
+      // If the input looks like an address for any chain, enforce correct chain selection.
+      if (isEvm || isBitcoin || isSolana || isTron || isXrp) {
+        let matchesSelected = false;
+        let detected: string | null = null;
+        if (isEvm) { detected = 'ethereum'; if (evmChains.includes(chain)) matchesSelected = true; }
+        if (isBitcoin) { detected = 'bitcoin'; if (chain === 'bitcoin') matchesSelected = true; }
+        if (isSolana) { detected = 'solana'; if (chain === 'solana') matchesSelected = true; }
+        if (isTron) { detected = 'tron'; if (chain === 'tron') matchesSelected = true; }
+        if (isXrp) { detected = 'xrp'; if (chain === 'xrp') matchesSelected = true; }
+
+        if (!matchesSelected) {
+          // Save detected chain so we can offer a quick switch
+          setDetectedChain(detected);
+          setError(`Wrong wallet address for selected chain. Detected: ${detected ?? 'unknown'}.`);
+          return;
+        }
+        setDetectedChain(null);
       }
+
+      router.push(`/wallet/${chain}/${term}`);
     };
 
     const chains = [
@@ -69,6 +101,24 @@
               Search
             </button>
           </form>
+          {error && (
+            <div className="mt-4 text-sm text-red-300 font-medium">
+              {error}
+              {detectedChain && (
+                <div className="mt-2">
+                  <button
+                    className="ml-2 px-3 py-1 rounded bg-cyan-700 text-white text-xs font-bold"
+                    onClick={() => {
+                      setChain(detectedChain);
+                      setError(null);
+                      // perform search immediately with the corrected chain
+                      router.push(`/wallet/${detectedChain}/${searchTerm.trim()}`);
+                    }}
+                  >Switch to {detectedChain}</button>
+                </div>
+              )}
+            </div>
+          )}
         </main>
         <Footer />
       </div>
