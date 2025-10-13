@@ -9,13 +9,14 @@ import { detectEvmDonation } from '../../../services/evm';
 import { detectSolanaTokenTransfer } from '../../../services/solana';
 import { detectTronTokenTransfer } from '../../../services/tronTokens';
 import { createPledgeAtomic } from '../../../lib/pledgeService';
+import { sendPollerAlert, shortErrorSummary } from '../../../lib/slack';
 
 // Serverless poller endpoint intended to be called by Vercel Cron or an external scheduler.
 // Protect with POLLER_SECRET env var (set in Vercel dashboard) or rely on Vercel's x-vercel-cron header.
 
 type DetectorResult = { found: boolean; amount?: number | string; token?: string; tokenSymbol?: string };
 
-type FundraiserDoc = { id?: string; walletAddress?: string; chain?: string; currency?: string };
+type FundraiserDoc = { id?: string; walletAddress?: string; chain?: string; currency?: string; title?: string };
 
 const CHAIN_FETCHERS: Record<string, (addr: string) => Promise<unknown[]>> = {
   ethereum: (a: string) => fetchEtherscanTxs(a),
@@ -31,10 +32,16 @@ async function runPoller() {
   const fundraisers = await Fundraiser.find({ active: true }).lean();
   for (const f of fundraisers) {
     const fr = f as FundraiserDoc;
-    const id = String(fr.id ?? '');
-    const addr = String(fr.walletAddress ?? '').trim();
+  const id = String(fr.id ?? '');
+  const addr = String(fr.walletAddress ?? '').trim();
     const chain = String(fr.chain ?? 'ethereum').toLowerCase();
-    if (!addr) continue;
+    if (!addr) {
+      // Alert admins that a fundraiser is missing a wallet address
+      try {
+        await sendPollerAlert({ level: 'warning', text: `Fundraiser ${id} has no wallet address configured`, fundraiserId: id, fundraiserTitle: fr.title ?? undefined });
+      } catch {};
+      continue;
+    }
     const fetcher = CHAIN_FETCHERS[chain];
     const txs = fetcher ? await fetcher(addr) : [];
     for (const t of Array.isArray(txs) ? txs : []) {
@@ -55,10 +62,29 @@ async function runPoller() {
           const amount = Number(det.amount ?? 0);
           const currency = String(det.tokenSymbol ?? det.token ?? fr.currency ?? 'UNKNOWN').toUpperCase();
           await createPledgeAtomic({ fundraiserId: id, externalId: txHash, amount, currency, donor: null, raw: { auto: true, detector: 'poller' } });
+          try {
+            await sendPollerAlert({ level: 'info', text: `Auto-created pledge for fundraiser ${id}`, fundraiserId: id, fundraiserTitle: fr.title ?? undefined, txHash, chain, amount, currency });
+          } catch {}
         }
       } catch (err) {
         // continue to next tx — individual failures shouldn't stop other fundraisers
         console.error('[poller] tx processing error', err);
+        try {
+          const tRec = t as Record<string, unknown>;
+          const txHashShort = String(tRec.hash ?? tRec.txid ?? tRec.id ?? '').toLowerCase();
+          await sendPollerAlert({
+            level: 'warning',
+            text: `Poller encountered an error processing a tx for fundraiser ${id}`,
+            fundraiserId: id,
+            fundraiserTitle: fr.title ?? undefined,
+            txHash: txHashShort || undefined,
+            chain,
+            amount: undefined,
+            currency: undefined,
+          });
+        } catch {
+          // swallow alert errors — don't let alerting break the poller
+        }
       }
     }
   }
@@ -82,6 +108,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('[poller] fatal', err);
+    try {
+      await sendPollerAlert({ level: 'error', text: `Poller fatal error: ${shortErrorSummary(err)}` });
+    } catch {
+      // ignore
+    }
     return res.status(500).json({ ok: false, error: String(err) });
   }
 }

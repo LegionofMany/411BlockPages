@@ -147,6 +147,36 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 Deploy on [Vercel](https://vercel.com/) or your preferred platform. See [Next.js deployment docs](https://nextjs.org/docs/app/building-your-application/deploying).
 
+## Alerts and Slack integration
+
+This project includes an alerting system for the poller that posts to a Slack Incoming Webhook and persists alerts in MongoDB for audit and retries.
+
+Environment variables:
+- `POLLER_SLACK_WEBHOOK` - Slack incoming webhook URL (required for alerts)
+- `NEXT_PUBLIC_APP_URL` or `BASE_URL` - public URL used to build fundraiser links
+- `SLACK_MAX_ATTEMPTS` - max retry attempts (default 3)
+- `SLACK_BACKOFF_MS` - base backoff in ms (default 500)
+
+Serverless retry (Vercel-compatible):
+
+The project now uses a serverless-friendly retry endpoint which can be invoked by Vercel Cron or manually to process pending alerts. No external worker is required.
+
+Example: invoke the retry API via an authenticated request or Vercel Cron that sets `x-poller-secret` to your `POLLER_SECRET`:
+
+PowerShell example:
+
+```powershell
+$env:POLLER_SECRET = 'your_poller_secret_here'
+Invoke-RestMethod -Uri 'https://your-app.vercel.app/api/admin/alerts/retry' -Headers @{ 'x-poller-secret' = $env:POLLER_SECRET } -Method Post
+```
+
+Recommended Cron schedule (every 5 minutes) for Vercel Cron jobs: set the Request URL to `https://your-app.vercel.app/api/admin/alerts/retry` and add a header `x-poller-secret` with your `POLLER_SECRET` value.
+
+Admin UI & API:
+- Admin API: `GET /api/admin/alerts` — lists recent alerts (requires admin auth or `x-admin-wallet` header)
+- Admin UI: `/admin/alerts` — simple UI to view alerts (protected by your admin auth flow)
+
+
 ---
 
 ## 📄 License

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { useAccount, useConnect, useSignMessage, useDisconnect } from "wagmi";
-import { injected, coinbaseWallet, walletConnect } from 'wagmi/connectors';
+import { useAccount, useSignMessage, useDisconnect } from "wagmi";
+import dynamic from 'next/dynamic';
+const WalletConnectButtons = dynamic(() => import('./WalletConnectButtons'));
 import { useRouter } from "next/navigation";
 
 
@@ -26,7 +27,6 @@ export default function LoginPage() {
       });
   }, [router]);
   const { address, isConnected } = useAccount();
-  const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const [loading, setLoading] = useState(false);
@@ -65,64 +65,11 @@ export default function LoginPage() {
         </div>
         {!isConnected ? (
           <div className="space-y-4">
-            <button
-              className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-yellow-500 hover:to-orange-500 transition-all duration-200 transform hover:scale-105 py-3"
-              onClick={async () => {
-                try {
-                  // Check for injected provider (MetaMask) first to avoid inpage errors
-                  interface EthereumWindow extends Window {
-                    ethereum?: {
-                      isMetaMask?: boolean;
-                      request?: (...args: unknown[]) => Promise<unknown>;
-                    };
-                  }
-                  const win = typeof window !== 'undefined' ? (window as unknown as EthereumWindow) : undefined;
-                  const hasEthereum = !!(win && win.ethereum);
-                  const isMetaMask = !!(win && win.ethereum && win.ethereum.isMetaMask);
-                  if (!hasEthereum || !isMetaMask) {
-                    // Open MetaMask install page in new tab
-                    window.open('https://metamask.io/download.html', '_blank');
-                    setError('MetaMask not detected — opening install page.');
-                    return;
-                  }
-                  await connect({ connector: injected() });
-                } catch (err) {
-                  console.warn('MetaMask connect failed', err);
-                  setError('Failed to connect to MetaMask. Try another wallet or refresh.');
-                }
-              }}
-            >
-              <span className="text-2xl">🦊</span>
-              <span className="font-bold">MetaMask</span>
-            </button>
-            <button
-              className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-sky-500 hover:from-sky-500 hover:to-blue-500 transition-all duration-200 transform hover:scale-105 py-3"
-              onClick={async () => {
-                try {
-                  await connect({ connector: walletConnect({ projectId: 'demo' }) });
-                } catch (err) {
-                  console.warn('WalletConnect failed', err);
-                  setError('Failed to connect via WalletConnect.');
-                }
-              }}
-            >
-              <span className="text-2xl">🔗</span>
-              <span className="font-bold">WalletConnect</span>
-            </button>
-            <button
-              className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-purple-500 hover:to-indigo-500 transition-all duration-200 transform hover:scale-105 py-3"
-              onClick={async () => {
-                try {
-                  await connect({ connector: coinbaseWallet() });
-                } catch (err) {
-                  console.warn('Coinbase Wallet connect failed', err);
-                  setError('Failed to connect via Coinbase Wallet.');
-                }
-              }}
-            >
-              <span className="text-2xl">💼</span>
-              <span className="font-bold">Coinbase Wallet</span>
-            </button>
+            <WalletConnectButtons onError={(e: unknown) => {
+              const obj = e as Record<string, unknown>;
+              const msg = typeof e === 'string' ? e : (obj && typeof obj.message === 'string') ? String(obj.message) : String(e);
+              setError(msg);
+            }} />
           </div>
         ) : (
           <div className="space-y-6">
