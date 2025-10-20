@@ -25,6 +25,11 @@ const WalletSchema = new Schema({
   ens: { type: String },
   nftCount: { type: Number, default: 0 },
   lastRefreshed: { type: Date },
+  // risk / tax meter fields
+  riskScore: { type: Number, default: 100 }, // 0 (low risk) .. 100 (high risk) - will invert for display if needed
+  riskCategory: { type: String, enum: ['black','red','yellow','green'], default: 'black' },
+  riskHistory: [ { date: { type: Date, default: Date.now }, score: Number, category: String, note: String } ],
+  lastRiskAt: { type: Date },
   // v4 admin fields
   blacklisted: { type: Boolean, default: false },
   blacklistReason: { type: String },

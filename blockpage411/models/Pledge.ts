@@ -4,6 +4,7 @@ const PledgeSchema = new Schema({
   fundraiserId: { type: String, required: true, index: true },
   externalId: { type: String, required: true }, // payment id or tx hash
   amount: { type: Number, required: true },
+  taxAmount: { type: Number, default: 0 },
   currency: { type: String, default: 'USD' },
   donor: { type: String },
   status: { type: String, enum: ['pending','completed','failed'], default: 'pending' },

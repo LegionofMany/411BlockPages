@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../../../components/Navbar";
 import ProfileInfo from "./ProfileInfo";
+import RiskMeter from "../../../components/RiskMeter";
 import StatusBadges from "./StatusBadges";
 // TransactionList is currently unused; keep import commented until used
 // import TransactionList from "./TransactionList";
@@ -44,6 +45,7 @@ function WalletProfile({ params }: { params: Promise<{ chain: string; address: s
         <div className="bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
           <V5UpgradeInfo />
           <ProfileInfo displayName={data?.displayName} avatarUrl={data?.avatarUrl} address={address} chain={chain} />
+          <RiskMeter score={data?.riskScore} category={data?.riskCategory} />
           <StatusBadges suspicious={data?.suspicious} popular={data?.popular} blacklisted={data?.blacklisted} flagsCount={data?.flags?.length} kycStatus={data?.kycStatus} verificationBadge={data?.verificationBadge} />
           <div className="my-6 border-t border-blue-800"></div>
           <WalletFlagSection flags={data?.flags} onFlag={async (reason, comment) => {

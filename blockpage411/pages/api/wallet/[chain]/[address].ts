@@ -2,6 +2,7 @@ import axios from "axios";
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
+import { computeRiskScore, WalletLike } from 'lib/risk';
 import { Transaction } from 'lib/types';
 
 // Types for Wallet document
@@ -189,6 +190,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         txs = [];
       }
     }
+  }
+
+  // compute risk and persist a short audit history
+  try {
+    if (wallet) {
+  // computeRiskScore expects a WalletLike; cast wallet document to WalletLike safely
+  const input = wallet as unknown as WalletLike;
+  const { score, category } = computeRiskScore(input);
+      const nowRisk = new Date();
+      // push a short history entry and update latest fields
+      await Wallet.updateOne({ _id: wallet._id }, {
+        $set: { riskScore: score, riskCategory: category, lastRiskAt: nowRisk },
+        $push: { riskHistory: { date: nowRisk, score, category, note: 'auto' } }
+      }).exec();
+      // refresh the wallet object with new risk fields
+      wallet = await Wallet.findOne({ address, chain });
+    }
+  } catch (err) {
+    console.error('[risk] compute/persist error', err);
   }
 
   res.status(200).json({

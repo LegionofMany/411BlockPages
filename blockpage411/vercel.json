@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/poller/run.ts": {
+    "api/poller/run": {
       "memory": 1024,
       "maxDuration": 60
     }

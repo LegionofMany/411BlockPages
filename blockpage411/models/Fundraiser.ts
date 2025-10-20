@@ -16,6 +16,9 @@ const FundraiserSchema = new Schema({
   privacy: { type: String, enum: ['public','circle'], default: 'public' },
   circle: [{ type: String }],
   recentDonors: [{ type: String }],
+  // tax settings
+  taxRate: { type: Number, default: 0 }, // tax rate as a decimal fraction (e.g., 0.05 = 5%)
+  taxCollected: { type: Number, default: 0 },
 }, { timestamps: true });
 
 export default models.Fundraiser || model('Fundraiser', FundraiserSchema);
