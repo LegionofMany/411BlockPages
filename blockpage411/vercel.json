@@ -1,10 +1,4 @@
 {
-  "functions": {
-    "api/poller/run": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  },
   "crons": [
     {
       "path": "/api/poller/run",
