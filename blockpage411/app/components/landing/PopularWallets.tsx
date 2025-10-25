@@ -35,13 +35,13 @@ export default function PopularWallets() {
 
   return (
     <section className="w-full max-w-6xl mx-auto text-center py-16">
-      <h2 className="text-4xl font-bold mb-8 text-cyan-200">Trending Wallets</h2>
+      <h2 className="text-3xl md:text-4xl font-bold mb-6 text-cyan-200">Trending Wallets</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {(Array.isArray(wallets) && wallets.length > 0) ? (
           wallets.map((wallet) => (
-            <div key={wallet.address} className="bg-gray-800/50 p-4 rounded-lg shadow-lg hover:bg-gray-700/50 transition-colors duration-200">
-              <p className="text-lg font-bold text-white truncate">{wallet.address}</p>
-              <p className="text-sm text-gray-400">Searches: {wallet.searchCount}</p>
+            <div key={wallet.address} className="glass p-4 rounded-lg shadow-lg hover:translate-y-[-4px] transition-transform duration-200">
+              <p className="text-base md:text-lg font-semibold text-white truncate">{wallet.address}</p>
+              <p className="text-xs md:text-sm muted">Searches: {wallet.searchCount}</p>
             </div>
           ))
         ) : (

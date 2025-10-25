@@ -11,7 +11,15 @@ type WalletDoc = {
 };
 import dbConnect from '../../../lib/db';
 
+// Simple in-memory cache to reduce load on hot endpoints in dev
+const CACHE_TTL_MS = 30_000; // 30s
+let cachedPopular: { value: unknown; expiresAt: number } | null = null;
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // return cached response when fresh
+  if (cachedPopular && Date.now() < cachedPopular.expiresAt) {
+    return res.status(200).json(cachedPopular.value);
+  }
   try {
     // Get popular wallets from Redis sorted set (guard for stubbed Redis in dev)
     let popularWallets: string[] = [];
@@ -34,7 +42,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       popular: w.popular || false,
       transactions: w.transactions || [],
     }));
-    res.status(200).json({ wallets });
+    const payload = { wallets };
+    // populate cache
+    try {
+      cachedPopular = { value: payload, expiresAt: Date.now() + CACHE_TTL_MS };
+    } catch (e) {
+      // ignore cache set errors in weird environments
+      console.warn('Failed to set in-memory cache for popular wallets', e);
+    }
+    res.status(200).json(payload);
   } catch (error) {
     console.error('Redis or MongoDB error:', error);
     res.status(500).json({ error: 'Failed to fetch popular wallets.' });

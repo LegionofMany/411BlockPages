@@ -3,7 +3,7 @@ import Redis from 'ioredis';
 // Allow temporarily disabling Redis in development by setting REDIS_URL=DISABLE_REDIS
 const redisUrl = process.env.REDIS_URL;
 
-type RedisLike = {
+export type RedisLike = {
   get: (...args: unknown[]) => Promise<unknown> | unknown;
   set: (...args: unknown[]) => Promise<unknown> | unknown;
   del: (...args: unknown[]) => Promise<unknown> | unknown;

@@ -3,7 +3,7 @@ import Image from "next/image";
 export default function SampleWallet() {
   return (
     <div className="mt-10 flex justify-center animate-fade-in delay-400">
-      <div className="card bg-gray-900/80 p-6 rounded-xl shadow-xl flex flex-col items-center w-96">
+      <div className="glass p-6 rounded-xl shadow-xl flex flex-col items-center w-96">
         <Image
           src="/logos/ethereum.png"
           alt="Sample Avatar"

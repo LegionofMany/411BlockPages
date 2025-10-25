@@ -12,7 +12,13 @@ function isValidAblyKey(key?: string) {
 
 export async function publishToAbly(channel: string, event: string, data: unknown) {
   const key = process.env.ABLY_API_KEY;
-  if (!isValidAblyKey(key)) throw new Error('Missing or invalid ABLY_API_KEY');
+  if (!isValidAblyKey(key)) {
+    // Mark unavailable and short-circuit rather than throwing so callers can remain stable
+    ABLY_UNAVAILABLE = true;
+    ABLY_LAST_ERROR = 'Missing or invalid ABLY_API_KEY';
+    console.warn('[lib/ably] Ably not configured, publish skipped');
+    return false;
+  }
   const url = `https://rest.ably.io/channels/${encodeURIComponent(channel)}/messages`;
   const body = [{ name: event, data }];
   const resp = await fetch(url, {
@@ -32,8 +38,17 @@ export async function publishToAbly(channel: string, event: string, data: unknow
 
 export async function createAblyTokenRequest(ttlSeconds = 3600, clientId?: string) {
   const key = process.env.ABLY_API_KEY;
-  if (!isValidAblyKey(key)) throw new Error('Missing or invalid ABLY_API_KEY');
-  if (ABLY_UNAVAILABLE) throw new Error(`Ably unavailable: ${ABLY_LAST_ERROR || 'previous initialization failed'}`);
+  if (!isValidAblyKey(key)) {
+    // Don't throw here; set an unavailable flag and return null so callers can handle gracefully.
+    ABLY_UNAVAILABLE = true;
+    ABLY_LAST_ERROR = 'Missing or invalid ABLY_API_KEY';
+    console.warn('[lib/ably] Ably not configured, createAblyTokenRequest returning null');
+    return null;
+  }
+  if (ABLY_UNAVAILABLE) {
+    // Fast-fail path when we've seen repeated failures
+    throw new Error(`Ably unavailable: ${ABLY_LAST_ERROR || 'previous initialization failed'}`);
+  }
 
   // Dynamically import Ably server SDK to avoid bundling into client bundles
   try {

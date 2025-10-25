@@ -14,6 +14,9 @@ interface Transaction {
 
 const RecentTransactionsTable: React.FC = () => {
   const [txs, setTxs] = useState<Transaction[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -21,13 +24,14 @@ const RecentTransactionsTable: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    adminFetch("/api/admin/recent-transactions")
+    adminFetch(`/api/admin/recent-transactions?page=${page}&limit=${limit}`)
       .then(async res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then(data => {
         setTxs(data.txs || []);
+        setTotal(data.total || 0);
         setLoading(false);
       })
       .catch((err) => {
@@ -35,7 +39,7 @@ const RecentTransactionsTable: React.FC = () => {
         setError("Failed to load transactions");
         setLoading(false);
       });
-  }, []);
+    }, [filter, page, limit]);
 
   const handleFlag = async (txid: string, chain: string, address: string) => {
     const res = await fetch("/api/admin/flag-transaction", {
@@ -112,6 +116,20 @@ const RecentTransactionsTable: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <div className="text-sm text-green-300">Page {page} / {Math.max(1, Math.ceil(total / limit))} — {total} transactions</div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-green-200">Per page</label>
+              <select value={limit} onChange={e => { setLimit(parseInt(e.target.value)); setPage(1); }} className="bg-gray-800 text-green-100 px-2 py-1 rounded">
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="px-2 py-1 rounded bg-indigo-700 text-white">Prev</button>
+              <button disabled={page >= Math.ceil(total / limit)} onClick={() => setPage(p => p + 1)} className="px-2 py-1 rounded bg-indigo-700 text-white">Next</button>
+            </div>
           </div>
         </div>
       )}

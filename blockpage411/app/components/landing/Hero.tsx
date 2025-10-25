@@ -27,28 +27,30 @@ export default function Hero() {
         </svg>
       </div>
       <div className="relative z-10">
-        <h1 className="text-6xl md:text-7xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent drop-shadow-2xl mb-8 animate-fade-in">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-300 via-indigo-400 to-purple-500 drop-shadow-md mb-4 sm:mb-6">
           Blockpage411: Your Web3 Reputation
         </h1>
-        <p className="text-2xl md:text-3xl text-cyan-100 font-medium mb-10 animate-fade-in delay-100">
+        <p className="text-base sm:text-lg md:text-xl text-muted font-medium mb-6 sm:mb-8">
           Build your on-chain identity, showcase your reputation, and connect with others in the decentralized world.
           <br />
-          <span className="text-blue-200">
+          <span className="text-cyan-200 font-semibold">
             KYC verification, social profiles, wallet ratings, reviews, and more.
           </span>
         </p>
-        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-10 animate-fade-in delay-200">
+        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 mb-8">
           <button
             type="button"
             onClick={() => router.push("/login")}
-            className="text-lg font-bold shadow-xl px-10 py-4 rounded-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-400 hover:to-teal-400 border-2 border-green-400 hover:scale-105 transition-all duration-200"
+            className="w-full sm:w-auto text-base md:text-lg font-bold px-6 py-3 rounded-full btn-primary flex items-center justify-center gap-2"
+            aria-label="Claim your profile"
           >
             🚀 Claim Your Profile
           </button>
           <button
             type="button"
             onClick={() => router.push("/search")}
-            className="text-lg font-bold shadow-xl px-10 py-4 rounded-full border-2 border-blue-400 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 ml-0 sm:ml-4 hover:scale-105 transition-all duration-200"
+            className="w-full sm:w-auto text-base md:text-lg font-semibold px-5 py-2 rounded-full border border-blue-600 text-white hover:bg-blue-700/20 transition-colors duration-150"
+            aria-label="Explore wallets"
           >
             🔍 Explore Wallets
           </button>

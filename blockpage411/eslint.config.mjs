@@ -20,6 +20,21 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  // Allow some relaxed typing in tests and script utilities to avoid blocking upgrades
+  {
+    files: ["**/__tests__/**", "**/*.spec.ts", "**/*.spec.tsx", "scripts/**", "test-*.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+    },
+  },
+  {
+    // Some service adapters accept `any` provider/library types; relax rule here
+    files: ["services/**", "scripts/**"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

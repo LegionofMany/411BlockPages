@@ -6,55 +6,97 @@
 /* Custom blockchain design system */
 :root {
 	--color-primary: #2563eb;
-	--color-secondary: #0ea5e9;
-	--color-accent: #a21caf;
-	--color-bg-dark: #0f172a;
-	--color-bg-light: #1e293b;
-	--color-card: #1e293b;
+	--color-secondary: #06b6d4;
+	--color-accent: #7c3aed;
+	--color-bg-dark: #070812;
+	--color-bg-mid: #0f1724;
+	--color-bg-light: #111827;
+	--color-card: rgba(17,24,39,0.6);
+	--color-card-border: rgba(124,58,237,0.12);
 	--color-success: #22c55e;
 	--color-warning: #f59e42;
 	--color-danger: #ef4444;
 	--color-info: #38bdf8;
-	--color-gradient: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
-	--color-gradient-accent: linear-gradient(90deg, #a21caf 0%, #0ea5e9 100%);
+	--color-gradient: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+	--color-gradient-accent: linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%);
+	--glass-blur: 8px;
+	--glass-bg: rgba(15, 23, 42, 0.6);
+	--muted-text: #9ca3af;
 }
 
 .bg-blockchain-gradient {
-	background: var(--color-gradient);
+ 	background: var(--color-gradient);
 }
 .bg-blockchain-gradient-accent {
-	background: var(--color-gradient-accent);
+ 	background: var(--color-gradient-accent);
 }
 .card {
-	background: var(--color-card);
-	border-radius: 1.25rem;
-	box-shadow: 0 4px 32px 0 rgba(16, 24, 40, 0.12);
-	padding: 2rem;
-	transition: box-shadow 0.2s;
+ 	background: var(--glass-bg);
+ 	backdrop-filter: blur(var(--glass-blur));
+ 	-webkit-backdrop-filter: blur(var(--glass-blur));
+ 	border: 1px solid var(--color-card-border);
+ 	border-radius: 1rem;
+ 	box-shadow: 0 6px 30px rgba(2,6,23,0.6);
+ 	padding: 1.25rem;
+ 	transition: transform 0.18s, box-shadow 0.18s;
 }
 .card:hover {
-	box-shadow: 0 8px 40px 0 rgba(16, 24, 40, 0.18);
+	transform: translateY(-4px);
+	box-shadow: 0 12px 48px rgba(2,6,23,0.7);
 }
 .btn-primary {
-	background: var(--color-gradient);
-	color: #fff;
-	border-radius: 0.75rem;
-	font-weight: 700;
-	padding: 0.75rem 2rem;
-	box-shadow: 0 2px 8px 0 rgba(37, 99, 235, 0.15);
-	transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+ 	background: linear-gradient(90deg, rgba(37,99,235,0.95) 0%, rgba(124,58,237,0.95) 100%);
+ 	color: #fff;
+ 	border-radius: 0.75rem;
+ 	font-weight: 700;
+ 	padding: 0.6rem 1.6rem;
+ 	box-shadow: 0 6px 24px rgba(124,58,237,0.12);
+ 	transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
 .btn-primary:hover {
-	background: var(--color-gradient-accent);
-	box-shadow: 0 4px 16px 0 rgba(37, 99, 235, 0.22);
-	transform: translateY(-2px) scale(1.03);
+	transform: translateY(-3px) scale(1.02);
+	box-shadow: 0 18px 46px rgba(37, 99, 235, 0.14);
 }
 .badge {
 	display: inline-block;
 	border-radius: 9999px;
-	font-size: 0.875rem;
-	font-weight: 600;
-	padding: 0.25rem 0.75rem;
-	background: var(--color-gradient-accent);
+	font-size: 0.8rem;
+	font-weight: 700;
+	padding: 0.2rem 0.6rem;
+	background: linear-gradient(90deg, rgba(124,58,237,0.95), rgba(6,182,212,0.95));
 	color: #fff;
+}
+
+/* utility classes for landing accents */
+.glass { background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--color-card-border); }
+.muted { color: var(--muted-text); }
+.accent-text { color: var(--color-accent); }
+.subtle-gradient { background: linear-gradient(180deg, rgba(124,58,237,0.04), rgba(6,182,212,0.02)); }
+
+/* Accessible focus outlines */
+:focus {
+	outline: 3px solid rgba(124,58,237,0.18);
+	outline-offset: 3px;
+}
+
+/* Reveal helper - default hidden, will be animated in via JS */
+.reveal { opacity: 0; transform: translateY(12px); }
+
+/* Small reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+	.reveal { transition: none !important; }
+	.btn-primary { transition: none !important; }
+}
+
+/* Navigation link style */
+.nav-link {
+	color: #e6f0ff;
+	font-weight: 600;
+	padding: 0.25rem 0.5rem;
+	border-radius: 0.375rem;
+}
+.nav-link:hover, .nav-link:focus {
+	color: #cfe9ff;
+	background: rgba(255,255,255,0.02);
+	outline: none;
 }
