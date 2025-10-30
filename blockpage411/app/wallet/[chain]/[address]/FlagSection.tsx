@@ -9,21 +9,24 @@ interface FlagSectionProps {
 const FlagSection: React.FC<FlagSectionProps> = ({ flags, onDismiss }) => {
   if (!flags || flags.length === 0) return null;
   return (
-    <div className="mt-4">
-      <h3 className="text-base font-semibold text-yellow-200 mb-2">Flags</h3>
-      <ul className="space-y-2">
+    <div className="mt-6">
+      <h3 className="text-amber-200 font-semibold mb-4">Flags</h3>
+      <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {flags.map(flag => (
-          <li key={flag._id} className="bg-yellow-900/40 border border-yellow-700 rounded p-3 flex flex-col gap-1">
-            <span className="text-yellow-100 text-sm">Flag ID: <span className="font-mono">{flag._id}</span></span>
-            {flag.reason && <span className="text-yellow-200 text-xs">Reason: {flag.reason}</span>}
-            {flag.date && <span className="text-yellow-200 text-xs">Date: {new Date(flag.date).toLocaleString()}</span>}
-            {flag.flaggedBy && <span className="text-yellow-200 text-xs">Flagged By: {flag.flaggedBy}</span>}
-            <button
-              className="mt-2 px-3 py-1 rounded bg-yellow-700 text-white font-bold text-xs self-start"
-              onClick={() => onDismiss(flag._id)}
-            >
-              Dismiss Flag
-            </button>
+          <li key={flag._id} className="rounded-2xl p-4" style={{ background: 'linear-gradient(180deg, rgba(255,245,220,0.02), rgba(6,8,15,0.5))', border: '1px solid rgba(29,78,216,0.12)' }}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm text-amber-100">{flag._id}</span>
+                  {flag.reason && <span className="text-xs px-2 py-0.5 rounded-full text-amber-800 bg-amber-200/8">{flag.reason}</span>}
+                </div>
+                {flag.date && <div className="text-xs text-amber-200 mt-2">{new Date(flag.date).toLocaleString()}</div>}
+                {flag.flaggedBy && <div className="text-xs text-amber-200">Flagged By: {flag.flaggedBy}</div>}
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <button className="px-3 py-1 rounded-md bg-red-700/80 text-white hover:bg-red-700" onClick={() => onDismiss(flag._id)}>Dismiss</button>
+              </div>
+            </div>
           </li>
         ))}
       </ul>

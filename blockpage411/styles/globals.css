@@ -3,6 +3,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Default readable text color for dark theme pages */
+html, body {
+	color: #f8fafc;
+}
+
 /* Custom blockchain design system */
 :root {
 	--color-primary: #2563eb;

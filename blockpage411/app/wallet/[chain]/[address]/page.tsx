@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Navbar from "../../../components/Navbar";
 import ProfileInfo from "./ProfileInfo";
 import RiskMeter from "../../../components/RiskMeter";
 import StatusBadges from "./StatusBadges";
@@ -38,9 +37,8 @@ function WalletProfile({ params }: { params: Promise<{ chain: string; address: s
 
   const hasActiveDonation = data?.donationRequests?.some((d: DonationRequest) => d.active);
 
-  return (
+    return (
     <div className="min-h-screen flex flex-col items-center">
-      <Navbar variant="wallet" />
       <main className="flex-1 w-full max-w-4xl px-4 py-8 mt-16">
         <div className="bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
           <V5UpgradeInfo />
@@ -48,13 +46,24 @@ function WalletProfile({ params }: { params: Promise<{ chain: string; address: s
           <RiskMeter score={data?.riskScore} category={data?.riskCategory} />
           <StatusBadges suspicious={data?.suspicious} popular={data?.popular} blacklisted={data?.blacklisted} flagsCount={data?.flags?.length} kycStatus={data?.kycStatus} verificationBadge={data?.verificationBadge} />
           <div className="my-6 border-t border-blue-800"></div>
-          <WalletFlagSection flags={data?.flags} onFlag={async (reason, comment) => {
-            await fetch("/api/flags", {
+          <WalletFlagSection flags={data?.flags} address={address} chain={chain} onFlag={async (reason, comment) => {
+            const res = await fetch("/api/flags", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ address, chain, reason, comment })
+              body: JSON.stringify({ address, chain, reason, comment }),
+              credentials: 'include'
             });
-            mutate();
+            if (!res.ok) {
+              let body: unknown = null;
+              try { body = await res.json(); } catch {}
+              const obj = body as Record<string, unknown> | null;
+              const err = new Error(obj && typeof obj.message === 'string' ? obj.message : 'Flagging failed');
+              // attach status for callers to inspect
+              (err as unknown as Record<string, unknown>).status = res.status;
+              throw err;
+            }
+            await mutate();
+            return res;
           }} />
           {isAdmin && (
             <CommunityTab data={data} address={address} mutate={mutate} />

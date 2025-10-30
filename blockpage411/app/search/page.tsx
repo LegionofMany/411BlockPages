@@ -1,7 +1,6 @@
   "use client";
   import { useState } from "react";
   import { useRouter } from "next/navigation";
-  import Navbar from "../components/Navbar";
   import Footer from "../components/Footer";
 
 
@@ -64,7 +63,6 @@
 
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar variant="search" />
         <main className="flex-1 flex flex-col items-center justify-center w-full px-4 text-center">
           <h1 className="text-5xl md:text-6xl font-extrabold mb-4 text-white">
             Explore the Blockchain

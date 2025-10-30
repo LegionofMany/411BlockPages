@@ -1,6 +1,5 @@
-// app/admin/dashboard.tsx
+// app/admin/dashboard.tsx 
 import useSWR from 'swr';
-import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 function fetcher(url: string) {
@@ -12,8 +11,7 @@ export default function AdminDashboard() {
   if (error) return <div>Error loading dashboard.</div>;
   if (!data) return <div>Loading...</div>;
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900 flex flex-col items-center">
-      <Navbar variant="admin" />
+  <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900 flex flex-col items-center">
       <div className="max-w-3xl w-full bg-gray-900/80 rounded-2xl shadow-xl mt-10 p-8 flex flex-col items-center border border-blue-700">
         <h1 className="text-2xl font-bold text-yellow-300 mb-6">Admin Dashboard</h1>
         <div className="w-full mb-6">

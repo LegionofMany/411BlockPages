@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 type SuspiciousWallet = {
@@ -23,7 +22,6 @@ export default function SuspiciousWalletsDashboard() {
   }, []);
   return (
     <div className="min-h-screen bg-blockchain-gradient flex flex-col text-cyan-100">
-      <Navbar variant="wallet" />
       <main className="flex-1 flex flex-col items-center py-8">
         <h1 className="text-2xl font-bold mb-4">Suspicious Wallets</h1>
         {loading ? <div>Loading...</div> : (

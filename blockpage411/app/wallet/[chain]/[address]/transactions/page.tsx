@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 import { useRouter, useParams } from "next/navigation";
-import Navbar from "../../../../components/Navbar";
 import Footer from "../../../../components/Footer";
 import TransactionList from "../TransactionList";
 import useSWR from 'swr';
@@ -18,9 +17,8 @@ export default function WalletTransactionsPage() {
   if (error) return <div className="text-center py-10 text-red-400">Failed to load transactions.</div>;
   if (!data) return <div className="text-center py-10 text-cyan-200">Loading...</div>;
 
-  return (
+    return (
     <div className="min-h-screen flex flex-col items-center">
-      <Navbar variant="wallet" />
       <main className="flex-1 w-full max-w-4xl px-4 py-8 mt-16">
         <div className="bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
           <h2 className="text-2xl font-bold text-cyan-300 mb-6">Recent Transactions</h2>

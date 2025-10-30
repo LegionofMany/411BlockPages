@@ -10,7 +10,6 @@ import RecentTransactionsTable from "../components/admin/RecentTransactionsTable
 import SystemSettingsPanel from "../components/admin/SystemSettingsPanel";
 import AdminStatsCards from "../components/admin/AdminStatsCards";
 import { useRouter } from "next/navigation";
-import Navbar from "../components/Navbar";
 
 
 export default function AdminPage() {
@@ -46,7 +45,6 @@ export default function AdminPage() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
-        <Navbar variant="admin" />
         <div className="mt-32 text-center">
           <h1 className="text-2xl font-bold text-red-400 mb-4">Access Denied</h1>
           <p className="text-cyan-200 mb-4">Your wallet address is not recognized as an admin.</p>
@@ -62,7 +60,6 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-transparent">
-      <Navbar variant="admin" />
       <main className="flex-1 w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-10 mt-16">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-cyan-300">Admin Dashboard</h1>
