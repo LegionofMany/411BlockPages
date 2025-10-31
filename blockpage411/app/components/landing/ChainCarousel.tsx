@@ -14,7 +14,6 @@ const chains = [
 
 export default function ChainCarousel() {
   // make the total width of all items equal to the viewport width
-  const itemPercent = 100 / chains.length;
   // logo size scales with the per-item viewport percentage, clamped between min and max
   // example: clamp(48px, calc(11.11vw * 0.55), 160px)
   // use a smaller scaling factor and tighter bounds so logos don't become too large

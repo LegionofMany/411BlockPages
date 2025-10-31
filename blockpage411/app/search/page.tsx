@@ -1,124 +1,65 @@
-  "use client";
-  import { useState } from "react";
-  import { useRouter } from "next/navigation";
-  import Footer from "../components/Footer";
+"use client";
+import React, { useState } from 'react';
+import ProviderSelect from 'app/components/ProviderSelect';
+import AddProviderModal from 'app/components/AddProviderModal';
+import ReportModal from 'app/components/ReportModal';
+import { ethers } from 'ethers';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type ProviderType = { _id?: string; name: string; website?: string; type?: string; rank?: number; status?: string };
 
-  export default function Search() {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [chain, setChain] = useState("ethereum");
-    const [error, setError] = useState<string | null>(null);
-    const [detectedChain, setDetectedChain] = useState<string | null>(null);
-    const router = useRouter();
+export default function SearchPage(){
+  const [myWallet, setMyWallet] = useState('');
+  const [provider, setProvider] = useState<ProviderType | null>(null);
+  const [suspect, setSuspect] = useState('');
+  const [addingProvider, setAddingProvider] = useState(false);
 
-    const handleSearch = (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
-      const term = searchTerm.trim();
-      if (!term) return;
+  const [openReportModal, setOpenReportModal] = useState(false);
 
-      // Simple address validators for major chains
-      const isEvm = /^0x[a-fA-F0-9]{40}$/.test(term);
-      const isBitcoin = /^([13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[0-9a-z]{25,39})$/i.test(term);
-      const isSolana = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(term);
-      const isTron = /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(term);
-      const isXrp = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(term);
-
-      const evmChains = ['ethereum','bsc','polygon','arbitrum','optimism'];
-
-      // If the input looks like an address for any chain, enforce correct chain selection.
-      if (isEvm || isBitcoin || isSolana || isTron || isXrp) {
-        let matchesSelected = false;
-        let detected: string | null = null;
-        if (isEvm) { detected = 'ethereum'; if (evmChains.includes(chain)) matchesSelected = true; }
-        if (isBitcoin) { detected = 'bitcoin'; if (chain === 'bitcoin') matchesSelected = true; }
-        if (isSolana) { detected = 'solana'; if (chain === 'solana') matchesSelected = true; }
-        if (isTron) { detected = 'tron'; if (chain === 'tron') matchesSelected = true; }
-        if (isXrp) { detected = 'xrp'; if (chain === 'xrp') matchesSelected = true; }
-
-        if (!matchesSelected) {
-          // Save detected chain so we can offer a quick switch
-          setDetectedChain(detected);
-          setError(`Wrong wallet address for selected chain. Detected: ${detected ?? 'unknown'}.`);
-          return;
-        }
-        setDetectedChain(null);
-      }
-
-      router.push(`/wallet/${chain}/${term}`);
-    };
-
-    const chains = [
-      { value: "ethereum", label: "Ethereum" },
-      { value: "bitcoin", label: "Bitcoin" },
-      { value: "bsc", label: "BNB Chain" },
-      { value: "polygon", label: "Polygon" },
-      { value: "arbitrum", label: "Arbitrum" },
-      { value: "optimism", label: "Optimism" },
-      { value: "solana", label: "Solana" },
-      { value: "tron", label: "Tron" },
-      { value: "xrp", label: "XRP" },
-      // Add more supported chains as needed
-    ];
-
-    return (
-      <div className="min-h-screen flex flex-col">
-        <main className="flex-1 flex flex-col items-center justify-center w-full px-4 text-center">
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-4 text-white">
-            Explore the Blockchain
-          </h1>
-          <p className="text-xl md:text-2xl text-cyan-200 mb-8">
-            Search for any wallet address to view its profile and reputation.
-          </p>
-          <form
-            onSubmit={handleSearch}
-            className="w-full max-w-2xl flex items-center bg-gray-800/50 rounded-full shadow-2xl border-2 border-blue-700"
-          >
-            <select
-              value={chain}
-              onChange={e => setChain(e.target.value)}
-              className="bg-gray-900 text-white px-4 py-4 rounded-l-full border-none focus:outline-none font-bold"
-              style={{ minWidth: 140 }}
-            >
-              {chains.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Enter wallet address, ENS, or name"
-              className="w-full bg-transparent text-white px-6 py-4 rounded-none focus:outline-none placeholder-gray-400"
-              style={{ borderTopRightRadius: '9999px', borderBottomRightRadius: '9999px' }}
-            />
-            <button
-              type="submit"
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold px-8 py-4 rounded-full ml-2 hover:from-indigo-600 hover:to-blue-600 transition-all duration-200 transform hover:scale-105"
-            >
-              Search
-            </button>
-          </form>
-          {error && (
-            <div className="mt-4 text-sm text-red-300 font-medium">
-              {error}
-              {detectedChain && (
-                <div className="mt-2">
-                  <button
-                    className="ml-2 px-3 py-1 rounded bg-cyan-700 text-white text-xs font-bold"
-                    onClick={() => {
-                      setChain(detectedChain);
-                      setError(null);
-                      // perform search immediately with the corrected chain
-                      router.push(`/wallet/${detectedChain}/${searchTerm.trim()}`);
-                    }}
-                  >Switch to {detectedChain}</button>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
-        <Footer />
-      </div>
-    );
+  async function signAndVerify(){
+    if (!myWallet) return alert('Enter your wallet address to verify');
+    try{
+      // request accounts
+      const anyWindow: any = window as any;
+      if (!anyWindow.ethereum) return alert('No web3 provider found');
+      await anyWindow.ethereum.request({ method: 'eth_requestAccounts' });
+      const providerE = new ethers.BrowserProvider(anyWindow.ethereum as any);
+      const signer = await providerE.getSigner();
+      const message = `Verify ownership of ${myWallet} for Blockpage411 at ${Date.now()}`;
+      const signature = await signer.signMessage(message);
+      // POST to verify endpoint
+      const resp = await fetch('/api/wallets/verify', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ address: myWallet, message, signature }), credentials: 'include' });
+      if (!resp.ok) { const j = await resp.json().catch(()=>null); return alert('Verify failed: ' + (j?.message || resp.statusText)); }
+      alert('Wallet verified successfully');
+    }catch(e){ console.error(e); alert('Signature failed'); }
   }
+
+  return (
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-4">Report a receiving address</h1>
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">My Wallet (owner)</label>
+        <input value={myWallet} onChange={(e)=>setMyWallet(e.target.value)} className="input w-full" placeholder="0x..." />
+      </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">Provider / Exchange</label>
+        <ProviderSelect value={provider} onChange={(p)=>setProvider(p)} />
+      </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">Receiving address</label>
+        <input value={suspect} onChange={(e)=>setSuspect(e.target.value)} className="input w-full" placeholder="0x..." />
+      </div>
+      <div className="flex gap-2">
+        <button onClick={()=>setAddingProvider(true)} className="btn">Add provider</button>
+        <button onClick={()=>setOpenReportModal(true)} className="btn btn-primary">Flag / Report</button>
+        <button onClick={signAndVerify} className="btn">Sign & Verify my wallet</button>
+      </div>
+      {addingProvider && (
+        <AddProviderModal initialName={provider?.name || ''} onClose={()=>setAddingProvider(false)} onCreated={(p)=>{ setProvider(p as ProviderType); setAddingProvider(false); }} />
+      )}
+      {openReportModal && (
+        <ReportModal myWallet={myWallet} provider={provider} suspect={suspect} onClose={()=>setOpenReportModal(false)} onSubmitted={()=>{ setSuspect(''); setOpenReportModal(false); }} />
+      )}
+    </div>
+  );
+}

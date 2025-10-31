@@ -46,11 +46,8 @@ export async function withProvider<T>(chain: string | undefined, cb: (prov: ethe
       await new Promise((r) => setTimeout(r, backoffMs));
       // increment provider error metric (best-effort)
       try {
-        fetch(`${process.env.BASE_URL || 'http://localhost:3000'}/api/metrics`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ metric: 'provider_errors', increment: 1 }),
-        } as any);
+        // fire-and-forget metrics; swallow any network errors to avoid test flakes
+        try { fetch(`${process.env.BASE_URL || 'http://localhost:3000'}/api/metrics`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ metric: 'provider_errors', increment: 1 }) } as any).catch(()=>{}); } catch {}
       } catch {
         // ignore
       }

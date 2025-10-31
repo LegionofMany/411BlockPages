@@ -1,0 +1,6 @@
+scripts/
+__tests__/
+types/
+scripts/**/*.js
+node_modules/
+dist/

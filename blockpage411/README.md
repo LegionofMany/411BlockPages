@@ -1,4 +1,54 @@
+# Blockpage411 — local dev & seeding
 
+This README describes how to seed the provider list, run the app locally, and run a small smoke test.
+
+Prerequisites
+- Node 18+ (for built-in fetch in node if running helper scripts)
+- npm
+- A MongoDB instance (Atlas). Provide `MONGODB_URI` in `.env.local` or environment.
+
+Seed providers (uses `data/providers.json`)
+
+The repository contains a small JS seeder that reads `data/providers.json` and inserts/updates providers in your MongoDB.
+
+From the repository root (Windows PowerShell):
+
+```powershell
+# ensure your .env.local contains MONGODB_URI or set it in the shell
+npm --prefix .\blockpage411 exec -- node .\scripts\seed_providers_node.js
+```
+
+Notes:
+- The seeder will create Provider documents if they don't exist or update a matching provider by name.
+- The seeder uses `.env.local` when present (it is loaded automatically).
+
+Run the app (dev)
+
+```powershell
+npm --prefix .\blockpage411 run dev
+```
+
+Open `http://localhost:3000/search` to use the three-field search / report page. The report flow uses the `ethers` signer in your browser to optionally collect ownership signatures.
+
+Run production (after build)
+
+```powershell
+npm --prefix .\blockpage411 run build
+npm --prefix .\blockpage411 run start
+```
+
+Quick smoke tests (after server is running)
+
+```powershell
+# providers list
+Invoke-RestMethod 'http://localhost:3000/api/providers' | ConvertTo-Json -Depth 3
+# popular wallets
+Invoke-RestMethod 'http://localhost:3000/api/wallet/popular' | ConvertTo-Json -Depth 3
+```
+
+If requests to `localhost:3000` fail, ensure your process is running and not blocked by a firewall. The server logs will show startup messages.
+
+If you want me to run the seeder or start the server from here again, tell me and I'll proceed — I can also push small follow-ups to clean remaining non-critical warnings.
 
 
 # Blockpage411 v5

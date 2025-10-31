@@ -1,7 +1,6 @@
 import handler from '../../pages/api/fundraisers/verify-onchain';
 import * as evm from '../../services/evm';
-import * as sol from '../../services/solana';
-import * as tron from '../../services/tronTokens';
+// solana and tron service modules are mocked below via jest.mock by path
 
 // Mock minimal req/res
 function makeReq(body: any) {

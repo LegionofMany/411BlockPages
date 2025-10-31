@@ -3,16 +3,15 @@ import 'dotenv/config';
 // Use global fetch when available (Node 18+), otherwise try to import node-fetch dynamically
 let fetchImpl: any = undefined;
 try {
-  // @ts-ignore
   if (globalThis.fetch) fetchImpl = globalThis.fetch;
 } catch {}
 if (!fetchImpl) {
   // dynamic require of node-fetch if present; if not, the script will fail with a clear message
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     fetchImpl = require('node-fetch');
   } catch (e) {
-    console.error('No global fetch available and node-fetch is not installed. Please run this script on Node 18+ or install node-fetch.');
+    console.error('No global fetch available and node-fetch is not installed. Please run this script on Node 18+ or install node-fetch.', e);
     process.exit(1);
   }
 }

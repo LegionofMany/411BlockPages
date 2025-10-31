@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-require-imports */
+ 
 /*
  * Plain Node.js migration script to move embedded user.fundraisers into top-level
  * fundraisers collection. Does not depend on project TypeScript modules.

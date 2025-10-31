@@ -2,6 +2,8 @@ import axios from "axios";
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
+import ProviderWallet from 'lib/providerWalletModel';
+import Provider from 'lib/providerModel';
 import { computeRiskScore, WalletLike } from 'lib/risk';
 import { Transaction } from 'lib/types';
 
@@ -211,9 +213,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('[risk] compute/persist error', err);
   }
 
+  // attempt to find a provider wallet mapping and include provider label
+  let providerLabel: { providerId?: string; name?: string; note?: string } | null = null;
+  try{
+    const pw = await ProviderWallet.findOne({ address: String(address).toLowerCase(), chain: String(chain).toLowerCase() }).lean() as { providerId?: unknown; note?: string } | null;
+    if (pw) {
+  const p = await Provider.findById(String(pw.providerId || '')).lean() as { name?: string } | null;
+  providerLabel = { providerId: String(pw.providerId || ''), name: p?.name || undefined, note: pw.note || undefined };
+    }
+  }catch{ /* ignore */ }
+
   res.status(200).json({
     address: wallet?.address || address,
     chain: wallet?.chain || chain,
+    // provider label if we can match the address to a provider wallet
+  providerLabel,
     flags: wallet?.flags || [],
     ratings: (wallet?.ratings || []).map((r: {
       user: string;

@@ -8,7 +8,9 @@ export default async function redisRateLimit(req: NextApiRequest, res: NextApiRe
   const windowSec = opts?.windowSec ?? 60;
   const max = opts?.max ?? 20;
   const keyPrefix = opts?.keyPrefix ?? 'rl:';
-  const ip = req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || 'anon';
+  const forwarded = req && req.headers && req.headers['x-forwarded-for'] ? (req.headers['x-forwarded-for'].toString()) : undefined;
+  const socket = req && req.socket ? (req.socket as unknown as { remoteAddress?: string }) : undefined;
+  const ip = forwarded || socket?.remoteAddress || 'anon';
   const key = `${keyPrefix}${ip}`;
   try {
     const v = await client.incr(key);

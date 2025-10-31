@@ -7,8 +7,6 @@ const ERC20_ABI = [
 
 export async function detectEvmDonation(opts: { txHash: string; targetAddress: string; chain?: string }) {
   const { txHash, targetAddress, chain } = opts;
-  // Short-circuit in test mode to avoid network calls and provider throttling during unit tests
-  if (process.env.NODE_ENV === 'test') return { found: false } as const;
   try {
     return await withProvider(chain, async (provider) => {
       const tx = await provider.getTransaction(txHash);

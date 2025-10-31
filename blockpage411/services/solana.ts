@@ -19,7 +19,7 @@ export async function detectSolanaTokenTransfer(address: string, txHash: string)
     }
   } catch (err) {
     // fallback attempt: solana.fm — log debug for visibility
-    // eslint-disable-next-line no-console
+     
     console.debug('[detectSolanaTokenTransfer] solscan error:', (err as any)?.message ?? err);
     try {
       const { data } = await axios.get(`https://api.solana.fm/v0/transactions/${txHash}`);
@@ -53,7 +53,7 @@ export async function detectSolanaTokenTransfer(address: string, txHash: string)
         }
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return { found: false } as const;

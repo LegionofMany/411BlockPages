@@ -50,6 +50,7 @@ const WalletSchema = new Schema({
     reviewedAt: { type: Date },
     adminNote: { type: String },
   },
+  verificationProof: { type: Schema.Types.Mixed },
   suspicious: { type: Boolean, default: false },
   flagsList: [{ type: String }], // for admin/manual flags
   // role management

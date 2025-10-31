@@ -104,6 +104,8 @@ const IconMenuSpecial = ({ state = 'default' }: { state?: 'default' | 'hover' | 
   );
 };
 
+// variant is accepted for future visual variants but currently unused
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
 export default function Navbar({ variant: _variant }: { variant?: string } = {}) {
   const [open, setOpen] = useState(false);
   const [btnHover, setBtnHover] = useState(false);

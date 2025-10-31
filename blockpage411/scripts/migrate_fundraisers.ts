@@ -5,7 +5,7 @@
  */
 // Load environment variables when running this script directly (e.g. npx ts-node)
 // Load dotenv explicitly so this script works when executed directly.
-/* eslint-disable @typescript-eslint/no-require-imports */
+ 
 const dotenv = require('dotenv');
 dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env.local' });
 

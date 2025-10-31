@@ -3,12 +3,14 @@ import axios from 'axios';
 export async function detectTronTokenTransfer(address: string, txHash: string) {
   try {
     const { data } = await axios.get(`https://apilist.tronscanapi.com/api/transaction-info?hash=${txHash}`);
-    const transfers = data?.tokenTransfer; // may vary
+    const transfers = data?.tokenTransfer || data?.tokenTransfers || data?.token || [];
     if (!Array.isArray(transfers)) return { found: false } as const;
     for (const t of transfers) {
       const to = t.toAddress || t.to || t.ownerAddress || '';
       if (String(to).toLowerCase() === address.toLowerCase()) {
-        const amount = Number(t.amount || t.value || 0) / (Math.pow(10, Number(t.decimals || 18)));
+        const rawVal = Number(t.amount ?? t.value ?? 0);
+        const hasDecimals = typeof t.decimals !== 'undefined' && t.decimals !== null;
+        const amount = hasDecimals ? rawVal / Math.pow(10, Number(t.decimals)) : rawVal;
         const token = t.tokenName || t.tokenId || t.contract || t.tokenId || '';
         return { found: true, amount, token } as const;
       }

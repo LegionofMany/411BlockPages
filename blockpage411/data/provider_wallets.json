@@ -1,0 +1,16 @@
+[
+  {
+    "providerName": "Binance",
+    "address": "0x0000000000000000000000000000000000000001",
+    "chain": "ethereum",
+    "note": "Test deposit address",
+    "source": "seed"
+  },
+  {
+    "providerName": "Coinbase",
+    "address": "0x0000000000000000000000000000000000000002",
+    "chain": "ethereum",
+    "note": "Test deposit address coinbase",
+    "source": "seed"
+  }
+]

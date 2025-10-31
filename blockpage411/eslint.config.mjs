@@ -18,6 +18,12 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // migrated from .eslintignore
+      "scripts/**",
+      "__tests__/**",
+      "types/**",
+      "scripts/**/*.js",
+      "dist/**",
     ],
   },
   // Allow some relaxed typing in tests and script utilities to avoid blocking upgrades
@@ -33,8 +39,15 @@ const eslintConfig = [
     files: ["services/**", "scripts/**"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
+  {
+    files: ["types/**"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  }
 ];
 
 export default eslintConfig;

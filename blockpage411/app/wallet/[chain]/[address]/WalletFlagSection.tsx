@@ -136,7 +136,7 @@ const WalletFlagSection: React.FC<WalletFlagSectionProps> = ({ flags, address, c
     // replace local flags with server flags (server is source-of-truth)
     setLocalFlags([...flags as LocalFlag[]]);
     prevServerIdsRef.current = incomingIds;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [flags]);
 
   async function fetchRemaining() {
