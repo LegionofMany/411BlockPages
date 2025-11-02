@@ -33,11 +33,38 @@ async function main(){
     });
   }
 
+  // CLI flags
+  const argv = process.argv.slice(2);
+  const args = {};
+  for (let i = 0; i < argv.length; i++){
+    const a = argv[i];
+    if (a === '--resume') args.resume = true;
+    else if (a === '--dryRun') args.dryRun = true;
+    else if (a === '--checkpoint' && argv[i+1]) { args.checkpoint = argv[++i]; }
+    else if (a === '--batchSize' && argv[i+1]) { args.batchSize = parseInt(argv[++i], 10); }
+    else if (a === '--progressLog' && argv[i+1]) { args.progressLog = argv[++i]; }
+  }
+
+  const checkpointFile = args.checkpoint || path.join(process.cwd(), '.import-status.json');
+  const batchSize = args.batchSize || 1000;
+  const dryRun = !!args.dryRun;
+  let lastIndex = 0;
+  if (args.resume && fs.existsSync(checkpointFile)){
+    try{ const c = JSON.parse(fs.readFileSync(checkpointFile, 'utf8')); lastIndex = Number(c.lastIndex) || 0; }catch(e){ lastIndex = 0; }
+    console.log('Resuming import from index', lastIndex);
+  }
+
   try{
-    const helper = require('../lib/importProviderHelper');
-    const res = await helper.importItems(items);
+    const importer = require('../lib/importerCli');
+    const progressLogPath = args.progressLog || null;
+    // detect file type heuristics
+    const ext = path.extname(file).toLowerCase();
+    const isCsv = ext === '.csv' || file.toLowerCase().endsWith('.csv');
+    const isNdjson = ext === '.ndjson' || file.toLowerCase().endsWith('.ndjson') || file.toLowerCase().endsWith('.ndj');
+
+    const res = await importer.importFromFile(file, { batchSize, dryRun, checkpointFile, progressLog: progressLogPath, resume: !!args.resume, csv: isCsv, ndjson: isNdjson });
     console.log('Import complete.', res);
-  }catch(e){ console.error('import helper failed', e); }
+  }catch(e){ console.error('import failed', e); }
 
   await mongoose.disconnect();
 }

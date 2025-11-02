@@ -1,10 +1,9 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
-import { useConnect } from 'wagmi';
+import { useConnect, type Connector } from 'wagmi';
 
-export default function WalletConnectButtons({ onError }: { onError?: (e: any) => void }) {
+export default function WalletConnectButtons({ onError }: { onError?: (e: unknown) => void }) {
   const { connect } = useConnect();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -13,11 +12,12 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: any) =
     try {
       // import at runtime only in client; use connectors index to avoid subpath export issues
   const mod = await import('wagmi/connectors');
-      // connector default export is a class/function; some wagmi versions export factories
-      const connectorFactory = (mod as any).injected ?? (mod as any).default ?? (mod as any).InjectedConnector;
-      // attempt to call as factory if present
-      const connector = typeof connectorFactory === 'function' ? connectorFactory() : connectorFactory;
-      await connect({ connector });
+  // connector default export is a class/function; some wagmi versions export factories
+  const m = mod as unknown as Record<string, unknown>;
+  const connectorFactory = m['injected'] ?? m['default'] ?? m['InjectedConnector'];
+  // attempt to call as factory if present
+  const connector = typeof connectorFactory === 'function' ? (connectorFactory as (...args: unknown[]) => unknown)() : connectorFactory;
+  await connect({ connector: connector as unknown as Connector });
     } catch (e) {
       console.warn('Injected connect failed', e);
       onError?.(e);
@@ -30,9 +30,10 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: any) =
     setLoading('walletconnect');
     try {
   const mod = await import('wagmi/connectors');
-      const factory = (mod as any).walletConnect ?? (mod as any).default ?? (mod as any).WalletConnectConnector;
-      const connector = typeof factory === 'function' ? factory({ projectId: 'demo' }) : factory;
-      await connect({ connector });
+  const m = mod as unknown as Record<string, unknown>;
+  const factory = m['walletConnect'] ?? m['default'] ?? m['WalletConnectConnector'];
+  const connector = typeof factory === 'function' ? (factory as (...args: unknown[]) => unknown)({ projectId: 'demo' } as unknown) : factory;
+  await connect({ connector: connector as unknown as Connector });
     } catch (e) {
       console.warn('WalletConnect failed', e);
       onError?.(e);
@@ -45,9 +46,10 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: any) =
     setLoading('coinbase');
     try {
   const mod = await import('wagmi/connectors');
-      const factory = (mod as any).coinbaseWallet ?? (mod as any).default ?? (mod as any).CoinbaseWalletConnector;
-      const connector = typeof factory === 'function' ? factory() : factory;
-      await connect({ connector });
+  const m = mod as unknown as Record<string, unknown>;
+  const factory = m['coinbaseWallet'] ?? m['default'] ?? m['CoinbaseWalletConnector'];
+  const connector = typeof factory === 'function' ? (factory as (...args: unknown[]) => unknown)() : factory;
+  await connect({ connector: connector as unknown as Connector });
     } catch (e) {
       console.warn('Coinbase connect failed', e);
       onError?.(e);

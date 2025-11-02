@@ -10,5 +10,5 @@ module.exports = {
   '^\.\./\.\./pages/(.*)$': '<rootDir>/pages/$1',
     '^pages/(.*)$': '<rootDir>/pages/$1'
   },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  setupFiles: ['<rootDir>/jest.setup.js'],
 };

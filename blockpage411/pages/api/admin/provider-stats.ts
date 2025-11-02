@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAdminAuth } from '../../../lib/adminMiddleware';
 import dbConnect from 'lib/db';
@@ -15,10 +14,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse){
     { $sort: { totalReports: -1 } }
   ]).limit(500);
   // enrich with provider names
-  const ids = agg.map(a=>a._id);
+  type AggRow = { _id: unknown; totalReports: number; uniqueReporters: number };
+  // normalize ids to strings for lookup
+  const ids = agg.map((a: AggRow) => String(a._id));
   const providers = await Provider.find({ _id: { $in: ids } }).lean();
-  const byId = providers.reduce((acc:any,p:any)=>{ acc[p._id] = p; return acc; }, {});
-  const out = agg.map(a=> ({ provider: byId[a._id] || null, totalReports: a.totalReports, uniqueReporters: a.uniqueReporters }));
+  const byId: Record<string, unknown> = providers.reduce((acc, p) => { const prov = p as unknown as { _id?: unknown }; acc[String(prov._id)] = p; return acc; }, {} as Record<string, unknown>);
+  const out = (agg as AggRow[]).map(a => ({ provider: byId[String(a._id)] || null, totalReports: a.totalReports, uniqueReporters: a.uniqueReporters }));
   res.status(200).json(out);
 }
 

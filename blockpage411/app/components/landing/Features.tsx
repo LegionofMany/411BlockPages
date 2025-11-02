@@ -54,13 +54,9 @@ export default function Features() {
 
   return (
     <section
-      className="relative py-28 md:py-32 overflow-hidden"
-      style={{
-        // section-level inline colors so global styles can't override
-        color: '#e6d6a7',
-        position: 'relative',
-        zIndex: 1
-      }}
+      aria-labelledby="features-heading"
+      className="relative py-20 md:py-28 overflow-hidden"
+      style={{ color: '#e6d6a7', position: 'relative', zIndex: 1 }}
     >
       {/* Confine the radial overlay to this section (use inset-0 instead of 200% width) so it can't overflow into the previous section */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
@@ -68,15 +64,15 @@ export default function Features() {
       </div>
       <div className='relative container mx-auto px-4' style={{ zIndex: 5, position: 'relative' }}>
         <div className='text-center max-w-3xl mx-auto'>
-          <h2 className='text-3xl md:text-4xl lg:text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-slate-200 to-slate-400'>
+          <h2 id="features-heading" className='text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold mb-3 sm:mb-4 bg-clip-text text-transparent bg-gradient-to-r from-slate-200 to-slate-400'>
             A New Standard for Trust in Web3
           </h2>
-          <p className='text-lg md:text-xl text-slate-400 mb-16'>
-            Blockpage411 is more than a wallet scanner. It&apos;s a comprehensive suite of tools designed to bring transparency and security to your on-chain interactions.
+          <p className='text-sm sm:text-base md:text-lg text-slate-400 mb-12'>
+            Blockpage411 is more than a wallet scanner — it combines community signals, on-chain analytics, and curated provider intelligence to help you decide who to trust.
           </p>
         </div>
 
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8'>
           {features.map((feature, i) => (
             <motion.div
               key={feature.title}
@@ -85,21 +81,18 @@ export default function Features() {
               viewport={{ once: true, amount: 0.5 }}
               variants={cardVariants}
               transition={{ delay: i * 0.1 }}
-              className="backdrop-blur-lg rounded-3xl overflow-hidden transition-colors duration-300"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(250,204,21,0.09)'
-              }}
+              className="backdrop-blur-lg rounded-2xl overflow-hidden transition-colors duration-300 focus-within:ring-2 focus-within:ring-indigo-500"
+              style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(250,204,21,0.06)' }}
             >
               <div className='p-6'>
                 <div
-                  className='flex items-center justify-center w-12 h-12 rounded-2xl mb-6'
+                  className='flex items-center justify-center w-12 h-12 rounded-2xl mb-4 sm:mb-6'
                   style={{ backgroundColor: 'rgba(250,204,21,0.06)' }}
                 >
                   <feature.icon style={{ width: 24, height: 24, color: '#facc15' }} />
                 </div>
                 <h3 className='text-xl font-bold mb-3' style={{ color: '#e6d6a7' }}>{feature.title}</h3>
-                <p className='text-base' style={{ color: '#facc15' }}>{feature.description}</p>
+                <p className='text-sm sm:text-base' style={{ color: '#facc15' }}>{feature.description}</p>
               </div>
             </motion.div>
           ))}

@@ -70,13 +70,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       fundraiser = fundraiserRaw as Record<string, unknown>;
     }
   }
-  // In test environment, if the model was not mocked properly, provide a safe default to allow handler to continue.
-  if (!fundraiser && process.env.NODE_ENV === 'test') {
-    // best-effort test fallback
-    const testFund = { id: fundraiserId, walletAddress: '0xabc', active: true, status: 'approved', currency: 'ETH' } as Record<string, unknown>;
-    // assign fallback
-    (fundraiser as Record<string, unknown> | null) = testFund;
-  }
+  // Do not use test-only fallbacks here — tests should provide proper model mocks via Jest.
+  if (!fundraiser) return res.status(404).json({ message: 'Fundraiser not found' });
   if (!fundraiser) return res.status(404).json({ message: 'Fundraiser not found' });
   const fundraiserRec = fundraiser as Record<string, unknown>;
   const fActive = fundraiserRec['active'];

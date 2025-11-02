@@ -6,6 +6,10 @@ export function showToast(msg: string, duration = 3500) {
   if (!container) {
     container = document.createElement('div');
     container.id = containerId;
+    // Announce to assistive tech
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
+    container.setAttribute('aria-atomic', 'true');
     container.style.position = 'fixed';
     container.style.right = '20px';
     container.style.top = '20px';
@@ -17,6 +21,8 @@ export function showToast(msg: string, duration = 3500) {
   el.style.background = 'rgba(17,24,39,0.9)';
   el.style.color = 'white';
   el.style.padding = '8px 12px';
+  el.setAttribute('role', 'note');
+  el.setAttribute('aria-live', 'polite');
   el.style.marginTop = '8px';
   el.style.borderRadius = '6px';
   el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';

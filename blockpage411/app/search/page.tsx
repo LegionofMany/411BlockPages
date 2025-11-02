@@ -5,7 +5,6 @@ import AddProviderModal from 'app/components/AddProviderModal';
 import ReportModal from 'app/components/ReportModal';
 import { ethers } from 'ethers';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type ProviderType = { _id?: string; name: string; website?: string; type?: string; rank?: number; status?: string };
 
 export default function SearchPage(){
@@ -20,10 +19,12 @@ export default function SearchPage(){
     if (!myWallet) return alert('Enter your wallet address to verify');
     try{
       // request accounts
-      const anyWindow: any = window as any;
-      if (!anyWindow.ethereum) return alert('No web3 provider found');
-      await anyWindow.ethereum.request({ method: 'eth_requestAccounts' });
-      const providerE = new ethers.BrowserProvider(anyWindow.ethereum as any);
+      const win = window as unknown as { ethereum?: { request?: (...args: unknown[]) => Promise<unknown> } };
+      if (!win.ethereum || typeof win.ethereum.request !== 'function') return alert('No web3 provider found');
+      // request may accept various payload shapes; keep unknown to avoid `any`
+      await win.ethereum.request({ method: 'eth_requestAccounts' } as unknown);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const providerE = new ethers.BrowserProvider((win.ethereum as any));
       const signer = await providerE.getSigner();
       const message = `Verify ownership of ${myWallet} for Blockpage411 at ${Date.now()}`;
       const signature = await signer.signMessage(message);
@@ -58,7 +59,7 @@ export default function SearchPage(){
         <AddProviderModal initialName={provider?.name || ''} onClose={()=>setAddingProvider(false)} onCreated={(p)=>{ setProvider(p as ProviderType); setAddingProvider(false); }} />
       )}
       {openReportModal && (
-        <ReportModal myWallet={myWallet} provider={provider} suspect={suspect} onClose={()=>setOpenReportModal(false)} onSubmitted={()=>{ setSuspect(''); setOpenReportModal(false); }} />
+        <ReportModal myWallet={myWallet} provider={provider ?? undefined} suspect={suspect} onClose={()=>setOpenReportModal(false)} onSubmitted={()=>{ setSuspect(''); setOpenReportModal(false); }} />
       )}
     </div>
   );

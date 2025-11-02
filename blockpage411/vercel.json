@@ -1,4 +1,12 @@
 {
+  "version": 2,
+  "builds": [
+    { "src": "next.config.js", "use": "@vercel/next" }
+  ],
+  "routes": [],
+  "env": {
+    "NEXT_PUBLIC_APP_URL": "https://your-site.vercel.app"
+  },
   "crons": [
     {
       "path": "/api/poller/run",

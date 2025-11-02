@@ -9,12 +9,8 @@ async function main() {
   const raw = fs.readFileSync(file, 'utf-8');
   const items = JSON.parse(raw) as Array<any>;
   for (const it of items) {
-    const existing = await Provider.findOne({ name: it.name });
-    if (existing) {
-      console.log('skip', it.name);
-      continue;
-    }
-    await Provider.create({
+    // idempotent upsert so re-running the seed is safe
+    const doc = {
       name: it.name,
       aliases: it.aliases || [],
       type: it.type || 'CEX',
@@ -22,8 +18,10 @@ async function main() {
       rank: it.rank,
       seeded: true,
       status: 'seeded',
-    });
-    console.log('added', it.name);
+      updatedAt: new Date(),
+    } as any;
+    const res = await Provider.findOneAndUpdate({ name: it.name }, { $set: doc, $setOnInsert: { createdAt: new Date() } }, { upsert: true, new: true });
+    if (res) console.log('upserted', it.name);
   }
   process.exit(0);
 }

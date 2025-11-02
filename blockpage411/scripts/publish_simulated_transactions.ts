@@ -26,5 +26,7 @@ async function publish() {
 }
 
 console.log('Starting tx simulator, publishing to', PUBLISH_URL);
-setInterval(publish, INTERVAL_MS);
-publish();
+if (require.main === module && process.env.NODE_ENV !== 'test'){
+  setInterval(publish, INTERVAL_MS);
+  publish();
+}

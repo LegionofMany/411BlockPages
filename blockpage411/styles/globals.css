@@ -58,6 +58,29 @@ html, body {
  	box-shadow: 0 6px 24px rgba(124,58,237,0.12);
  	transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px; /* ensure tappable area */
+	padding: 0.5rem 1rem;
+	border-radius: 0.75rem;
+	font-weight: 600;
+}
+.input {
+	min-height: 44px;
+	padding: 0.5rem 0.75rem;
+	border-radius: 0.5rem;
+}
+
+/* Increase touch targets on small screens */
+@media (max-width: 640px) {
+	.btn, .btn-primary, .input {
+		min-height: 52px;
+		padding: 0.75rem 1rem;
+	}
+	.card { padding: 1rem; }
+}
 .btn-primary:hover {
 	transform: translateY(-3px) scale(1.02);
 	box-shadow: 0 18px 46px rgba(37, 99, 235, 0.14);

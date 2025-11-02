@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from '../../../lib/db';
 import mongoose from 'mongoose';
@@ -15,8 +14,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "GET") {
     try {
       const docs = await Settings.find({});
-      const settings: Record<string, any> = {};
-      docs.forEach((doc: any) => { settings[doc.key] = doc.value; });
+  const settings: Record<string, unknown> = {};
+  docs.forEach((doc: { key: string; value: unknown }) => { settings[doc.key] = doc.value; });
       return res.status(200).json({ settings });
     } catch (err) {
       return res.status(500).json({ message: 'Failed to fetch settings', error: (err as Error).message });
@@ -36,8 +35,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
       }
       const docs = await Settings.find({});
-      const settings: Record<string, any> = {};
-      docs.forEach((doc: any) => { settings[doc.key] = doc.value; });
+  const settings: Record<string, unknown> = {};
+  docs.forEach((doc: { key: string; value: unknown }) => { settings[doc.key] = doc.value; });
       return res.status(200).json({ settings });
     } catch (err) {
       return res.status(500).json({ message: 'Failed to update settings', error: (err as Error).message });

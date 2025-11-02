@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from '../../../lib/db';
 import Wallet from '../../../lib/walletModel';
@@ -15,17 +14,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           { "flags.0": { $exists: true } }
         ]
       });
-      const items: any[] = [];
+      const items: Array<Record<string, unknown>> = [];
       wallets.forEach(w => {
         // Ratings flagged for moderation
-        (w.ratings || []).forEach((r: any) => {
-          if (r.flagged) {
+        (w.ratings || []).forEach((r: unknown) => {
+          const rr = r as { flagged?: boolean; _id?: unknown; text?: string; user?: string; date?: unknown };
+          if (rr.flagged) {
             items.push({
-              id: r._id,
+              id: rr._id,
               type: "rating",
-              content: r.text,
-              user: r.user,
-              date: r.date,
+              content: rr.text,
+              user: rr.user,
+              date: rr.date,
               wallet: w.address,
               chain: w.chain,
               flagged: true
@@ -33,13 +33,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           }
         });
         // Wallet flags (as comments/messages)
-        (w.flags || []).forEach((f: any) => {
+        (w.flags || []).forEach((f: unknown) => {
+          const ff = f as { _id?: unknown; reason?: string; user?: string; date?: unknown };
           items.push({
-            id: f._id,
+            id: ff._id,
             type: "comment",
-            content: f.reason,
-            user: f.user,
-            date: f.date,
+            content: ff.reason,
+            user: ff.user,
+            date: ff.date,
             wallet: w.address,
             chain: w.chain,
             flagged: true

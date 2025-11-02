@@ -18,7 +18,7 @@ jest.mock('../../services/solana');
 jest.mock('../../services/tronTokens');
 
 describe('verify-onchain API', () => {
-  beforeEach(() => jest.resetAllMocks());
+  beforeEach(() => jest.clearAllMocks());
 
   it('returns 400 for missing fields', async () => {
     const req = makeReq({});

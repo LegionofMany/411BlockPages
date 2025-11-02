@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
@@ -11,9 +10,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ message: 'Not authenticated' });
-  let payload: any;
+  let payload: unknown;
   try { payload = jwt.verify(token, JWT_SECRET); } catch { return res.status(401).json({ message: 'Invalid token' }); }
-  const userAddress = payload?.address;
+  const userAddress = (payload && typeof payload === 'object' && 'address' in payload) ? (payload as { address?: string }).address : undefined;
   if (!userAddress) return res.status(401).json({ message: 'Invalid token payload' });
   const { address, message, signature } = req.body;
   if (!address || !message || !signature) return res.status(400).json({ message: 'address, message and signature required' });
@@ -27,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     wallet.verified = true;
     await wallet.save();
     res.status(200).json({ success: true });
-  } catch (e:any) {
+  } catch (e) {
     console.error('verify error', e);
     res.status(500).json({ message: 'Verification failed' });
   }

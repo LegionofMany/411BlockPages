@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import Report from 'lib/reportModel';
@@ -12,9 +11,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ message: 'Not authenticated' });
-  let payload: any;
+  let payload: unknown;
   try { payload = jwt.verify(token, JWT_SECRET); } catch { return res.status(401).json({ message: 'Invalid token' }); }
-  const reporterUserId = payload?.address;
+  const reporterUserId = (payload && typeof payload === 'object' && 'address' in payload) ? (payload as { address?: string }).address : undefined;
   if (!reporterUserId) return res.status(401).json({ message: 'Invalid token payload' });
   const { reporterWalletId, providerId, suspectAddress, chain, evidence } = req.body;
   if (!suspectAddress || !chain) return res.status(400).json({ message: 'suspectAddress and chain required' });

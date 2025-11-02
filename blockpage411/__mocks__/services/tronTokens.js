@@ -1,4 +1,4 @@
 // Manual Jest mock for services/tronTokens
-const detectTronTokenTransfer = jest.fn(async (address, txHash) => ({ found: false }));
+const detectTronTokenTransfer = jest.fn(async () => ({ found: false }));
 
 module.exports = { detectTronTokenTransfer };
