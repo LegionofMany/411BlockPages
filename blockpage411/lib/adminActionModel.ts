@@ -15,10 +15,9 @@ if (retentionDays > 0){
   // expireAfterSeconds requires a numeric value in seconds
   try{
     AdminActionSchema.index({ timestamp: 1 }, { expireAfterSeconds: retentionDays * 24 * 60 * 60 });
-  }catch(e){
+  }catch{
     // index creation may be racy or happen later; ignore here
-    // eslint-disable-next-line no-console
-    console.warn('[adminActionModel] TTL index setup skipped', e && (e as Error).message);
+    console.warn('[adminActionModel] TTL index setup skipped');
   }
 }
 

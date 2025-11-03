@@ -222,13 +222,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   providerLabel = { providerId: String(pw.providerId || ''), name: p?.name || undefined, note: pw.note || undefined };
     }
   }catch{ /* ignore */ }
+  // Privacy: optionally hide assets until a wallet has been flagged enough times.
+  // Controlled by FLAGS_TO_REVEAL_ASSETS env var (default: 3).
+  const flagsCount = Array.isArray(wallet?.flags) ? wallet!.flags.length : 0;
+  const FLAGS_TO_REVEAL_ASSETS = Number(process.env.FLAGS_TO_REVEAL_ASSETS || '3');
+  const assetsHidden = flagsCount < FLAGS_TO_REVEAL_ASSETS;
+
+  // If assets are hidden, avoid returning transaction list and NFT count for privacy.
+  const returnedTxs = assetsHidden ? [] : txs;
+  const returnedNftCount = assetsHidden ? 0 : (wallet?.nftCount || 0);
 
   res.status(200).json({
     address: wallet?.address || address,
     chain: wallet?.chain || chain,
     // provider label if we can match the address to a provider wallet
-  providerLabel,
+    providerLabel,
     flags: wallet?.flags || [],
+    flagsCount,
+    flagsRequired: FLAGS_TO_REVEAL_ASSETS,
+    assetsHidden,
     ratings: (wallet?.ratings || []).map((r: {
       user: string;
       score: number;
@@ -247,9 +259,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       flaggedReason: r.flaggedReason,
     })),
     avgRating: wallet?.avgRating || 0,
-    transactions: txs,
+    transactions: returnedTxs,
     ens: wallet?.ens || null,
-    nftCount: wallet?.nftCount || 0,
+    nftCount: returnedNftCount,
     lastRefreshed: wallet?.lastRefreshed || null,
     statusTags: getStatusTags(wallet),
   });

@@ -10,7 +10,7 @@ export default function CreateFundraiser() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [target, setTarget] = useState('');
-  const [walletAddress, setWalletAddress] = useState(profile?.address ?? '');
+  const [walletAddress, setWalletAddress] = useState<string>(typeof profile?.address === 'string' ? profile.address : '');
   const [durationDays, setDurationDays] = useState('90');
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [error, setError] = useState<string|null>(null);

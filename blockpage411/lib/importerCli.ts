@@ -31,13 +31,13 @@ export async function importFromFile(filePath: string, options: ImporterOptions 
   // determine resume index
   let lastIndex = 0;
   if (resume && fs.existsSync(checkpointFile)){
-    try{ const s = JSON.parse(fs.readFileSync(checkpointFile,'utf8')); lastIndex = Number(s.lastIndex) || 0; }catch(e){}
+    try{ const s = JSON.parse(fs.readFileSync(checkpointFile,'utf8')); lastIndex = Number(s.lastIndex) || 0; }catch{}
   }
 
   const writeCheckpoint = (idx: number, processed: number, total: number) => {
     const state = { lastIndex: idx, processed, total, updatedAt: new Date().toISOString() };
-    try{ fs.writeFileSync(checkpointFile, JSON.stringify(state, null, 2)); }catch(e){ /* ignore */ }
-    if (progressLog){ try{ fs.appendFileSync(progressLog, JSON.stringify(state) + '\n'); }catch(e){} }
+    try{ fs.writeFileSync(checkpointFile, JSON.stringify(state, null, 2)); }catch{ /* ignore */ }
+    if (progressLog){ try{ fs.appendFileSync(progressLog, JSON.stringify(state) + '\n'); }catch{} }
   };
 
   const stream = fs.createReadStream(filePath, { encoding: 'utf8' });
@@ -46,17 +46,16 @@ export async function importFromFile(filePath: string, options: ImporterOptions 
   let total = 0; // unknown until finish for some formats
   let index = 0; // zero-based index of items encountered
   let processed = 0;
-  // single narrow use of `any` for unstructured parsed rows from input files
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let batch: any[] = [];
+  // hold unstructured parsed rows from input files
+  let batch: unknown[] = [];
 
   const flushBatch = async () => {
     if (!batch.length) return;
     // try with retry/backoff
     for (let attempt = 0; attempt <= retryAttempts; attempt++){
       try{
-        // Guard importItems with a timeout to avoid hanging on misbehaving model calls
-        const importPromise = importItems(batch, { batchSize, dryRun, retryAttempts });
+    // Guard importItems with a timeout to avoid hanging on misbehaving model calls
+  const importPromise = importItems(batch as unknown as Array<Record<string, unknown>>, { batchSize, dryRun, retryAttempts });
         const timeoutMs = 10000;
         const res = await Promise.race([
           importPromise,
@@ -86,10 +85,9 @@ export async function importFromFile(filePath: string, options: ImporterOptions 
       index++;
       if (index <= lastIndex) continue;
       const cols = lines[i].split(',').map(c=>c.trim());
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const obj: any = {};
-      headers.forEach((h, j)=> obj[h] = cols[j]);
-      batch.push(obj);
+  const obj: Record<string, unknown> = {};
+    headers.forEach((h, j)=> (obj as Record<string, unknown>)[h] = cols[j]);
+    batch.push(obj as unknown);
       if (batch.length >= batchSize){ await flushBatch(); }
     }
     await flushBatch();
@@ -106,14 +104,13 @@ export async function importFromFile(filePath: string, options: ImporterOptions 
       rl.close();
       stream.close();
       const raw = fs.readFileSync(filePath, 'utf8');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let items: any[] = [];
-      try{ items = JSON.parse(raw); }catch(e){ throw new Error('Failed to parse file as JSON array; for large files use NDJSON or CSV'); }
+  let items: unknown[] = [];
+    try{ items = JSON.parse(raw) as unknown[]; }catch{ throw new Error('Failed to parse file as JSON array; for large files use NDJSON or CSV'); }
       total = items.length;
       for (let i = 0; i < items.length; i++){
         index = i;
         if (index < lastIndex) continue;
-        batch.push(items[i]);
+  batch.push(items[i] as unknown);
         if (batch.length >= batchSize) await flushBatch();
       }
       await flushBatch();
@@ -123,13 +120,12 @@ export async function importFromFile(filePath: string, options: ImporterOptions 
 
     // line is a JSON object
     if (index < lastIndex){ index++; continue; }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let item: any = null;
-    try{ item = JSON.parse(line); }catch(e){
+  let item: unknown = null;
+    try{ item = JSON.parse(line) as unknown; }catch{
       // skip malformed line but continue
       index++; continue;
     }
-    batch.push(item);
+    batch.push(item as unknown);
     index++;
     if (batch.length >= batchSize){ await flushBatch(); }
   }
@@ -141,4 +137,5 @@ export async function importFromFile(filePath: string, options: ImporterOptions 
   return { processed, total: total || index };
 }
 
-export default { importFromFile };
+const importer = { importFromFile };
+export default importer;

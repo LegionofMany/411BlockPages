@@ -20,8 +20,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const recovered = verifyMessage(message, signature);
     if (recovered.toLowerCase() !== address.toLowerCase()) return res.status(400).json({ message: 'Signature does not match address' });
     await dbConnect();
-    const wallet = await Wallet.findOne({ address });
-    if (!wallet) return res.status(404).json({ message: 'Wallet not found' });
+    // Ensure a Wallet document exists for this address. If not, create a minimal document so we can attach verification proof.
+    const chain = (req.body.chain && typeof req.body.chain === 'string') ? req.body.chain : 'ethereum';
+    let wallet = await Wallet.findOne({ address, chain });
+    if (!wallet) {
+      wallet = await Wallet.create({ address, chain });
+    }
     wallet.verificationProof = { message, signature, recovered, verifiedAt: new Date(), verifiedBy: userAddress };
     wallet.verified = true;
     await wallet.save();

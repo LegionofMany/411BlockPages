@@ -6,20 +6,18 @@ export async function initSentry(): Promise<void>{
   if (!dsn) return;
   try{
     // dynamic import avoids hard dependency at build time
-    // @ts-expect-error optional import - package may not be installed in all environments
-    const mod = await import('@sentry/node');
+  // optional import - package may not be installed in all environments
+  const mod = await import('@sentry/node');
     if (mod){
       const m = mod as unknown as { init?: (opts: Record<string, unknown>) => void };
       if (typeof m.init === 'function'){
         m.init({ dsn, environment: process.env.NODE_ENV || 'development' });
         SENTRY_MODULE = mod;
-        // eslint-disable-next-line no-console
-        console.info('[sentry] initialized');
+  console.info('[sentry] initialized');
       }
     }
-  }catch(err){
+    }catch(err){
     // ignore if not installed or fails to initialize
-    // eslint-disable-next-line no-console
     console.warn('[sentry] not available', err instanceof Error ? err.message : String(err));
     SENTRY_MODULE = null;
   }
@@ -44,4 +42,5 @@ export function captureMessage(m: string): void{
 // Initialize without awaiting during module import (server-side only)
 if (typeof window === 'undefined') void initSentry();
 
-export default { initSentry, captureException, captureMessage };
+const sentry = { initSentry, captureException, captureMessage };
+export default sentry;

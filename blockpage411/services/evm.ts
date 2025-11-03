@@ -15,8 +15,15 @@ export async function detectEvmDonation(opts: { txHash: string; targetAddress: s
 
       // Native transfer check
       if (tx.to && String(tx.to).toLowerCase() === targetAddress.toLowerCase()) {
-        const valueRaw = (tx as unknown as { value?: any }).value ?? 0;
-        const amount = Number(valueRaw) / 1e18;
+        const valueRaw = (tx as unknown as { value?: unknown }).value ?? 0;
+        const coerceNumber = (v: unknown) => {
+          if (typeof v === 'number') return v;
+          if (typeof v === 'bigint') return Number(v);
+          if (typeof v === 'string') return Number(v);
+          if (v && typeof (v as { toString?: () => string }).toString === 'function') return Number((v as { toString: () => string }).toString());
+          return 0;
+        };
+        const amount = coerceNumber(valueRaw) / 1e18;
         const tokenSymbol = chain === 'polygon' ? 'MATIC' : chain === 'bsc' ? 'BNB' : 'ETH';
         return { found: true, amount, tokenSymbol } as const;
       }
@@ -36,7 +43,14 @@ export async function detectEvmDonation(opts: { txHash: string; targetAddress: s
               const symbol = meta && typeof meta === 'object' && 'symbol' in meta ? (meta as { symbol?: string }).symbol ?? tokenAddress : tokenAddress;
               const decimals = meta && typeof meta === 'object' && 'decimals' in meta ? Number((meta as { decimals?: number }).decimals ?? 18) : 18;
               const rawVal = parsed.args[2] ?? parsed.args['value'] ?? 0;
-              const rawNumber = typeof rawVal === 'bigint' ? Number(rawVal as bigint) : Number(rawVal as any ?? 0);
+              const coerceNumber2 = (v: unknown) => {
+                if (typeof v === 'number') return v;
+                if (typeof v === 'bigint') return Number(v);
+                if (typeof v === 'string') return Number(v);
+                if (v && typeof (v as { toString?: () => string }).toString === 'function') return Number((v as { toString: () => string }).toString());
+                return 0;
+              };
+              const rawNumber = coerceNumber2(rawVal ?? 0);
               const amount = rawNumber / Math.pow(10, decimals);
               return { found: true, amount, tokenSymbol: symbol, tokenAddress } as const;
             }

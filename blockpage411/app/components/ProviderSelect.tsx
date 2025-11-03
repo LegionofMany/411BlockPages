@@ -35,18 +35,18 @@ export default function ProviderSelect({ value: _value, onChange }:{ value?: Pro
   }, [q, _value]);
 
   return (
-    <div className="w-full">
-      <input className="input" placeholder="Search provider" value={q} onChange={(e)=>setQ(e.target.value)} />
-      <div className="mt-2 max-h-56 overflow-auto bg-white shadow rounded">
+    <div className="w-full relative">
+      <input aria-label="Search provider" className="input" placeholder="Search provider" value={q} onChange={(e)=>setQ(e.target.value)} />
+      <div className="absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-auto bg-white shadow rounded border border-gray-200">
         {loading && <div className="p-2 text-sm text-gray-500">Loading…</div>}
         {!loading && opts.length === 0 && <div className="p-2 text-sm">No providers found — you can add a new one.</div>}
         {opts.map((p)=> (
           <button key={p._id || p.name} onClick={()=>onChange(p)} className="w-full text-left p-2 hover:bg-gray-50">
-            <div className="font-medium">
+            <div className="font-medium truncate">
               {p.name} {p.rank ? <span className="text-xs text-gray-400">#{p.rank}</span> : null}
               {p.reportsCount && p.reportsCount >= 10 ? <span title="Many reports" className="ml-2 text-yellow-600">⚠️</span> : null}
             </div>
-            <div className="text-xs text-gray-500">{p.website || (p.aliases && p.aliases.join(', '))}</div>
+            <div className="text-xs text-gray-500 truncate">{p.website || (p.aliases && p.aliases.join(', '))}</div>
           </button>
         ))}
       </div>

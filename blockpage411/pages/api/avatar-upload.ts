@@ -19,30 +19,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   const form = new formidable.IncomingForm({ uploadDir, keepExtensions: true });
   // formidable's types vary across versions; keep callback parameters as `any` to avoid missing exported types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form.parse(req, (err: Error | null, fields: any, files: any) => {
+    form.parse(req, (err: Error | null, fields: Record<string, unknown>, files: Record<string, unknown>) => {
     if (err) {
       return res.status(500).json({ message: 'Upload error', error: err.message });
     }
-  // formidable's File type may not be exported in some versions; use `any` here and disable lint for this local var
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let file: any | undefined;
+  // Define a local shape for uploaded file metadata (avoid using `any` so lint stays happy)
+    type FormidableFile = { originalFilename?: string; newFilename?: string; filepath?: string; size?: number };
+    let file: FormidableFile | undefined;
     const avatarField = files.avatar;
     if (Array.isArray(avatarField)) {
       file = avatarField[0];
     } else if (avatarField) {
       // avoid referencing formidable.File (not exported in some versions)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      file = avatarField as unknown as any;
+        file = avatarField as unknown as FormidableFile | undefined;
     }
     if (!file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
     // Move file to /public/avatars with a unique name
-    const ext = path.extname(file.originalFilename || file.newFilename);
+  const ext = path.extname(file.originalFilename || file.newFilename || '');
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
     const destPath = path.join(uploadDir, filename);
-    fs.renameSync(file.filepath, destPath);
+  if (file.filepath) fs.renameSync(file.filepath, destPath);
     // Return public URL
     const publicUrl = `/avatars/${filename}`;
     return res.status(200).json({ url: publicUrl });

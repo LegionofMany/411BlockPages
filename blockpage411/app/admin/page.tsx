@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { getAddress } from 'ethers';
 
 import AdminWalletsTable from "../components/admin/AdminWalletsTable";
 import FlaggedWalletsTable from "../components/admin/FlaggedWalletsTable";
@@ -9,26 +10,45 @@ import ContentModerationTable from "../components/admin/ContentModerationTable";
 import RecentTransactionsTable from "../components/admin/RecentTransactionsTable";
 import SystemSettingsPanel from "../components/admin/SystemSettingsPanel";
 import AdminStatsCards from "../components/admin/AdminStatsCards";
-import { useRouter } from "next/navigation";
+// local minimal Ethereum provider shape for typings
+type EthereumProvider = {
+  on?: (event: string, callback: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, callback: (...args: unknown[]) => void) => void;
+  request?: (...args: unknown[]) => Promise<unknown>;
+};
 
 
 export default function AdminPage() {
   const [adminWallet, setAdminWallet] = useState<string>("");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const router = useRouter();
-
-
   const [checked, setChecked] = useState(false);
+  // router not used here; admin auth is client+server checked
+  // const router = useRouter();
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const wallet = localStorage.getItem("wallet") || "";
-      setAdminWallet(wallet);
+    // central check function so we can re-run on events
+    function checkAdmin() {
+      if (typeof window === "undefined") return;
+      const raw = localStorage.getItem("wallet") || "";
+      let wallet = raw;
+      // normalize using ethers to ensure checksummed form; fall back to raw lowercase
+      try {
+        wallet = getAddress(raw || "");
+      } catch {
+        wallet = (raw || "").toLowerCase().trim();
+      }
+      setAdminWallet(wallet || "");
+
       const adminWallets = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || "")
         .split(",")
-        .map(a => a.toLowerCase().trim());
+        .map(a => {
+          try { return getAddress(a); } catch { return a.toLowerCase().trim(); }
+        });
+
       console.log("[ADMIN DEBUG] Wallet:", wallet);
       console.log("[ADMIN DEBUG] Admin Wallets:", adminWallets);
-      if (wallet && adminWallets.includes(wallet.toLowerCase().trim())) {
+
+      if (wallet && adminWallets.map(a => (a || "").toLowerCase().trim()).includes((wallet || "").toLowerCase().trim())) {
         setIsAdmin(true);
         console.log("[ADMIN DEBUG] Access granted");
       } else {
@@ -37,7 +57,66 @@ export default function AdminPage() {
       }
       setChecked(true);
     }
-  }, [router]);
+
+    checkAdmin();
+
+    // also verify server-side JWT session so client cannot spoof admin by writing localStorage
+    async function checkServerAdmin() {
+      try {
+        const res = await fetch('/api/admin/check');
+        if (res.ok) {
+          const body = await res.json();
+          if (body && body.isAdmin) {
+            setIsAdmin(true);
+            console.log('[ADMIN DEBUG] Server-side access granted for', body.address);
+          } else {
+            // only set false if server explicitly says not admin
+            setIsAdmin(false);
+            console.log('[ADMIN DEBUG] Server-side access denied', body && body.allowed ? body.allowed : 'no-list');
+          }
+          // if server responded we can trust its decision
+          setChecked(true);
+        } else {
+          console.log('[ADMIN DEBUG] Server admin check failed', res.status);
+        }
+      } catch (err) {
+        console.warn('[ADMIN DEBUG] Server admin check error', err);
+      }
+    }
+    checkServerAdmin();
+
+    // react to localStorage changes (other tabs or code writing to localStorage)
+    function onStorage(e: StorageEvent) {
+      if (!e.key || e.key === 'wallet') checkAdmin();
+    }
+    window.addEventListener('storage', onStorage);
+
+  // react to injected provider account changes
+  const eth = (window as unknown as { ethereum?: EthereumProvider }).ethereum;
+    function onAccountsChanged(...args: unknown[]) {
+      // injected provider may call with (accounts) or other shapes; normalize safely
+      const maybe = args[0];
+      const accounts = Array.isArray(maybe) ? (maybe as string[]) : [];
+      // if accounts array empty, clear; else take first
+      if (!accounts || accounts.length === 0) {
+        localStorage.removeItem('wallet');
+      } else {
+        // store normalized address
+        try { localStorage.setItem('wallet', getAddress(accounts[0])); }
+        catch { localStorage.setItem('wallet', accounts[0].toLowerCase()); }
+      }
+      checkAdmin();
+    }
+
+    if (eth && eth.on) {
+      eth.on('accountsChanged', onAccountsChanged);
+    }
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      if (eth && eth.removeListener) eth.removeListener('accountsChanged', onAccountsChanged);
+    };
+  }, []);
 
   if (!checked) {
     return <div className="text-center py-10 text-cyan-200">Checking admin access...</div>;
@@ -53,6 +132,11 @@ export default function AdminPage() {
           <ul className="text-cyan-300 font-mono text-sm mt-2">
             {(process.env.NEXT_PUBLIC_ADMIN_WALLETS || "").split(",").map(a => <li key={a}>{a.trim()}</li>)}
           </ul>
+          <div className="mt-6 bg-slate-800/50 p-4 rounded text-sm text-cyan-200">
+            <strong className="text-cyan-100">How to become an admin</strong>
+            <p className="mt-2">Add your wallet address to the <span className="font-mono">NEXT_PUBLIC_ADMIN_WALLETS</span> environment variable (comma-separated), restart the server, and sign in using the Connect → Verify flow so the server issues a session cookie.</p>
+            <p className="mt-2">This page uses a server-side JWT session for auth — setting localStorage alone will not grant admin access.</p>
+          </div>
         </div>
       </div>
     );

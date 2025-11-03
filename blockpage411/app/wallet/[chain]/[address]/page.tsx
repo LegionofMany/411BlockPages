@@ -105,7 +105,19 @@ function WalletProfile({ params }: { params: Promise<{ chain: string; address: s
             }}
           />
           <div className="my-6 border-t border-blue-800"></div>
-          <ShowTransactionsButton chain={chain} address={address} />
+          {data?.assetsHidden ? (
+            <div className="p-4 bg-yellow-900/30 border border-yellow-700 rounded-lg">
+              <h3 className="font-bold text-yellow-200 mb-2">Wallet assets are private</h3>
+              <p className="text-yellow-200 text-sm mb-2">To protect privacy, this wallet&apos;s transaction history and NFT counts are hidden until the community has flagged it multiple times for review.</p>
+              <p className="text-yellow-200 text-sm">Flags: <span className="font-mono">{data?.flagsCount || 0}</span> / <span className="font-mono">{data?.flagsRequired || 3}</span></p>
+              <div className="mt-3 flex gap-2">
+                <button className="btn btn-primary" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Flag / Report</button>
+                <button className="btn" onClick={() => mutate()}>Refresh status</button>
+              </div>
+            </div>
+          ) : (
+            <ShowTransactionsButton chain={chain} address={address} />
+          )}
         </div>
       </main>
       <Footer />

@@ -91,7 +91,8 @@ export default function DonatePage() {
     }
   }
 
-  const isOwner = !!(profile && queryAddress && profile.address && profile.address.toLowerCase() === queryAddress.toLowerCase());
+  const profileAddress = profile && typeof (profile as { address?: unknown }).address === 'string' ? (profile as { address?: unknown }).address as string : null;
+  const isOwner = !!(profileAddress && queryAddress && profileAddress.toLowerCase() === queryAddress.toLowerCase());
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a0f1c] via-[#181f2f] to-[#1a2236] text-white">
