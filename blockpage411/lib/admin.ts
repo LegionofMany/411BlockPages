@@ -1,5 +1,6 @@
 import type { NextApiRequest } from 'next';
 import jwt from 'jsonwebtoken';
+import cookie from 'cookie';
 
 export function isAdminRequest(req: NextApiRequest): boolean {
   // Accept either header name for compatibility with various callers
@@ -14,8 +15,11 @@ export function isAdminRequest(req: NextApiRequest): boolean {
   const auth = (req.headers.authorization || '') as string;
   const bearerToken = auth.startsWith('Bearer ') ? auth.slice(7) : auth || undefined;
 
-  // Also accept a JWT stored in cookies (common for browser sessions)
-  const cookieToken = (req as any).cookies?.token as string | undefined;
+  // Also accept a JWT stored in cookies (common for browser sessions).
+  // Parse the raw Cookie header (avoid using `any` or relying on framework-augmented types).
+  const rawCookies = typeof req.headers.cookie === 'string' ? req.headers.cookie : '';
+  const parsedCookies = rawCookies ? cookie.parse(rawCookies) : {} as Record<string,string>;
+  const cookieToken = parsedCookies['token'] as string | undefined;
   const token = bearerToken || cookieToken;
   if (token) {
     try {
