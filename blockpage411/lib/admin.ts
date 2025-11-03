@@ -2,15 +2,21 @@ import type { NextApiRequest } from 'next';
 import jwt from 'jsonwebtoken';
 
 export function isAdminRequest(req: NextApiRequest): boolean {
-  const adminHeader = req.headers['x-admin-wallet'] as string | undefined;
+  // Accept either header name for compatibility with various callers
+  const adminHeader = (req.headers['x-admin-wallet'] || req.headers['x-admin-address']) as string | undefined;
   const adminList = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '')
     .split(',')
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);
   if (adminHeader && adminList.includes(adminHeader.toLowerCase())) return true;
 
+  // Check Authorization header (Bearer token)
   const auth = (req.headers.authorization || '') as string;
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : auth || undefined;
+  const bearerToken = auth.startsWith('Bearer ') ? auth.slice(7) : auth || undefined;
+
+  // Also accept a JWT stored in cookies (common for browser sessions)
+  const cookieToken = (req as any).cookies?.token as string | undefined;
+  const token = bearerToken || cookieToken;
   if (token) {
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET || '') as unknown;

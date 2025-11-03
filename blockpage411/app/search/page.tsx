@@ -18,6 +18,9 @@ export default function SearchPage(){
   const [provider, setProvider] = useState<ProviderType | null>(null);
   const [suspect, setSuspect] = useState('');
   const [addingProvider, setAddingProvider] = useState(false);
+  const [showProviderFeatures, setShowProviderFeatures] = useState<boolean>(() => {
+    try { return localStorage.getItem('showProviderFeatures') !== 'false'; } catch { return true; }
+  });
 
   const [openReportModal, setOpenReportModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -77,8 +80,20 @@ export default function SearchPage(){
         <input value={myWallet} onChange={(e)=>setMyWallet(e.target.value)} className="input w-full" placeholder="0x..." />
       </div>
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Provider / Exchange</label>
-        <ProviderSelect value={provider} onChange={(p)=>setProvider(p)} />
+        <div className="flex items-center justify-between">
+          <label className="block text-sm font-medium mb-1">Provider / Exchange</label>
+          <button
+            type="button"
+            aria-pressed={!showProviderFeatures}
+            onClick={() => { const val = !showProviderFeatures; setShowProviderFeatures(val); try{ localStorage.setItem('showProviderFeatures', String(val)); }catch{} }}
+            className="text-sm text-slate-400 hover:text-slate-200"
+          >
+            {showProviderFeatures ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        {showProviderFeatures && (
+          <ProviderSelect value={provider} onChange={(p)=>setProvider(p)} />
+        )}
       </div>
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Chain</label>
