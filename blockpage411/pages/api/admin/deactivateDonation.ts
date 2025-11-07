@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '../../../lib/db';
 import User from '../../../lib/userModel';
 import AdminAction from '../../../lib/adminActionModel';
+import recordAdminAction from '../../../lib/logAdminAction';
 import { withAdminAuth } from '../../../lib/adminMiddleware';
 
 const ADMIN_WALLETS = process.env.ADMIN_WALLETS?.split(',').map(a => a.toLowerCase().trim()) || [];
@@ -15,8 +16,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
   // Deactivate donation in User
   await User.updateOne({ 'donationRequests._id': donationId }, { $set: { 'donationRequests.$.active': false } });
-  // Log admin action
-  await AdminAction.create({ admin, action: 'deactivate_donation', target: donationId });
+  // Log admin action (best-effort)
+  await recordAdminAction({ admin, action: 'deactivate_donation', target: donationId });
   return res.status(200).json({ message: 'Donation deactivated' });
 }
 

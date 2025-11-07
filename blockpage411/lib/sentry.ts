@@ -39,6 +39,46 @@ export function captureMessage(m: string): void{
   }catch{}
 }
 
+// Enrich Sentry scope with request/admin context when available.
+export async function setRequestContext(req: { headers?: Record<string, unknown>; url?: string; method?: string } | undefined, extras?: Record<string, unknown>){
+  if (!SENTRY_MODULE) return;
+  try{
+    const mod = SENTRY_MODULE as any;
+    if (typeof mod.configureScope !== 'function') return;
+    mod.configureScope((scope: any) => {
+      try{
+        if (req?.url) scope.setTag('url', String(req.url));
+        if (req?.method) scope.setTag('method', String(req.method));
+        const admin = req?.headers && (req.headers['x-admin-address'] || req.headers['x-admin-wallet']);
+        if (admin) scope.setUser({ id: String(admin) });
+        if (extras) scope.setContext('extras', extras);
+      }catch(e){}
+    });
+  }catch(e){/* ignore */}
+}
+
+// Convenience wrapper to run a callback with a fresh Sentry scope (does not await init)
+export async function withSentryScope<T = unknown>(req: { headers?: Record<string, unknown>; url?: string; method?: string } | undefined, cb: () => Promise<T>){
+  if (!SENTRY_MODULE) return cb();
+  try{
+    const mod = SENTRY_MODULE as any;
+    if (typeof mod.withScope === 'function'){
+      return await mod.withScope(async (scope: any) => {
+        try{
+          if (req?.url) scope.setTag('url', String(req.url));
+          if (req?.method) scope.setTag('method', String(req.method));
+          const admin = req?.headers && (req.headers['x-admin-address'] || req.headers['x-admin-wallet']);
+          if (admin) scope.setUser({ id: String(admin) });
+          return await cb();
+        }catch(err){
+          throw err;
+        }
+      });
+    }
+  }catch(e){/* ignore */}
+  return cb();
+}
+
 // Initialize without awaiting during module import (server-side only)
 if (typeof window === 'undefined') void initSentry();
 

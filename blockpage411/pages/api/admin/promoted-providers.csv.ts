@@ -4,6 +4,7 @@ import dbConnect from 'lib/db';
 import Provider from 'lib/providerModel';
 import AdminAction from 'lib/adminActionModel';
 import sentry from 'lib/sentry';
+import recordAdminAction from 'lib/logAdminAction';
 
 function toCsv(rows: string[][]): string {
   return rows.map(r => r.map(c => {
@@ -57,8 +58,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse){
     // record export in audit log
     try{
       const admin = (req.headers['x-admin-address'] || '').toString();
-      await AdminAction.create({ admin: admin || 'unknown', action: 'export_promoted_providers', target: '', reason: `export_count=${providers.length}` });
+      // best-effort audit logging
+      await recordAdminAction({ admin: admin || 'unknown', action: 'export_promoted_providers', target: '', reason: `export_count=${providers.length}` });
     }catch(ae){
+      // recordAdminAction already reports to Sentry; keep console warning for redundancy
       sentry.captureException(ae);
       console.warn('[promoted-providers.csv] audit log failed', ae && (ae as Error).message);
     }

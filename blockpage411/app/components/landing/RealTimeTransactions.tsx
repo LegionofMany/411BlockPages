@@ -1,192 +1,392 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FiArrowRight, FiZap, FiAlertTriangle, FiCheckCircle, FiLoader } from "react-icons/fi";
+import { FiArrowRight, FiZap, FiLoader } from "react-icons/fi";
+import { ethers } from "ethers";
+import { Connection, LogsCallback } from "@solana/web3.js";
 
-interface Transaction {
+type Tx = {
   hash: string;
-  from: string;
-  to: string;
-  value: number;
-  timestamp: string;
-}
+  from: string | null;
+  to: string | null;
+  value: string;
+};
+
+const NETWORKS: Record<string, { name: string; type?: "evm" | "solana" | "bitcoin"; wss?: string; rpc?: string; symbol: string; explorer?: string }> = {
+  ethereum: {
+    name: "Ethereum Mainnet",
+    type: "evm",
+    wss: `wss://eth-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_KEY}`,
+    // HTTP RPC fallback (uses Alchemy HTTP so the same key works)
+    rpc: `https://eth-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_KEY}`,
+    symbol: "ETH",
+    explorer: "https://etherscan.io/tx/",
+  },
+  polygon: {
+    name: "Polygon",
+    type: "evm",
+    wss: `wss://polygon-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_KEY}`,
+    rpc: `https://polygon-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_KEY}`,
+    symbol: "MATIC",
+    explorer: "https://polygonscan.com/tx/",
+  },
+  bnb: {
+    name: "BNB Smart Chain",
+    type: "evm",
+    // Public community wss endpoints can be unreliable; consider QuickNode for production
+    wss: "wss://bsc-ws-node.nariox.org:443",
+    // public HTTP RPC fallback — accessible client-side without API key
+    rpc: "https://bsc-dataseed.binance.org",
+    symbol: "BNB",
+    explorer: "https://bscscan.com/tx/",
+  },
+  solana: {
+    name: "Solana Mainnet",
+    type: "solana",
+    // Prefer explicit QuickNode/Helius RPC URL if provided, fallback to Helius key
+    rpc: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_KEY}`,
+    symbol: "SOL",
+    explorer: "https://explorer.solana.com/tx/",
+  },
+  bitcoin: {
+    name: "Bitcoin Mainnet",
+    type: "bitcoin",
+    // Use mempool.space WebSocket (open, stable)
+    wss: "wss://mempool.space/api/v1/ws",
+    symbol: "BTC",
+    explorer: "https://blockstream.info/tx/",
+  },
+};
 
 export default function RealTimeTransactions() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'retrying' | 'failed'>('idle');
-  const [attempt, setAttempt] = useState(0);
+  const [network, setNetwork] = useState<string>("ethereum");
+  const [transactions, setTransactions] = useState<Tx[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    const maxRetries = 6;
-    const baseDelay = 1200;
+  // ethers v6 exports provider classes at the top-level (no `providers` namespace)
+  let provider: ethers.WebSocketProvider | undefined;
+  // holder for cleanup hooks when provider is not available (solana/bitcoin/polling)
+  const cleanupHolder: any = {};
+    let active = true;
 
-    const connectWithRetry = async (attemptNum = 0): Promise<void> => {
-      setAttempt(attemptNum);
-      setStatus(attemptNum === 0 ? 'connecting' : 'retrying');
+    async function subscribe() {
+      setLoading(true);
+      setTransactions([]);
+
+      const net = NETWORKS[network];
+      if (!net) {
+        setLoading(false);
+        return;
+      }
+
+      let pollingInterval: ReturnType<typeof setInterval> | undefined;
+      let jsonProvider: ethers.JsonRpcProvider | undefined;
 
       try {
-        const AblyModule = await import('ably');
-        
-        const fetchToken = async () => {
-          const resp = await fetch('/api/realtime/token');
-          if (!resp.ok) throw new Error('Token endpoint returned ' + resp.status);
-          return await resp.json();
-        };
+        // Branch by network type: EVM networks use ethers WebSocketProvider, Solana uses Connection, Bitcoin uses raw WebSocket
+        if (net.type === "solana") {
+          if (!net.rpc) {
+            console.error("solana rpc missing");
+            setLoading(false);
+            return;
+          }
 
-        const tokenResponse = await fetchToken();
-        let tokenRequest: unknown;
-        if (tokenResponse && typeof tokenResponse === 'object' && ('tokenRequest' in (tokenResponse as Record<string, unknown>))) {
-          tokenRequest = (tokenResponse as Record<string, unknown>)['tokenRequest'];
-        } else {
-          tokenRequest = tokenResponse;
+          const connection = new Connection(net.rpc, "confirmed");
+          // Subscribe to all logs; this is broad — consider narrowing with programId filters
+          let subId: number | undefined;
+          try {
+            subId = connection.onLogs("all", (log) => {
+              if (!active) return;
+              try {
+                // log.signature is the tx signature
+                setTransactions((prev) => [
+                  {
+                    hash: (log as any).signature || "unknown",
+                    from: "Unknown",
+                    to: "Unknown",
+                    value: net.symbol,
+                  },
+                  ...prev,
+                ].slice(0, 25));
+                setLoading(false);
+              } catch (e) {
+                console.error("solana log handler error", e);
+              }
+            });
+          } catch (e) {
+            console.error("solana subscribe error", e);
+          }
+
+          // attach cleanup handler to the central holder so outer return can clean it
+          cleanupHolder._solanaCleanup = () => {
+            try { if (subId) connection.removeOnLogsListener(subId); } catch {}
+          };
+          setLoading(false);
+          return;
         }
 
-        type RealtimeCtor = new (opts: { authCallback?: (params: unknown, cb: (err: Error | null, tokenRequest?: unknown) => void) => void }) => {
-          channels: { get: (name: string) => { subscribe: (ev: string, cb: (msg: unknown) => void) => void; unsubscribe: () => void } };
-          close: () => void;
-          connection?: { on: (ev: string, cb: (...args: unknown[]) => void) => void };
+        if (net.type === "bitcoin") {
+          if (!net.wss) {
+            console.error("bitcoin wss missing");
+            setLoading(false);
+            return;
+          }
+
+          let ws: WebSocket | undefined;
+          try {
+            ws = new WebSocket(net.wss);
+          } catch (e) {
+            console.error("bitcoin ws connect error", e);
+            setLoading(false);
+            return;
+          }
+
+          ws.onopen = () => {
+            // Some bitcoin WS feeds require a subscription message; many will push unprompted
+            setLoading(false);
+          };
+
+          ws.onmessage = (ev) => {
+            if (!active) return;
+            try {
+              const data = JSON.parse((ev as MessageEvent).data as string);
+              // handle several possible shapes
+              const txid = data.txid || data.x?.hash || data.data?.txid || data?.tx?.hash;
+              if (txid) {
+                setTransactions((prev) => [
+                  { hash: txid, from: "N/A", to: "N/A", value: net.symbol },
+                  ...prev,
+                ].slice(0, 25));
+              }
+            } catch (e) {
+              // non-json messages or unexpected shape
+            }
+          };
+
+          // store ws on cleanupHolder for outer cleanup
+          cleanupHolder._bitcoinWs = ws;
+          return;
+        }
+
+        // Default: EVM
+        const p = new ethers.WebSocketProvider(net.wss as string);
+        provider = p;
+
+        // If the websocket connection errors or closes, fall back to polling the HTTP RPC
+        const startPolling = () => {
+          if (!net.rpc) return;
+          try {
+            jsonProvider = new ethers.JsonRpcProvider(net.rpc);
+          } catch (e) {
+            console.error("json provider error", e);
+            return;
+          }
+
+          let last = -1;
+          pollingInterval = setInterval(async () => {
+            if (!active || !jsonProvider) return;
+            try {
+              const bn = await jsonProvider.getBlockNumber();
+              if (bn === last) return;
+              last = bn;
+              const block = await (jsonProvider as any).getBlockWithTransactions(bn as any);
+              const txs = (block?.transactions || []).slice(0, 5);
+              setTransactions((prev) => [
+                ...txs.map((tx: any) => {
+                  const raw = tx.value ?? 0;
+                  let valueFormatted = "0";
+                  try {
+                    valueFormatted = `${ethers.formatEther(typeof raw === "string" ? BigInt(raw) : raw)} ${net.symbol}`;
+                  } catch (e) {
+                    valueFormatted = `0 ${net.symbol}`;
+                  }
+                  return {
+                    hash: tx.hash,
+                    from: tx.from ?? null,
+                    to: tx.to ?? null,
+                    value: valueFormatted,
+                  };
+                }),
+                ...prev,
+              ].slice(0, 25));
+              setLoading(false);
+            } catch (err) {
+              console.error("polling error", err);
+            }
+          }, 5000);
         };
-        const RealtimeConstructor = (AblyModule as unknown as { Realtime: unknown }).Realtime as RealtimeCtor;
 
-        const realtime = new RealtimeConstructor({
-          authCallback: (_params, cb) => cb(null, tokenRequest),
-        });
+        // If the provided WSS is missing or immediately fails, the browser console will
+        // log websocket errors; we also attach handlers to switch to polling.
+        try {
+          (p as any)._websocket?.addEventListener?.('error', () => {
+            console.warn('websocket error, switching to RPC polling');
+            startPolling();
+          });
+          (p as any)._websocket?.addEventListener?.('close', () => {
+            console.warn('websocket closed, switching to RPC polling');
+            startPolling();
+          });
+        } catch (e) {
+          // ignore attach errors
+        }
 
-        realtime.connection?.on('connected', () => {
-          setStatus('connected');
-          setAttempt(0);
-        });
+        p.on("block", async (blockNumber: number) => {
+          if (!active) return;
+          try {
+            let block: any;
+            if (typeof (p as any).getBlockWithTransactions === "function") {
+              block = await (p as any).getBlockWithTransactions(blockNumber as any);
+            } else {
+              const hex = "0x" + Number(blockNumber).toString(16);
+              try {
+                block = await p.send("eth_getBlockByNumber", [hex, true]);
+              } catch (rpcErr) {
+                console.error("rpc fallback error", rpcErr);
+                // If the websocket can't fetch the block body, switch to polling
+                startPolling();
+                return;
+              }
+            }
 
-        realtime.connection?.on('failed', async () => {
-          try { realtime.close(); } catch {}
-          if (attemptNum < maxRetries) {
-            const delay = baseDelay * Math.pow(2, attemptNum);
-            setTimeout(() => connectWithRetry(attemptNum + 1), delay);
-          } else {
-            setStatus('failed');
+            const txs = (block?.transactions || []).slice(0, 5);
+
+            setTransactions((prev) => [
+              ...txs.map((tx: any) => {
+                const raw = tx.value ?? 0;
+                let valueFormatted = "0";
+                try {
+                  valueFormatted = `${ethers.formatEther(typeof raw === "string" ? BigInt(raw) : raw)} ${net.symbol}`;
+                } catch (e) {
+                  valueFormatted = `0 ${net.symbol}`;
+                }
+
+                return {
+                  hash: tx.hash,
+                  from: tx.from ?? null,
+                  to: tx.to ?? null,
+                  value: valueFormatted,
+                };
+              }),
+              ...prev,
+            ].slice(0, 25));
+            setLoading(false);
+          } catch (err) {
+            console.error("block fetch error", err);
           }
         });
-
-        const channel = realtime.channels.get('transactions');
-        channel.subscribe('tx', (msg: unknown) => {
-          const m = msg as { data?: unknown } | undefined;
-          if (m && m.data) {
-            setTransactions((prev) => [(m.data as Transaction), ...prev].slice(0, 10));
-          }
-        });
-
-        cleanup = () => {
-          try { channel.unsubscribe(); } catch {}
-          try { realtime.close(); } catch {}
-        };
       } catch (err) {
-        console.warn('Ably connection attempt failed', err);
-        if (attemptNum < maxRetries) {
-          const delay = baseDelay * Math.pow(2, attemptNum);
-          setTimeout(() => connectWithRetry(attemptNum + 1), delay);
-        } else {
-          setStatus('failed');
+        console.error("ws connect error", err);
+        // If we couldn't connect to the websocket at all, start RPC polling if available
+        if (net.rpc) {
+          try {
+            const json = new ethers.JsonRpcProvider(net.rpc);
+            jsonProvider = json;
+            let last = -1;
+            pollingInterval = setInterval(async () => {
+              if (!active || !jsonProvider) return;
+              try {
+                const bn = await jsonProvider.getBlockNumber();
+                if (bn === last) return;
+                last = bn;
+                const block = await (jsonProvider as any).getBlockWithTransactions(bn as any);
+                const txs = (block?.transactions || []).slice(0, 5);
+                setTransactions((prev) => [
+                  ...txs.map((tx: any) => {
+                    const raw = tx.value ?? 0;
+                    let valueFormatted = "0";
+                    try {
+                      valueFormatted = `${ethers.formatEther(typeof raw === "string" ? BigInt(raw) : raw)} ${net.symbol}`;
+                    } catch (e) {
+                      valueFormatted = `0 ${net.symbol}`;
+                    }
+                    return {
+                      hash: tx.hash,
+                      from: tx.from ?? null,
+                      to: tx.to ?? null,
+                      value: valueFormatted,
+                    };
+                  }),
+                  ...prev,
+                ].slice(0, 25));
+                setLoading(false);
+              } catch (err) {
+                console.error("polling error", err);
+              }
+            }, 5000);
+          } catch (e) {
+            console.error("polling setup error", e);
+          }
         }
       }
-    };
 
-    connectWithRetry(0);
+      // cleanup for polling interval and jsonProvider
+      const cleanup = () => {
+        if (pollingInterval) clearInterval(pollingInterval);
+        try { jsonProvider = undefined; } catch {}
+      };
 
-    return () => cleanup && cleanup();
-  }, []);
-
-  const StatusIndicator = () => {
-    let icon, text, color;
-    switch (status) {
-      case 'connected':
-        icon = <FiCheckCircle className="animate-pulse" />;
-        text = "Live";
-        color = "text-green-400";
-        break;
-      case 'connecting':
-        icon = <FiLoader className="animate-spin" />;
-        text = "Connecting...";
-        color = "text-yellow-400";
-        break;
-      case 'retrying':
-        icon = <FiLoader className="animate-spin" />;
-        text = `Retrying (${attempt})...`;
-        color = "text-yellow-400";
-        break;
-      case 'failed':
-        icon = <FiAlertTriangle />;
-        text = "Connection Failed";
-        color = "text-red-400";
-        break;
-      default:
-        icon = <FiZap />;
-        text = "Live Transaction Feed";
-        color = "text-slate-400";
+      // ensure cleanup when effect is torn down
+      // append to the existing return by wrapping subscribe usage; the outer return
+      // will still destroy provider. We also call cleanup when unmounting.
+      // store cleanup on cleanupHolder for access in the outer return.
+      cleanupHolder._pollingCleanup = cleanup;
     }
-    return (
-      <div className={`flex items-center justify-center gap-2 text-sm font-medium ${color}`}>
-        {icon}
-        <span>{text}</span>
-      </div>
-    );
-  };
+
+    subscribe();
+
+    return () => {
+      active = false;
+      try {
+        // destroy ethers provider when present
+        provider?.destroy?.();
+      } catch (e) {
+        try { (provider as any)?._websocket?.close?.(); } catch {}
+      }
+
+      // run any polling cleanup attached earlier
+      try { cleanupHolder._pollingCleanup?.(); } catch {}
+
+      // solana cleanup
+      try { cleanupHolder._solanaCleanup?.(); } catch {}
+
+      // bitcoin ws cleanup
+      try { cleanupHolder._bitcoinWs?.close?.(); } catch {}
+    };
+  }, [network]);
+
+  const current = NETWORKS[network];
 
   return (
-    <section
-      className="w-full max-w-7xl mx-auto text-center py-20 px-4"
-      style={{
-        color: '#e6d6a7'
-      }}
-    >
-      <h2 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-amber-300 to-amber-500">
-        Live Transaction Feed
-      </h2>
-  <p className="mb-12" style={{ color: 'rgba(203,213,225,0.8)' }}>Watch new transactions as they happen on the network.</p>
-
-      <div className="rounded-3xl shadow-lg p-4 sm:p-6"
-        style={{
-          backgroundColor: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.06)'
-        }}
-      >
-        <div className="mb-6">
-          <StatusIndicator />
-        </div>
-        <div className="space-y-4">
-          {transactions.length > 0 ? (
-            transactions.map((tx, i) => (
-              <motion.div
-                key={tx.hash}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: i * 0.05 }}
-                className="p-4 rounded-2xl"
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.18)',
-                  border: '1px solid',
-                  borderColor: 'rgba(255,255,255,0.03)'
-                }}
-              >
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-                  <p className="text-xs truncate w-full sm:w-1/3 text-left font-mono hover:text-slate-200 transition-colors" style={{ color: 'rgba(203,213,225,0.85)' }}>{tx.hash}</p>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 w-full sm:w-auto justify-center">
-                    <span className="truncate max-w-[100px] sm:max-w-[120px]" style={{ color: 'rgba(203,213,225,0.75)' }}>From: {tx.from}</span>
-                    <FiArrowRight className="" style={{ color: 'rgba(148,163,184,0.8)' }} />
-                    <span className="truncate max-w-[100px] sm:max-w-[120px]" style={{ color: 'rgba(203,213,225,0.75)' }}>To: {tx.to}</span>
-                  </div>
-                  <p className="text-sm font-bold whitespace-nowrap" style={{ color: '#34d399' }}>{tx.value.toFixed(4)} ETH</p>
-                </div>
-              </motion.div>
-            ))
-          ) : (
-            <div className="text-center py-12 text-slate-500">
-              <FiLoader className="animate-spin text-4xl mx-auto mb-4" />
-              Waiting for new transactions...
-            </div>
-          )}
-        </div>
+    <section className="w-full max-w-3xl mx-auto p-6 bg-gray-900 text-white rounded-2xl shadow-xl border border-gray-700">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold">🔴 Live Blockchain Transactions</h2>
+        <select value={network} onChange={(e) => setNetwork(e.target.value)} className="bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-600">
+          {Object.entries(NETWORKS).map(([key, net]) => (
+            <option key={key} value={key}>{net.name}</option>
+          ))}
+        </select>
       </div>
+
+      {loading && <p className="text-gray-400">Connecting to {current.name}...</p>}
+
+      <ul className="space-y-3 mt-3">
+        {transactions.map((tx) => (
+          <li key={tx.hash} className="p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition">
+            <p className="text-xs font-mono truncate">{tx.hash}</p>
+            <div className="flex gap-2 items-center text-sm mt-1">
+              <span className="text-gray-300">From:</span> <span className="truncate">{tx.from ?? '—'}</span>
+              <FiArrowRight />
+              <span className="text-gray-300">To:</span> <span className="truncate">{tx.to ?? '—'}</span>
+            </div>
+            <div className="mt-2 text-sm text-green-300 font-semibold">{tx.value}</div>
+            <a href={`${current.explorer}${tx.hash}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline text-sm">View on Explorer</a>
+          </li>
+        ))}
+      </ul>
+
+      {transactions.length === 0 && !loading && <p className="text-gray-400 mt-4">Waiting for transactions...</p>}
     </section>
   );
 }

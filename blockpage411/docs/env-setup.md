@@ -15,11 +15,10 @@ This document explains the environment variables required for local development 
 
 ## Optional but recommended
 - ETHERSCAN_API_KEY, POLYGONSCAN_API_KEY, BSCSCAN_API_KEY — improves tx verification.
-- ABLY_API_KEY / NEXT_PUBLIC_ABLY_KEY — realtime messaging keys.
 - BASE_URL — used by some services to post metrics (defaults to `http://localhost:3000`).
 
 ## Security: rotate secrets if exposed
-If any secrets from `.env.local` have been committed or exposed, rotate them immediately in the provider (MongoDB user, Redis password, Ably key, etc.).
+If any secrets from `.env.local` have been committed or exposed, rotate them immediately in the provider (MongoDB user, Redis password, etc.).
 
 ## Vercel setup
 1. Go to your Vercel project > Settings > Environment Variables.

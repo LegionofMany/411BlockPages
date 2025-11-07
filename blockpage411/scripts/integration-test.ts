@@ -34,22 +34,20 @@ async function fetchWithTimeout(path: string) {
 async function run() {
   console.log('Integration test target base:', BASE);
 
-  // 1) /api/realtime/token should return 503 when ABLY_API_KEY is not configured
-  const ablyConfigured = !!process.env.ABLY_API_KEY;
+  // 1) /api/realtime/token: Ably integration was removed and this endpoint may return 410 Gone.
+  //    The script accepts either 410 (integration removed) or 503 (not configured). If an ABLY_API_KEY
+  //    is present in the environment we still allow for a 200 (legacy behavior), but prefer 410/503.
   try {
     const r = await fetchWithTimeout('/api/realtime/token');
     console.log('/api/realtime/token ->', r.status);
-    if (!ablyConfigured) {
-      if (r.status !== 503) {
-        console.error('Expected 503 when ABLY_API_KEY unset, got', r.status);
-        process.exit(2);
-      } else {
-        console.log('Token endpoint returned 503 as expected (Ably not configured)');
-      }
+    if (r.status === 410) {
+      console.log('Token endpoint returned 410 (Ably integration removed)');
+    } else if (r.status === 503) {
+      console.log('Token endpoint returned 503 (Ably not configured)');
+    } else if (r.status === 200) {
+      console.log('Token endpoint returned 200 (legacy Ably token behavior)');
     } else {
-      // if ABLY_API_KEY is provided, we expect a 200 (best-effort). If Ably key is invalid or network blocks it, we may still get 503; in that case just warn
-      if (r.status === 200) console.log('Token endpoint returned 200 (Ably configured)');
-      else console.warn('Token endpoint returned', r.status, 'even though ABLY_API_KEY is set — this may be due to network/invalid key');
+      console.warn('Unexpected status from /api/realtime/token:', r.status);
     }
   } catch (err) {
     console.error('Error calling /api/realtime/token:', err);

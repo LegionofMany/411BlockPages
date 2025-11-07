@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '../../../lib/db';
 import Wallet from '../../../lib/walletModel';
 import AdminAction from '../../../lib/adminActionModel';
+import recordAdminAction from '../../../lib/logAdminAction';
 import { withAdminAuth } from '../../../lib/adminMiddleware';
 
 const ADMIN_WALLETS = process.env.ADMIN_WALLETS?.split(',').map(a => a.toLowerCase().trim()) || [];
@@ -15,8 +16,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
   // Remove flag from Wallet
   await Wallet.updateOne({ address: wallet.toLowerCase() }, { $pull: { flags: { _id: flagId } } });
-  // Log admin action
-  await AdminAction.create({ admin, action: 'dismiss_flag', target: wallet, reason: `Flag ${flagId} dismissed` });
+  // Log admin action (best-effort)
+  await recordAdminAction({ admin, action: 'dismiss_flag', target: wallet, reason: `Flag ${flagId} dismissed` });
   return res.status(200).json({ message: 'Flag dismissed' });
 }
 

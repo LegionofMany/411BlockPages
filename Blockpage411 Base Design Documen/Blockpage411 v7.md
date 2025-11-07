@@ -199,7 +199,7 @@ Final notes / recommendations
 
 CSV & JSON seed (shortened)
 
-I included a full CSV/JSON seed in the previous draft. If you want I can add a trimmed `data/providers.json` file to the repo and a small seed script `scripts/seed_providers.ts` that imports the JSON into MongoDB / your DB of choice.
+we included a full CSV/JSON seed in the previous draft. If you/client want we can add a trimmed `data/providers.json` file to the repo and a small seed script `scripts/seed_providers.ts` that imports the JSON into MongoDB / your DB of choice.
 
 Implementation phases & rough estimates
 
@@ -207,13 +207,43 @@ Implementation phases & rough estimates
 - Phase 2: +1–2 weeks — signature verification, address recognition, admin promotion automation.
 - Phase 3: scale/analytics & outreach tooling.
 
-If you'd like, I can:
 
  - Create the `data/providers.json` file in the repo and add `scripts/seed_providers.ts` that imports it into MongoDB (or your chosen DB).
  - Scaffold the frontend Search page (React + Tailwind) and provider modal components and wire them to simple API stubs.
  - Implement the minimal backend endpoints in `pages/api/` (Next.js API routes) to support autocomplete and report creation.
 
-Tell me which of the three follow-ups above you'd like me to implement next and I'll scaffold it and run a quick build.
+
 8,KuCoin,"KuCoin, KuCoin AU, KuCoin Korea",CEX,https://www.kucoin.com,8
 
 9,OKX,"OKX, OKEx",CEX,https://www.okx.com,9
+
+---
+
+## Live feed (client-side WebSocket)
+
+We use a client-side WebSocket approach for live blockchain transactions (see
+`live.md` in the repo). Summary and configuration steps are below so this
+design is also embedded into the v7 document (you can delete `live.md` after
+confirming this content is present here).
+
+Summary
+- Connect from the browser to a WSS RPC endpoint (Alchemy/Infura/QuickNode).
+- Use `ethers` and `ethers.WebSocketProvider` to subscribe to `block` events
+  and fetch transactions. Keep sockets client-side; do not run long-lived
+  sockets in Vercel serverless functions.
+
+Configure NEXT_PUBLIC_ALCHEMY_KEY
+1. Add to your local `.env.local` (do not commit):
+   ```
+   NEXT_PUBLIC_ALCHEMY_KEY=your-alchemy-api-key
+   ```
+2. Add the same variable in Vercel Dashboard for Preview and Production.
+   Use the `NEXT_PUBLIC_` prefix so the key is included in client bundles.
+
+Implementation notes
+- Prefer Alchemy for multi-chain WSS (examples: `wss://eth-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_KEY}`).
+- Handle ethers v6 typing differences (use `ethers.WebSocketProvider` and
+  cast/mildly loosen types if needed during build).
+- See `app/components/landing/RealTimeTransactions.tsx` for the working example
+  already added to this repo.
+
