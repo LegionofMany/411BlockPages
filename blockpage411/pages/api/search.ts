@@ -15,7 +15,7 @@ type WalletDoc = {
 };
 // Helper to get status tags for a wallet
 function getStatusTags(wallet: WalletDoc) {
-  const tags = [];
+  const tags: string[] = [];
   if (wallet?.blacklisted) tags.push('Blacklisted');
   if (wallet?.flags && wallet.flags.length > 0) tags.push(`Flagged (${wallet.flags.length})`);
   if (wallet?.kycStatus === 'verified') tags.push('Verified');

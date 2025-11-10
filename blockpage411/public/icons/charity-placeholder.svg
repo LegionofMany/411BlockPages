@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <rect width="100%" height="100%" fill="#0b1220" />
+  <g fill="#fbbf24" transform="translate(24 24)">
+    <path d="M56 0c-8 0-14 6-14 14 0 6 4 11 9 13v7h10v-7c5-2 9-7 9-13 0-8-6-14-14-14z"/>
+    <rect x="0" y="48" width="104" height="16" rx="4" fill="#fff" opacity="0.06"/>
+  </g>
+  <text x="80" y="138" font-size="10" fill="#fff" text-anchor="middle" font-family="sans-serif">Blockpage411</text>
+</svg>

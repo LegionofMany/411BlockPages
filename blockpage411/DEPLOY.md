@@ -1,6 +1,6 @@
 # Deployment Instructions
 
-This project is a Next.js app. Below are two supported deployment options: Vercel (recommended for Next.js) and a container platform (Docker).
+This project is a Next.js app. Vercel is the recommended deployment platform for Next.js applications.
 
 ## Vercel (recommended)
 
@@ -16,18 +16,7 @@ This project is a Next.js app. Below are two supported deployment options: Verce
 Notes:
 - Vercel does not support deploying an arbitrary Dockerfile. Use Vercel for frontend / serverless functions and a separate container host for custom background jobs if needed.
 
-## Docker (self-hosted / Fly.io / Render)
-
-A minimal Dockerfile is included for deploying to container platforms. Example steps:
-
-1. Build locally:
-
-```powershell
-docker build -t blockpage411:latest .
-docker run -e MONGODB_URI=\"<your-uri>\" -e NEXT_PUBLIC_APP_URL=\"https://your-host\" -p 3000:3000 blockpage411:latest
-```
-
-2. On platforms like Fly.io or Render, follow their guides to deploy a Docker image or push via `flyctl` / Git integration.
+Note: Docker-related files have been removed from this repository. If you require container-based deployment, create a custom `Dockerfile` or use a platform-specific guide (Fly.io, Render, etc.). For most use cases we recommend Vercel for frontend and serverless functions.
 
 ## Environment
 

@@ -54,6 +54,23 @@ const WalletSchema = new Schema({
   suspicious: { type: Boolean, default: false },
   flagsList: [{ type: String }], // for admin/manual flags
   // role management
+  // new campaign/social/trust fields (v7 charity features)
+  campaigns: [{
+    title: String,
+    description: String,
+    goal: Number,
+    wallet: String,
+    expiry: Date,
+    active: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now }
+  }],
+  socials: {
+    twitter: String,
+    telegram: String,
+    whatsapp: String,
+    instagram: String,
+  },
+  trustScore: { type: Number, default: 0 },
   role: { type: String, enum: ['user', 'moderator', 'admin'], default: 'user' },
 });
 

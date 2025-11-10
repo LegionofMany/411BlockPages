@@ -4,105 +4,13 @@ import { createPortal } from 'react-dom';
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import NavLinkItem from './NavLinkItem';
+import {
+  IconHome, IconSearch, IconFund, IconDonate, IconTrending,
+  IconAdmin, IconActions, IconSignIn, IconMenuSpecial
+} from './NavbarIcons';
 
-// Small inline SVG icons to avoid external icon dependency and keep bundle predictable
-const Icon = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center justify-center w-5 h-5">{children}</span>
-);
-
-const IconHome = () => (
-  <Icon>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M3 11.5L12 4l9 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5 21V12h14v9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </Icon>
-);
-
-const IconSearch = () => (
-  <Icon>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </Icon>
-);
-
-const IconFund = () => (
-  <Icon>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M12 8v8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M16 10a4 4 0 1 0-8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </Icon>
-);
-
-const IconDonate = () => (
-  <Icon>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M20 12a8 8 0 1 0-16 0c0 4 4 7 8 11 4-4 8-7 8-11z" stroke="currentColor" strokeWidth="1" fill="currentColor" opacity="0.12" />
-      <path d="M12 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </Icon>
-);
-
-const IconTrending = () => (
-  <Icon>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M21 7v6h-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </Icon>
-);
-
-const IconAdmin = () => (
-  <Icon>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M12 2l3 6 6 .5-4.5 3.5L19 20l-7-4-7 4 1.5-8-4.5-3.5L9 8 12 2z" stroke="currentColor" strokeWidth="1" fill="currentColor" opacity="0.08" />
-    </svg>
-  </Icon>
-);
-
-const IconActions = () => (
-  <Icon>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <rect x="3" y="4" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M7 8h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M7 12h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  </Icon>
-);
-
-const IconSignIn = () => (
-  <Icon>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M15 3h4a2 2 0 0 1 2 2v14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10 17L15 12 10 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M15 12H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </Icon>
-);
-
-const IconMenuSpecial = ({ state = 'default' }: { state?: 'default' | 'hover' | 'open' }) => {
-  // change gradient stops and small rotation/glow based on state
-  const id = `g1-${state}`;
-  const stops = state === 'hover' ? ['#ffe08a', '#ff8a00'] : state === 'open' ? ['#7c3aed', '#ffb86b'] : ['#ffb86b', '#7c3aed'];
-  const transform = state === 'open' ? 'rotate(10deg)' : state === 'hover' ? 'rotate(4deg)' : 'none';
-  const glow = state === 'hover' ? 'drop-shadow(0 6px 14px rgba(255,138,0,0.14))' : state === 'open' ? 'drop-shadow(0 8px 28px rgba(124,58,237,0.12))' : 'none';
-  return (
-    <span className="inline-flex items-center justify-center w-6 h-6" style={{ transform, filter: glow }}>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-        <defs>
-          <linearGradient id={id} x1="0" x2="1">
-            <stop offset="0%" stopColor={stops[0]} />
-            <stop offset="100%" stopColor={stops[1]} />
-          </linearGradient>
-        </defs>
-        <path d="M12 2l2.6 5.2L20 10l-4 3 1 6L12 16l-5 3 1-6L4 10l5.4-2.8L12 2z" fill={`url(#${id})`} opacity="0.98" />
-      </svg>
-    </span>
-  );
-};
+// Icon and NavLinkItem extracted to separate modules (NavbarIcons.tsx and NavLinkItem.tsx)
 
 // variant is accepted for future visual variants but currently unused
 /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
@@ -116,6 +24,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
       const navItems: Array<{ href: string; label: string; Icon?: React.FC; show?: boolean }> = [
         { href: '/', label: 'Home', Icon: IconHome },
         { href: '/search', label: 'Search', Icon: IconSearch },
+        { href: '/charities', label: 'Charities', Icon: IconFund },
         { href: '/fundraisers', label: 'Fundraisers', Icon: IconFund },
         { href: '/donate', label: 'Donate', Icon: IconDonate },
         { href: '/wallet/popular', label: 'Trending', Icon: IconTrending },
@@ -195,31 +104,15 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
         };
       }, [open]);
 
+      // NavLinkItem is imported from ./NavLinkItem to keep markup consistent across desktop+mobile
+
       return (
         <>
-          <nav
-            role="navigation"
-            aria-label="Main"
-            className="w-full flex items-center justify-between px-4 md:px-8 py-3"
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              // glassmorphism: translucent gradient with blur and subtle border
-              background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(124,58,237,0.06) 50%, rgba(2,6,23,0.18) 100%)',
-              backgroundColor: 'rgba(6,8,15,0.42)',
-              boxShadow: '0 6px 30px rgba(2,6,23,0.45)',
-              zIndex: 2147483647,
-              backdropFilter: 'blur(8px) saturate(120%)',
-              WebkitBackdropFilter: 'blur(8px) saturate(120%)',
-              borderBottom: '1px solid rgba(255,255,255,0.04)'
-            }}
-          >
+          <nav role="navigation" aria-label="Main" className="site-nav w-full flex items-center justify-between px-4 md:px-8 py-3">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-3 focus:outline-none" aria-label="Go to homepage">
             <Image src="/block411-logo.svg" alt="Blockpage411 Logo" width={36} height={36} />
-            <span className="text-lg md:text-xl font-semibold">Blockpage411</span>
+            <span className="text-lg md:text-xl font-semibold text-amber-300">Blockpage411</span>
           </Link>
         </div>
 
@@ -230,14 +123,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
             const active = isActive(item.href);
             return (
               <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`text-sm md:text-base font-medium focus:outline-none rounded inline-flex items-center gap-2 px-2 py-1 transition transform duration-150 ease-in-out ${active ? 'text-amber-300' : 'text-white'} hover:text-amber-300 hover:-translate-y-1 active:scale-95 focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-transparent`}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  {item.Icon ? <item.Icon /> : null}
-                  <span>{item.label}</span>
-                </Link>
+                <NavLinkItem href={item.href} label={item.label} Icon={item.Icon} active={active} />
               </li>
             );
           })}
@@ -290,11 +176,12 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                 aria-label="Mobile navigation"
                 className="w-64 sm:w-80 rounded-2xl overflow-visible"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255,245,210,0.08) 0%, rgba(255,235,160,0.05) 40%, rgba(6,8,15,0.56) 100%)',
-                  backdropFilter: 'blur(10px) saturate(120%)',
-                  WebkitBackdropFilter: 'blur(10px) saturate(120%)',
-                  border: '1px solid rgba(59,130,246,0.18)',
-                  boxShadow: '0 10px 40px rgba(2,6,23,0.6)',
+                  // stronger, higher-contrast background for readability
+                  background: 'linear-gradient(135deg, rgba(8,10,18,0.92) 0%, rgba(6,8,15,0.96) 100%)',
+                  backdropFilter: 'blur(6px) saturate(120%)',
+                  WebkitBackdropFilter: 'blur(6px) saturate(120%)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  boxShadow: '0 12px 48px rgba(2,6,23,0.72)',
                   animation: 'scaleIn 160ms ease',
                   overflow: 'hidden'
                 }}
@@ -302,7 +189,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                 {/* caret */}
                 <div style={{ position: 'absolute', right: 28, top: -9, width: 18, height: 18, transform: 'rotate(45deg)', background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', borderLeft: '1px solid rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.02)' }} />
                 <div className="p-4 flex items-center justify-between">
-                  <div className="text-lg font-semibold">Navigation</div>
+                  <div className="text-lg font-semibold text-slate-100">Navigation</div>
                   <button onClick={() => setOpen(false)} aria-label="Close menu" className="p-2 rounded-md focus:outline-none">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -314,10 +201,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                     {navItems.map((item) => (
                       item.show === false ? null : (
                         <li key={item.href}>
-                          <Link href={item.href} className="block px-3 py-2 text-sm focus:outline-none rounded flex items-center gap-3 transition hover:bg-white/3 active:scale-95" onClick={() => setOpen(false)}>
-                            {item.Icon ? <item.Icon /> : null}
-                            <span className="font-medium text-white">{item.label}</span>
-                          </Link>
+                          <NavLinkItem href={item.href} label={item.label} Icon={item.Icon} onClick={() => setOpen(false)} mobile />
                         </li>
                       )
                     ))}
@@ -330,6 +214,17 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
           document.body
         ) : null}
       </nav>
+      <style jsx>{`
+        .site-nav { position: fixed; top:0; left:0; right:0; z-index:2147483647; }
+        .site-nav { background: linear-gradient(90deg, rgba(6,8,15,0.95) 0%, rgba(10,12,20,0.98) 100%); background-color: rgba(6,8,15,0.98); box-shadow: 0 6px 40px rgba(2,6,23,0.6); backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        /* Scoped selectors to ensure global .nav-link in globals.css doesn't override our navbar styles */
+        .site-nav .nav-link { color: var(--link-color, #fbbf24); }
+        .site-nav .nav-link[data-active="true"] { --link-color: #f59e0b; }
+        .site-nav .nav-link[data-active="false"] { --link-color: #fbbf24; }
+        .site-nav .nav-link:hover { color: #fcd34d; transform: translateY(-3px); }
+        .site-nav .nav-link svg, .site-nav .nav-link-mobile svg { color: inherit; }
+        .site-nav .nav-link-mobile { color: var(--link-color, #fbbf24); }
+      `}</style>
     </>
   );
 }

@@ -1,0 +1,32 @@
+[
+	{
+		"id": "tgb-sample-1",
+		"name": "Neighborhood Relief Fund",
+		"mission": "Providing emergency relief and recovery support to local communities.",
+		"website": "https://example-relief.org",
+		"logoUrl": "https://via.placeholder.com/120x40.png?text=Relief",
+		"cryptoWalletAddress": "0x0000000000000000000000000000000000000001",
+		"donationWidget": "https://donate.thegivingblock.com/widget/sample1",
+		"tags": ["disaster", "community"]
+	},
+	{
+		"id": "tgb-sample-2",
+		"name": "Education For All",
+		"mission": "Supporting remote learning and educational resources for underserved children.",
+		"website": "https://example-edu.org",
+		"logoUrl": "https://via.placeholder.com/120x40.png?text=Edu",
+		"cryptoWalletAddress": "0x0000000000000000000000000000000000000002",
+		"donationWidget": "https://donate.thegivingblock.com/widget/sample2",
+		"tags": ["education", "children"]
+	},
+	{
+		"id": "tgb-sample-3",
+		"name": "Conservation Trust",
+		"mission": "Protecting habitats and supporting biodiversity projects worldwide.",
+		"website": "https://example-conserve.org",
+		"logoUrl": "https://via.placeholder.com/120x40.png?text=Conserve",
+		"cryptoWalletAddress": "0x0000000000000000000000000000000000000003",
+		"donationWidget": "https://donate.thegivingblock.com/widget/sample3",
+		"tags": ["environment", "wildlife"]
+	}
+]
