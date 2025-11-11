@@ -123,5 +123,3 @@ Rate limiting & logging
 
 Admin CSV export
 - Admin can export pledges as CSV via: `GET /api/fundraisers/admin/pledges?fundraiserId=<id>&format=csv` (admin only).
-
-If you want, I can run `npm run build` now. Please confirm and I will proceed.

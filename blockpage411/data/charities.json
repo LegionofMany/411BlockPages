@@ -1,4 +1,22 @@
 [
+  {
+    "name": "Sample Health Charity",
+    "mission": "Providing urgent medical care to those in need.",
+    "website": "https://example.org",
+    "logo": "/icons/charity-placeholder.svg",
+    "donationWidget": "",
+    "cryptoWalletAddress": "0x0000000000000000000000000000000000000000"
+  },
+  {
+    "name": "Sample Education Fund",
+    "mission": "Supporting education projects worldwide.",
+    "website": "https://example-edu.org",
+    "logo": "/icons/charity-placeholder.svg",
+    "donationWidget": "",
+    "cryptoWalletAddress": ""
+  }
+]
+[
 	{
 		"id": "tgb-sample-1",
 		"name": "Neighborhood Relief Fund",

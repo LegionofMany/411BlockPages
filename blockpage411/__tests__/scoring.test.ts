@@ -1,24 +1,23 @@
-import assert from 'assert';
 import { calculateTrustScore } from '../utils/scoring';
 
-function approxEqual(a:number,b:number) { return a===b; }
+describe('calculateTrustScore', () => {
+  test('returns 0 for undefined wallet', () => {
+    expect(calculateTrustScore(undefined as any)).toBe(0);
+  });
 
-// Basic unit tests for scoring logic
-(() => {
-  // empty wallet
-  assert.strictEqual(calculateTrustScore(undefined as any), 0, 'undefined wallet should be 0');
+  test('twitter only gives 10 points', () => {
+    expect(calculateTrustScore({ socials: { twitter: '@user' } } as any)).toBe(10);
+  });
 
-  // only twitter
-  assert.strictEqual(calculateTrustScore({ socials: { twitter: '@user' } } as any), 10);
+  test('twitter + telegram gives 20 points', () => {
+    expect(calculateTrustScore({ socials: { twitter: '@u', telegram: 'tg' } } as any)).toBe(20);
+  });
 
-  // twitter + telegram
-  assert.strictEqual(calculateTrustScore({ socials: { twitter: '@u', telegram: 'tg' } } as any), 20);
+  test('all socials give 30 points', () => {
+    expect(calculateTrustScore({ socials: { twitter: 't', telegram: 'tg', whatsapp: 'w', instagram: 'i' } } as any)).toBe(30);
+  });
 
-  // all socials
-  assert.strictEqual(calculateTrustScore({ socials: { twitter: 't', telegram: 'tg', whatsapp: 'w', instagram: 'i' } } as any), 30);
-
-  // caps at 100
-  assert.strictEqual(calculateTrustScore({ socials: { twitter: 't'.repeat(10), telegram: 't'.repeat(10), whatsapp: 'w', instagram: 'i' } } as any), 30);
-
-  console.log('scoring tests passed');
-})();
+  test('caps at 100', () => {
+    expect(calculateTrustScore({ socials: { twitter: 't'.repeat(10), telegram: 't'.repeat(10), whatsapp: 'w', instagram: 'i' } } as any)).toBe(30);
+  });
+});

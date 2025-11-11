@@ -5,8 +5,8 @@ import Charity from '../../../models/Charity';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
   if (req.method === 'GET') {
-    const q = String(req.query.q || '').trim();
-    const filter: any = {};
+  const q = String(req.query.q || '').trim();
+  const filter: Record<string, unknown> = {};
     if (q) filter.name = { $regex: q, $options: 'i' };
     const list = await Charity.find(filter).limit(100).lean();
     res.status(200).json({ results: list });

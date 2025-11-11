@@ -4,12 +4,16 @@ import Charity from '../../../models/Charity';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
-  const { id } = req.query;
-  if (req.method === 'GET') {
-    const c = await Charity.findOne({ _id: id }).lean();
-    if (!c) return res.status(404).json({ error: 'Not found' });
-    return res.status(200).json(c);
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).end('Method Not Allowed');
   }
-  res.setHeader('Allow', 'GET');
-  res.status(405).end('Method Not Allowed');
+
+  const id = String(req.query.id || '').trim();
+  if (!id) return res.status(400).json({ error: 'Missing id' });
+
+  // Try to find by Mongo _id, givingBlockId, or name
+  const byId = await Charity.findOne({ $or: [{ _id: id }, { givingBlockId: id }, { name: id }] }).lean();
+  if (!byId) return res.status(404).json({ error: 'Not found' });
+  return res.status(200).json({ charity: byId });
 }

@@ -178,6 +178,9 @@ npm run start
 
 ---
 
+Note on naming: the project exposes both "fundraisers" and "campaigns" terminology. Web UI routes live under `/fundraisers` (for example `/fundraisers` and `/fundraisers/create`) and `/campaigns` is provided as a route alias that mirrors the same UI. Similarly, API routes under `/api/campaigns` are aliased to the existing `/api/fundraisers` handlers so both names work for integrations.
+
+
 ## 🕵️ Security and Ethics
 
 Blockpage411 is designed to **protect honest users** and **expose scammers** without revealing sensitive wallet data.

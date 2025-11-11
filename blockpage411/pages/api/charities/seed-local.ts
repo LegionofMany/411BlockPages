@@ -17,30 +17,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const dataPath = path.join(process.cwd(), 'data', 'charities.json');
   if (!fs.existsSync(dataPath)) return res.status(400).json({ error: 'data/charities.json missing' });
 
-  let items = [];
-  try { items = JSON.parse(fs.readFileSync(dataPath, 'utf8')); } catch (e) { return res.status(500).json({ error: 'failed to parse data/charities.json' }); }
+  let items: unknown[] = [];
+  try { items = JSON.parse(fs.readFileSync(dataPath, 'utf8')) as unknown[]; } catch { return res.status(500).json({ error: 'failed to parse data/charities.json' }); }
 
   try {
     await dbConnect();
     let inserted = 0, updated = 0;
-    for (const c of items) {
-      const q = { name: c.name };
+    for (const raw of items) {
+      const c = raw as Record<string, unknown>;
+      const name = String(c.name ?? '');
+      const q = { name };
       const update = { $set: {
-        givingBlockId: c.id || c.givingBlockId,
-        name: c.name,
-        description: c.mission || c.description || '',
-        website: c.website || c.url || '',
-        logo: c.logoUrl || c.logo || '',
-        givingBlockEmbedUrl: c.donationWidget || c.embed || '',
-        wallet: c.cryptoWalletAddress || c.wallet || ''
+        givingBlockId: String(c.id ?? c.givingBlockId ?? ''),
+        name,
+        description: String(c.mission ?? c.description ?? ''),
+        website: String(c.website ?? c.url ?? ''),
+        logo: String(c.logoUrl ?? c.logo ?? ''),
+        givingBlockEmbedUrl: String(c.donationWidget ?? c.embed ?? ''),
+        wallet: String(c.cryptoWalletAddress ?? c.wallet ?? '')
       }};
-      const opt = { upsert: true } as any;
-      const r = await Charity.updateOne(q, update, opt);
-      if ((r as any).upserted) inserted++; else updated++;
+      const opt = { upsert: true };
+  const r = await Charity.updateOne(q, update, opt);
+  const rObj = r as unknown as Record<string, unknown>;
+  if (rObj.upserted) inserted++; else updated++;
     }
     return res.status(200).json({ ok: true, inserted, updated });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('seed-local failed', e);
-    return res.status(500).json({ error: e?.message || String(e) });
+    const errMsg = e && typeof e === 'object' && Object.prototype.hasOwnProperty.call(e, 'message') ? String((e as Record<string, unknown>)['message']) : String(e);
+    return res.status(500).json({ error: errMsg });
   }
 }

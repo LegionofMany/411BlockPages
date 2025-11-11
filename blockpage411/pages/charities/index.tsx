@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import Head from 'next/head';
 import CharityCard from '../../components/CharityCard';
 
 export default function CharitiesPage() {
-  const [list, setList] = useState<any[] | null>(null);
+  const [list, setList] = useState<Record<string, unknown>[] | null>(null);
   const [q, setQ] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
@@ -13,10 +14,15 @@ export default function CharitiesPage() {
     try {
       const res = await fetch(`/api/charities?q=${encodeURIComponent(q)}`);
       if (!res.ok) throw new Error(`Status ${res.status}`);
-      const js = await res.json();
-      setList(js.results || []);
-    } catch (e: any) {
-      setErr(e?.message || String(e));
+      const js = await res.json() as unknown;
+      if (Array.isArray(js)) setList(js as Record<string, unknown>[]);
+      else {
+        const obj = js as Record<string, unknown>;
+        setList((obj.results as Record<string, unknown>[]) || []);
+      }
+    } catch (e: unknown) {
+      const errMsg = e && typeof e === 'object' && Object.prototype.hasOwnProperty.call(e, 'message') ? String((e as Record<string, unknown>)['message']) : String(e);
+      setErr(errMsg);
       setList([]);
     }
   };
@@ -31,12 +37,21 @@ export default function CharitiesPage() {
       if (!r.ok) throw new Error(`Seed failed: ${r.status}`);
       await load();
       alert('Seeding complete');
-    } catch (e: any) { alert('Seeding failed: ' + (e?.message||String(e))); }
+    } catch (e: unknown) {
+      const msg = e && typeof e === 'object' && Object.prototype.hasOwnProperty.call(e, 'message') ? String((e as Record<string, unknown>)['message']) : String(e);
+      alert('Seeding failed: ' + msg);
+    }
     setSeeding(false);
   }
 
   return (
     <div id="charities-page" className="max-w-6xl mx-auto p-6 rounded-md" style={{ background: 'linear-gradient(135deg,#071127 0%, #0b1330 100%)', color: '#f8fafc' }}>
+      <Head>
+        <title>Charities — Blockpage411</title>
+        <meta name="description" content="Browse verified charities and donate using on-chain wallets or The Giving Block embeds." />
+        <meta name="og:title" content="Charities — Blockpage411" />
+      </Head>
+
       <h1 className="text-2xl font-bold mb-4" style={{ color: '#ffffff' }}>Charities</h1>
       {/* force-override styles in case global layout or utility classes are more specific */}
       <style jsx global>{`
@@ -64,7 +79,9 @@ export default function CharitiesPage() {
       <div className="mb-4 flex gap-2 items-center">
         <input placeholder="Search charities" value={q} onChange={e=>setQ(e.target.value)} className="input flex-1" />
         <button className="btn" onClick={() => load()}>Refresh</button>
-        <button className="btn btn-secondary" onClick={() => seedLocal()} disabled={seeding}>{seeding ? 'Seeding…' : 'Seed sample (dev)'}</button>
+        {process.env.NODE_ENV !== 'production' ? (
+          <button className="btn btn-secondary" onClick={() => seedLocal()} disabled={seeding}>{seeding ? 'Seeding…' : 'Seed sample (dev)'}</button>
+        ) : null}
       </div>
 
       {err ? (
@@ -77,7 +94,7 @@ export default function CharitiesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {list.map(c => <CharityCard key={c._id || c.name} charity={c} />)}
+          {list.map(c => <CharityCard key={String(c['_id'] ?? c['name'] ?? '')} charity={c} />)}
         </div>
       )}
     </div>
