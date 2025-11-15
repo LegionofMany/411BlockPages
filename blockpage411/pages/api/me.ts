@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import User from 'lib/userModel';
+import Wallet from 'lib/walletModel';
+import { computeTrustScore } from 'services/trustScoreService';
 import jwt from 'jsonwebtoken';
 
 interface JwtPayload {
@@ -48,6 +50,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (user.kycStatus === 'verified') score += 20;
   // Add points for donationRequests
   if (user.donationRequests && (user.donationRequests as import('../../lib/types').DonationRequest[]).some((d) => d.active)) score += 10;
+
+  // Compute trustScore based on social verification and wallet flags
+  const social = (user as any).socialLinks || {};
+  const verified = social.verified as Map<string, boolean> | Record<string, boolean> | undefined;
+  let verifiedLinksCount = 0;
+  if (verified) {
+    const entries = verified instanceof Map ? Array.from(verified.entries()) : Object.entries(verified);
+    verifiedLinksCount = entries.filter(([, v]) => !!v).length;
+  }
+  let flagsCount = 0;
+  try {
+    const walletDoc = await Wallet.findOne({ address: user.address.toLowerCase(), chain: 'eth' }).lean() as any;
+    if (walletDoc?.flagsCount != null) flagsCount = walletDoc.flagsCount;
+    else if (Array.isArray(walletDoc?.flags)) flagsCount = walletDoc.flags.length;
+  } catch {
+    // ignore wallet lookup errors
+  }
+  const trustScore = computeTrustScore({ verifiedLinksCount, flagsCount });
+
+  if (!user.socialLinks) (user as any).socialLinks = {};
+  (user as any).socialLinks.trustScore = trustScore;
+  await user.save();
   // Badge logic
   let badge = 'Bronze';
   if (score >= 80) badge = 'Diamond';
@@ -64,10 +88,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     discord: user.discord,
     website: user.website,
     phoneApps: user.phoneApps,
+    socialLinks: (user as any).socialLinks || undefined,
     kycStatus: user.kycStatus,
     kycRequestedAt: user.kycRequestedAt,
     kycVerifiedAt: user.kycVerifiedAt,
     donationRequests: user.donationRequests as import('../../lib/types').DonationRequest[],
+    featuredCharityId: (user as any).featuredCharityId,
+    activeEventId: (user as any).activeEventId,
+    donationLink: (user as any).donationLink,
+    donationWidgetEmbed: (user as any).donationWidgetEmbed,
     verificationScore: score,
     verificationBadge: badge,
     createdAt: user.createdAt,

@@ -219,7 +219,7 @@ const WalletFlagSection: React.FC<WalletFlagSectionProps> = ({ flags, address, c
 
       {/* Confirmation modal rendered inline */}
       {confirmOpen && (
-        <div className="fixed inset-0 z-[2147483700] flex items-center justify-center">
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 2000 }}>
           <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
           <div className="relative z-10 w-11/12 max-w-md rounded-xl p-5" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(6,8,15,0.72))', border: '1px solid rgba(255,255,255,0.04)', boxShadow: '0 10px 40px rgba(2,6,23,0.6)' }}>
             <h3 className="text-lg font-semibold text-amber-100 mb-2">Confirm flag submission</h3>
@@ -235,7 +235,7 @@ const WalletFlagSection: React.FC<WalletFlagSectionProps> = ({ flags, address, c
 
       {/* Details modal */}
       {detailsFlag && (
-        <div className="fixed inset-0 z-[2147483700] flex items-center justify-center">
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 2000 }}>
           <div className="absolute inset-0 bg-black/40" onClick={() => setDetailsFlag(null)} />
           <div className="relative z-10 w-11/12 max-w-lg rounded-xl p-5" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(6,8,15,0.84))', border: '1px solid rgba(255,255,255,0.04)', boxShadow: '0 12px 48px rgba(2,6,23,0.6)' }}>
             <h3 className="text-lg font-semibold text-amber-100 mb-2">Flag details</h3>

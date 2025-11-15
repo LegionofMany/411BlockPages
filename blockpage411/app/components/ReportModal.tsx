@@ -2,7 +2,9 @@
 import React, { useState } from 'react';
 import { showToast } from './simpleToast';
 import { ethers } from 'ethers';
-export default function ReportModal({ chain = 'ethereum', myWallet, provider, suspect, onClose, onSubmitted }:{ chain?: string; myWallet?: string; provider?: { _id?: string; name?: string; website?: string; type?: string } ; suspect?: string; onClose: ()=>void; onSubmitted?: (report: Record<string, unknown>)=>void }){
+import Portal from './Portal';
+
+export default function ReportModal({ chain = 'ethereum', myWallet, provider, suspect, onClose, onSubmitted, inline = false }:{ chain?: string; myWallet?: string; provider?: { _id?: string; name?: string; website?: string; type?: string } ; suspect?: string; onClose: ()=>void; onSubmitted?: (report: Record<string, unknown>)=>void; inline?: boolean }){
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
@@ -12,7 +14,6 @@ export default function ReportModal({ chain = 'ethereum', myWallet, provider, su
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(()=>{
-    console.log('ReportModal mounted', { suspect, myWallet, provider, chain });
     // focus the checkbox or the container for keyboard users
     setTimeout(()=>{
       try{
@@ -63,9 +64,7 @@ export default function ReportModal({ chain = 'ethereum', myWallet, provider, su
   const body: Record<string, unknown> = { reporterWalletId: null, providerId, suspectAddress: suspect, chain: chain || 'ethereum', evidence: [] };
       if (signaturePayload) body.evidence = [JSON.stringify(signaturePayload)];
   const resp = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'include' });
-  console.log('/api/reports response status', resp.status);
   const json = await resp.json().catch(()=>null);
-  console.log('/api/reports response body', json);
   if (resp.status === 401) { setError('Not authenticated — please Sign & Verify your wallet first'); setLoading(false); return; }
   if (!resp.ok) { setError('Error: ' + (json?.message || resp.statusText)); setLoading(false); return; }
       setMessage('Report submitted — thank you');
@@ -77,9 +76,8 @@ export default function ReportModal({ chain = 'ethereum', myWallet, provider, su
     }catch(e){ console.error('Report submit errored', e); setError('Submission failed: ' + (e instanceof Error ? e.message : String(e))); setLoading(false); }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onMouseDown={(e)=>{ if (e.target === e.currentTarget) onClose(); }}>
-  <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="report-title" tabIndex={-1} className="bg-white rounded shadow-lg w-full max-w-lg p-6 focus:outline-none max-h-[80vh] overflow-auto">
+  const content = (
+        <div ref={containerRef} data-test-id="report-dialog" role="dialog" aria-modal="true" aria-labelledby="report-title" tabIndex={-1} className="bg-white rounded shadow-lg w-full max-w-lg p-6 focus:outline-none max-h-[80vh] overflow-auto">
         <h3 className="text-lg font-semibold mb-2">Confirm report</h3>
         <p className="text-sm mb-4">⚠️ This account must be yours before you continue. Confirm ownership by signing a message with your wallet or ticking the checkbox.</p>
         <div className="text-xs text-gray-500 mb-4">By submitting a report you agree to our <a href="/terms" className="text-blue-600">Terms of Use</a>. False reports may be removed. You may appeal a dismissal via the admin contact.</div>
@@ -96,7 +94,20 @@ export default function ReportModal({ chain = 'ethereum', myWallet, provider, su
           <button type="button" className="btn btn-primary focus:outline-none focus:ring-2 focus:ring-blue-500 px-3 py-2" onClick={submit} disabled={loading}>{loading ? 'Submitting…' : 'Submit report'}</button>
         </div>
         {reportId && <div className="mt-4 text-sm text-green-600">Report ID: {reportId}</div>}
+        </div>
+  );
+  if (inline) {
+    return (
+      <div className="mt-6" aria-labelledby="report-title">
+        {content}
       </div>
-    </div>
+    );
+  }
+  return (
+    <Portal>
+      <div style={{ zIndex: 2000, background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }} data-test-id="report-overlay" className="fixed inset-0 flex items-center justify-center" onMouseDown={(e)=>{ if (e.target === e.currentTarget) onClose(); }}>
+        {content}
+      </div>
+    </Portal>
   );
 }

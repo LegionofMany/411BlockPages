@@ -3,6 +3,7 @@ import dbConnect from 'lib/db';
 import Fundraiser from 'models/Fundraiser';
 import Pledge from 'models/Pledge';
 import rateLimit from '../../../lib/rateLimit';
+import AuditLog from 'models/AuditLog';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -36,6 +37,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const donorEntry = donor ? `${donor}:${amount}` : `Anonymous:${amount}`;
   f.recentDonors = Array.isArray(f.recentDonors) ? [...f.recentDonors.slice(-9), donorEntry] : [donorEntry];
   await f.save();
+    try {
+      await AuditLog.create({ action: 'pledge.create', user: donor ?? '', targetType: 'fundraiser', targetId: fundraiserId, data: { amount, currency, externalId }, ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress });
+    } catch {}
     return res.status(200).json({ success: true, pledge });
   } catch (err) {
     // duplicate key -> already recorded

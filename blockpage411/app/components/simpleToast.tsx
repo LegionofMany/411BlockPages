@@ -13,7 +13,7 @@ export function showToast(msg: string, duration = 3500) {
     container.style.position = 'fixed';
     container.style.right = '20px';
     container.style.top = '20px';
-    container.style.zIndex = '9999';
+  container.style.zIndex = '3000';
     document.body.appendChild(container);
   }
   const el = document.createElement('div');

@@ -43,7 +43,7 @@ export default function RootLayout({
                 position: 'fixed',
                 left: 12,
                 top: 12,
-                zIndex: 2150000000,
+                zIndex: 4000,
                 background: 'rgba(255,255,255,0.02)',
                 color: '#fff',
                 border: '1px solid rgba(255,255,255,0.03)'

@@ -1,11 +1,15 @@
 #!/usr/bin/env ts-node
 import path from 'path';
 import fs from 'fs';
-import dbConnect from '../lib/db';
 import Charity from '../models/Charity';
 import { fetchGivingBlockCharities } from '../utils/givingblock';
 
-async function seedFromApi() {
+// dbConnect is dynamically loaded below to avoid ts-node/ESM resolution issues when
+// running the script directly (some environments require require() while others need import()).
+// dbConnect can be either the loader function exported by lib/db or the module itself in some envs
+let dbConnect: any = null;
+
+async function seedFromApi(dryRun = false) {
   console.log('Fetching charities from The Giving Block...');
   const list = await fetchGivingBlockCharities();
   if (!list || list.length === 0) {
@@ -27,13 +31,15 @@ async function seedFromApi() {
       givingBlockEmbedUrl: String(c.donationWidget ?? c.donation_widget ?? c.embed ?? ''),
       wallet: String(c.cryptoWalletAddress ?? c.wallet ?? '')
     };
-    await Charity.updateOne({ name: String(doc.name ?? '') }, { $set: doc }, { upsert: true });
+    if (!dryRun) {
+      await Charity.updateOne({ name: String(doc.name ?? '') }, { $set: doc }, { upsert: true });
+    }
     count++;
   }
   return count;
 }
 
-async function seedFromLocal() {
+async function seedFromLocal(dryRun = false) {
   const dataPath = path.join(process.cwd(), 'data', 'charities.json');
   if (!fs.existsSync(dataPath)) {
     console.log('No data/charities.json found');
@@ -55,7 +61,9 @@ async function seedFromLocal() {
       givingBlockEmbedUrl: String(c.donationWidget ?? c.embed ?? c.donationWidget ?? ''),
       wallet: String(c.cryptoWalletAddress ?? c.wallet ?? '')
     };
-    await Charity.updateOne({ name: String(doc.name ?? '') }, { $set: doc }, { upsert: true });
+    if (!dryRun) {
+      await Charity.updateOne({ name: String(doc.name ?? '') }, { $set: doc }, { upsert: true });
+    }
     count++;
   }
   return count;
@@ -63,14 +71,41 @@ async function seedFromLocal() {
 
 async function main() {
   try {
-    await dbConnect();
+    // ensure dbConnect is loaded (try require first for common ts-node usage, fallback to dynamic import)
+    if (!dbConnect) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const mod = require('../lib/db');
+        dbConnect = mod && mod.default ? mod.default : mod;
+      } catch (e) {
+        // fallback to dynamic import
+        // note: dynamic import returns a promise
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        ;(async () => {
+          const mod = await import('../lib/db');
+          dbConnect = mod && mod.default ? mod.default : mod;
+        })();
+      }
+    }
+
+    // If dynamic import path was used above, wait for dbConnect to be available
+    if (!dbConnect) {
+      // last-resort dynamic import (await)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = await import('../lib/db');
+      dbConnect = mod && mod.default ? mod.default : mod;
+    }
+    // parse args for --dry-run
+    const args = process.argv.slice(2);
+    const dryRun = args.includes('--dry-run') || args.includes('--dry');
+    if (!dryRun) await dbConnect();
     let seeded = 0;
     // prefer API if available
     try {
-      seeded = await seedFromApi();
+      seeded = await seedFromApi(dryRun);
     } catch (err) {
       console.warn('API seed failed, falling back to local file:', (err as Error).message);
-      seeded = await seedFromLocal();
+      seeded = await seedFromLocal(dryRun);
     }
     console.log(`Seed complete — ${seeded} charities processed.`);
     process.exit(0);

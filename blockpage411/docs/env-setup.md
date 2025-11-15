@@ -12,6 +12,11 @@ This document explains the environment variables required for local development 
 - NEXT_PUBLIC_APP_URL — Public app URL (used for metrics and links).
 - POLLER_SECRET — Secret to protect `/api/poller/run` when not invoked by Vercel Cron.
 - POLLER_SLACK_WEBHOOK — Optional Slack webhook for poller alerts.
+- GIVINGBLOCK_API_KEY — API key for The Giving Block public API.
+- GIVINGBLOCK_BASE_URL — Base URL for The Giving Block API (defaults to `https://public-api.sandbox.thegivingblock.com`).
+- GIVINGBLOCK_WEBHOOK_SECRET — HMAC secret used to verify Giving Block webhooks.
+- GIVINGBLOCK_ENCRYPTION_KEY — Hex-encoded AES-256 key for decrypting encrypted Giving Block payloads.
+- GIVINGBLOCK_ENCRYPTION_IV — Hex-encoded IV for decrypting encrypted Giving Block payloads.
 
 ## Optional but recommended
 - ETHERSCAN_API_KEY, POLYGONSCAN_API_KEY, BSCSCAN_API_KEY — improves tx verification.

@@ -17,6 +17,18 @@ const UserSchema = new Schema({
   instagram: { type: String },
   linkedin: { type: String },
   phoneApps: [{ type: String }], // e.g. ['WhatsApp', 'Signal']
+  socialLinks: {
+    twitter: { type: String },
+    instagram: { type: String },
+    facebook: { type: String },
+    telegram: { type: String },
+    whatsapp: { type: String },
+    discord: { type: String },
+    verified: { type: Map, of: Boolean },
+    trustScore: { type: Number, default: 0 },
+  },
+  // pending social verification challenges
+  pendingSocialVerifications: [{ platform: { type: String }, handle: { type: String }, code: { type: String }, createdAt: { type: Date } }],
   kycStatus: { type: String, enum: ['unverified', 'pending', 'verified', 'rejected'], default: 'unverified' },
   kycRequestedAt: { type: Date },
   kycVerifiedAt: { type: Date },
@@ -42,6 +54,13 @@ const UserSchema = new Schema({
   }],
   verificationScore: { type: Number, default: 0 },
   profileUpdateHistory: [{ type: Date }], // for rate limiting
+  featuredCharityId: { type: String },
+  activeEventId: { type: Schema.Types.ObjectId, ref: 'Event' },
+  donationLink: { type: String },
+  donationWidgetEmbed: {
+    widgetId: { type: String },
+    charityId: { type: String },
+  },
   // v4 admin fields
   blacklisted: { type: Boolean, default: false },
   blacklistReason: { type: String },

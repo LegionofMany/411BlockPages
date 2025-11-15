@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import DonationQR from './DonationQR';
 import { explorerUrlFor } from '../lib/explorer';
+import { isTrustedGivingBlockEmbed } from '../utils/embed';
 
 export default function CharityCard({ charity }: { charity: Record<string, unknown> }) {
   const [showEmbed, setShowEmbed] = useState(false);
+  const [showOpenNotice, setShowOpenNotice] = useState(false);
 
   const [logoFailed, setLogoFailed] = useState(false);
 
@@ -56,7 +58,7 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
   <p className="mt-3 text-sm text-slate-300">{String(charity.description ?? '')}</p>
 
       <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-  {charity.givingBlockEmbedUrl ? (
+        {charity.givingBlockEmbedUrl ? (
           <>
             <button
               className="btn"
@@ -69,7 +71,34 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
             </button>
             {showEmbed ? (
               <div id={`donate-embed-${charity._id || (charity.name||'')}`} className="w-full mt-3">
-                <iframe title={`donate-${String(charity._id ?? String(charity.name ?? ''))}`} src={String(charity.givingBlockEmbedUrl ?? '')} style={{ width: '100%', height: 360, border: '1px solid rgba(255,255,255,0.06)' }} sandbox="allow-forms allow-scripts allow-same-origin allow-popups" />
+                {isTrustedGivingBlockEmbed(String(charity.givingBlockEmbedUrl ?? '')) ? (
+                  <iframe
+                    title={`donate-${String(charity._id ?? String(charity.name ?? ''))}`}
+                    src={String(charity.givingBlockEmbedUrl ?? '')}
+                    style={{ width: '100%', height: 360, border: '1px solid rgba(255,255,255,0.06)' }}
+                    // sandbox without allow-same-origin reduces risk; allow scripts/forms/popups for payment flows
+                    sandbox="allow-forms allow-scripts allow-popups"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="p-3 border rounded bg-slate-900/30">
+                    <p className="text-sm text-slate-300">The donation widget is hosted on an untrusted domain and cannot be embedded here for security reasons.</p>
+                    <a
+                      className="btn btn-primary mt-2"
+                      href={String(charity.givingBlockEmbedUrl ?? '')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        try {
+                          setShowOpenNotice(true);
+                          setTimeout(() => setShowOpenNotice(false), 4000);
+                        } catch {}
+                      }}
+                    >Open Donate Page</a>
+                    {showOpenNotice ? <div className="mt-2 text-sm text-emerald-300">Donation opened in a new tab — please complete the payment there.</div> : null}
+                  </div>
+                )}
               </div>
             ) : null}
           </>

@@ -40,7 +40,8 @@
     "swr": "^2.3.6",
     "tronweb": "^4.0.0",
     "viem": "^2.38.0",
-    "wagmi": "^2.18.0"
+    "wagmi": "^2.18.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/dotenv": "^6.1.1",

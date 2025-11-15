@@ -1,8 +1,9 @@
 "use client";
 import React, { useState } from 'react';
 import { showToast } from './simpleToast';
+import Portal from './Portal';
 
-export default function AddProviderModal({ initialName = '', onClose, onCreated }:{ initialName?: string; onClose: ()=>void; onCreated: (p: unknown)=>void }){
+export default function AddProviderModal({ initialName = '', onClose, onCreated, inline = false }:{ initialName?: string; onClose: ()=>void; onCreated: (p: unknown)=>void; inline?: boolean }){
   const [name, setName] = useState(initialName);
   const [website, setWebsite] = useState('');
   const [type, setType] = useState('CEX');
@@ -25,10 +26,9 @@ export default function AddProviderModal({ initialName = '', onClose, onCreated 
     setLoading(false);
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onMouseDown={(e)=>{ if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="add-provider-title" tabIndex={-1} className="bg-white rounded shadow-lg w-full max-w-md p-6 focus:outline-none">
-        <h3 className="text-lg font-semibold mb-2">Add a provider</h3>
+  const content = (
+        <div role="dialog" aria-modal="true" aria-labelledby="add-provider-title" tabIndex={-1} className="bg-white rounded shadow-lg w-full max-w-md p-6 focus:outline-none" data-test-id="add-provider-dialog">
+          <h3 className="text-lg font-semibold mb-2">Add a provider</h3>
         <label className="text-sm">Name</label>
         <input ref={nameRef} className="input w-full mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value={name} onChange={(e)=>setName(e.target.value)} />
         <label className="text-sm">Type</label>
@@ -44,7 +44,20 @@ export default function AddProviderModal({ initialName = '', onClose, onCreated 
           <button type="button" className="btn focus:outline-none focus:ring-2 focus:ring-gray-500 px-3 py-2" onClick={onClose} disabled={loading}>Cancel</button>
           <button type="button" className="btn btn-primary focus:outline-none focus:ring-2 focus:ring-blue-500 px-3 py-2" onClick={submit} disabled={loading}>{loading ? 'Adding…' : 'Add provider'}</button>
         </div>
+        </div>
+  );
+  if (inline) {
+    return (
+      <div className="mt-6" aria-labelledby="add-provider-title">
+        {content}
       </div>
-    </div>
+    );
+  }
+  return (
+    <Portal>
+      <div style={{ zIndex: 2000, background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }} data-test-id="add-provider-overlay" className="fixed inset-0 flex items-center justify-center" onMouseDown={(e)=>{ if (e.target === e.currentTarget) onClose(); }}>
+        {content}
+      </div>
+    </Portal>
   );
 }

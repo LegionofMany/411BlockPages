@@ -3,6 +3,7 @@ import dbConnect from 'lib/db';
 import User from 'lib/userModel';
 import Fundraiser from 'models/Fundraiser';
 import jwt from 'jsonwebtoken';
+import AuditLog from 'models/AuditLog';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -30,7 +31,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + (Number(durationDays || 90) * 24 * 60 * 60 * 1000));
+  // enforce maximum duration of 90 days server-side
+  const requestedDays = Number(durationDays || 90);
+  const cappedDays = Math.min(Math.max(1, Math.floor(requestedDays)), 90);
+  const expiresAt = new Date(now.getTime() + (cappedDays * 24 * 60 * 60 * 1000));
   const id = `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
 
   const doc = await Fundraiser.create({
@@ -47,6 +51,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     privacy: privacy ?? 'public',
     circle: Array.isArray(circle) ? circle : [],
   });
+
+  // Audit log
+  try {
+    await AuditLog.create({ action: 'fundraiser.create', user: userAddress, targetType: 'fundraiser', targetId: doc.id, data: { title: doc.title, target: doc.target, walletAddress: doc.walletAddress }, ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress });
+  } catch {
+    // ignore audit failures
+  }
 
   // keep embedded copy for compatibility (optional)
   user.fundraisers = user.fundraisers || [];

@@ -204,4 +204,5 @@ export function calculateTrustScore(wallet) {
   npm --prefix ./blockpage411 exec -- node ./scripts/seed_charities.js
   ```
 
--
+
+

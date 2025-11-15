@@ -22,10 +22,11 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
   const pathname = usePathname() || '';
       // navigation items - include all top-level routes and a couple useful legacy/admin links
       const navItems: Array<{ href: string; label: string; Icon?: React.FC; show?: boolean }> = [
-        { href: '/', label: 'Home', Icon: IconHome },
+  { href: '/', label: 'Home', Icon: IconHome },
         { href: '/search', label: 'Search', Icon: IconSearch },
         { href: '/charities', label: 'Charities', Icon: IconFund },
         { href: '/fundraisers', label: 'Fundraisers', Icon: IconFund },
+  { href: '/profile', label: 'Profile', Icon: IconSignIn },
         { href: '/donate', label: 'Donate', Icon: IconDonate },
         { href: '/wallet/popular', label: 'Trending', Icon: IconTrending },
         { href: '/admin', label: 'Admin', Icon: IconAdmin },
@@ -163,12 +164,12 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                 background: 'rgba(2,6,23,0.28)',
                 backdropFilter: 'blur(4px)',
                 WebkitBackdropFilter: 'blur(4px)',
-                zIndex: 2147483649
+                zIndex: 1200
               }}
             />
 
             {/* popup card - fixed so it sits above all page content */}
-            <div style={{ position: 'fixed', right: 16, top: 64, zIndex: 2147483650 }}>
+            <div style={{ position: 'fixed', right: 16, top: 64, zIndex: 1250 }}>
               <div
                 id="mobile-drawer"
                 ref={drawerRef}
@@ -215,7 +216,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
         ) : null}
       </nav>
       <style jsx>{`
-        .site-nav { position: fixed; top:0; left:0; right:0; z-index:2147483647; }
+  .site-nav { position: fixed; top:0; left:0; right:0; z-index:1100; }
         .site-nav { background: linear-gradient(90deg, rgba(6,8,15,0.95) 0%, rgba(10,12,20,0.98) 100%); background-color: rgba(6,8,15,0.98); box-shadow: 0 6px 40px rgba(2,6,23,0.6); backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%); border-bottom: 1px solid rgba(255,255,255,0.04); }
         /* Scoped selectors to ensure global .nav-link in globals.css doesn't override our navbar styles */
         .site-nav .nav-link { color: var(--link-color, #fbbf24); }

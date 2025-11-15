@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import CharityCard from '../../components/CharityCard';
+import Navbar from '../../app/components/Navbar';
+import Footer from '../../app/components/Footer';
+import ThemeProvider from '../../app/components/ThemeProvider';
 
 export default function CharitiesPage() {
   const [list, setList] = useState<Record<string, unknown>[] | null>(null);
@@ -45,7 +48,10 @@ export default function CharitiesPage() {
   }
 
   return (
-    <div id="charities-page" className="max-w-6xl mx-auto p-6 rounded-md" style={{ background: 'linear-gradient(135deg,#071127 0%, #0b1330 100%)', color: '#f8fafc' }}>
+    <ThemeProvider>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-black">
+        <Navbar />
+        <main id="charities-page" className="flex-1 w-full max-w-6xl mx-auto p-6 pt-20 rounded-md" style={{ background: 'linear-gradient(135deg,#071127 0%, #0b1330 100%)', color: '#f8fafc' }}>
       <Head>
         <title>Charities — Blockpage411</title>
         <meta name="description" content="Browse verified charities and donate using on-chain wallets or The Giving Block embeds." />
@@ -97,6 +103,9 @@ export default function CharitiesPage() {
           {list.map(c => <CharityCard key={String(c['_id'] ?? c['name'] ?? '')} charity={c} />)}
         </div>
       )}
-    </div>
+        </main>
+        <Footer />
+      </div>
+    </ThemeProvider>
   );
 }

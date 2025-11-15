@@ -42,6 +42,23 @@ export interface UserProfile {
   instagram?: string;
   linkedin?: string;
   phoneApps?: string[];
+  socialLinks?: {
+    twitter?: string;
+    instagram?: string;
+    facebook?: string;
+    telegram?: string;
+    whatsapp?: string;
+    discord?: string;
+    verified?: Record<string, boolean>;
+    trustScore?: number;
+  };
+  featuredCharityId?: string;
+  activeEventId?: string;
+  donationLink?: string;
+  donationWidgetEmbed?: {
+    widgetId?: string;
+    charityId?: string;
+  };
   kycStatus?: KycStatus;
   kycRequestedAt?: string;
   kycVerifiedAt?: string;

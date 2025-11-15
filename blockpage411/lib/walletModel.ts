@@ -19,6 +19,8 @@ const RatingSchema = new Schema({
 const WalletSchema = new Schema({
   address: { type: String, required: true },
   chain: { type: String, required: true },
+  exchangeSource: { type: String },
+  storageType: { type: String },
   flags: [FlagSchema],
   ratings: [RatingSchema],
   avgRating: { type: Number, default: 0 },
@@ -37,7 +39,10 @@ const WalletSchema = new Schema({
   // v5 fields for detection logic
   txCount: { type: Number, default: 0 },
   lastTxWithinHours: { type: Number, default: 9999 },
+  flagsCount: { type: Number, default: 0 },
+  flagThreshold: { type: Number },
   kycStatus: { type: String, default: 'unknown' },
+  lastFlagger: { type: String },
   kycDetails: {
     fullName: { type: String },
     dob: { type: String },
@@ -75,5 +80,7 @@ const WalletSchema = new Schema({
 });
 
 WalletSchema.index({ address: 1, chain: 1 }, { unique: true });
+WalletSchema.index({ exchangeSource: 1 });
+WalletSchema.index({ storageType: 1 });
 
 export default models.Wallet || model('Wallet', WalletSchema);

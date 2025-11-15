@@ -1,0 +1,27 @@
+{
+  "exchanges": [
+    "Binance",
+    "Coinbase",
+    "Kraken",
+    "KuCoin",
+    "OKX",
+    "Bybit",
+    "Bitfinex",
+    "Gemini",
+    "Huobi",
+    "Gate.io"
+  ],
+  "coldWallets": [
+    "Ledger",
+    "Trezor",
+    "Coldcard",
+    "BitBox02"
+  ],
+  "softWallets": [
+    "MetaMask",
+    "Trust Wallet",
+    "Phantom",
+    "Coinbase Wallet",
+    "Exodus"
+  ]
+}

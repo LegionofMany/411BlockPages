@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import User from 'lib/userModel';
+import Charity from 'models/Charity';
+import Event from 'models/Event';
+import { profileUpdateSchema } from 'lib/validation/schemas';
 import jwt from 'jsonwebtoken';
 
 interface JwtPayload {
@@ -34,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ message: 'User not found' });
   }
   // Only allow updating certain fields
-  const alwaysAllowed: (keyof import('../../lib/types').UserProfile)[] = ['displayName', 'avatarUrl', 'bio', 'donationRequests'];
+  const alwaysAllowed: (keyof import('../../lib/types').UserProfile)[] = ['displayName', 'avatarUrl', 'bio', 'donationRequests', 'featuredCharityId', 'activeEventId', 'donationLink', 'donationWidgetEmbed'];
   const kycGated: (keyof import('../../lib/types').UserProfile)[] = ['telegram', 'twitter', 'discord', 'website', 'phoneApps'];
   const updatedFields: (keyof import('../../lib/types').UserProfile)[] = [];
 
@@ -48,9 +51,80 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Always-allowed fields
+  let body = req.body as Partial<import('../../lib/types').UserProfile>;
+  try {
+    const parsed = profileUpdateSchema.partial().parse(req.body || {});
+    // Normalize phoneApps to array of strings if provided as comma separated string
+    if (typeof parsed.phoneApps === 'string') {
+      parsed.phoneApps = parsed.phoneApps
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    body = parsed as any;
+  } catch (err: any) {
+    return res.status(400).json({ message: 'Invalid payload', details: err?.errors ?? String(err) });
+  }
   for (const field of alwaysAllowed) {
-    if ((req.body as Partial<import('../../lib/types').UserProfile>)[field] !== undefined) {
-      user[field] = (req.body as Partial<import('../../lib/types').UserProfile>)[field];
+    if (body[field] !== undefined) {
+      // special validation for charity presets
+      if (field === 'featuredCharityId') {
+        const val = body.featuredCharityId;
+        if (val === null || val === '') {
+          user.featuredCharityId = undefined as any;
+        } else if (typeof val === 'string') {
+          const trimmed = val.trim();
+          if (!trimmed) {
+            user.featuredCharityId = undefined as any;
+          } else {
+            const charity = await Charity.findOne({ charityId: trimmed }).lean();
+            if (!charity) {
+              return res.status(400).json({ message: 'featuredCharityId does not match any known charity' });
+            }
+            user.featuredCharityId = trimmed;
+          }
+        }
+      } else if (field === 'activeEventId') {
+        const val = body.activeEventId;
+        if (val === null || val === '') {
+          user.activeEventId = undefined as any;
+        } else if (typeof val === 'string') {
+          const trimmed = val.trim();
+          if (!trimmed) {
+            user.activeEventId = undefined as any;
+          } else {
+            const event = await Event.findById(trimmed).lean();
+            if (!event) {
+              return res.status(400).json({ message: 'activeEventId does not match any known event' });
+            }
+            if (String((event as any).creatorUserId) !== String(user._id)) {
+              return res.status(403).json({ message: 'You can only select your own events as activeEventId' });
+            }
+            user.activeEventId = trimmed as any;
+          }
+        }
+      } else if (field === 'donationLink') {
+        const val = body.donationLink;
+        if (val === null || val === '') {
+          user.donationLink = undefined as any;
+        } else if (typeof val === 'string' && val.startsWith('https://')) {
+          user.donationLink = val;
+        } else {
+          return res.status(400).json({ message: 'donationLink must be a https URL' });
+        }
+      } else if (field === 'donationWidgetEmbed') {
+        const cfg = body.donationWidgetEmbed as { widgetId?: string; charityId?: string } | undefined;
+        if (!cfg || (!cfg.widgetId && !cfg.charityId)) {
+          user.donationWidgetEmbed = undefined as any;
+        } else if (typeof cfg === 'object') {
+          user.donationWidgetEmbed = {
+            widgetId: cfg.widgetId || undefined,
+            charityId: cfg.charityId || undefined,
+          } as any;
+        }
+      } else {
+        user[field] = body[field] as any;
+      }
       updatedFields.push(field);
     }
   }

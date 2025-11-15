@@ -2,6 +2,7 @@ import axios from "axios";
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
+import { getBalanceFlagThreshold } from 'lib/config';
 import ProviderWallet from 'lib/providerWalletModel';
 import Provider from 'lib/providerModel';
 import { computeRiskScore, WalletLike } from 'lib/risk';
@@ -222,15 +223,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   providerLabel = { providerId: String(pw.providerId || ''), name: p?.name || undefined, note: pw.note || undefined };
     }
   }catch{ /* ignore */ }
-  // Privacy: optionally hide assets until a wallet has been flagged enough times.
-  // Controlled by FLAGS_TO_REVEAL_ASSETS env var (default: 3).
+  // Privacy: hide balances until heavily flagged, using per-wallet or global threshold.
   const flagsCount = Array.isArray(wallet?.flags) ? wallet!.flags.length : 0;
-  const FLAGS_TO_REVEAL_ASSETS = Number(process.env.FLAGS_TO_REVEAL_ASSETS || '3');
-  const assetsHidden = flagsCount < FLAGS_TO_REVEAL_ASSETS;
+  const threshold = (wallet as any)?.flagThreshold ?? getBalanceFlagThreshold();
+  const showBalance = (wallet as any)?.flagsCount != null
+    ? (wallet as any).flagsCount >= threshold
+    : flagsCount >= threshold;
 
-  // If assets are hidden, avoid returning transaction list and NFT count for privacy.
-  const returnedTxs = assetsHidden ? [] : txs;
-  const returnedNftCount = assetsHidden ? 0 : (wallet?.nftCount || 0);
+  // If balances should be hidden, avoid returning transaction list and NFT count for privacy.
+  const returnedTxs = showBalance ? txs : [];
+  const returnedNftCount = showBalance ? (wallet?.nftCount || 0) : 0;
 
   res.status(200).json({
     address: wallet?.address || address,
@@ -239,8 +241,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     providerLabel,
     flags: wallet?.flags || [],
     flagsCount,
-    flagsRequired: FLAGS_TO_REVEAL_ASSETS,
-    assetsHidden,
+    flagThreshold: threshold,
+    showBalance,
     ratings: (wallet?.ratings || []).map((r: {
       user: string;
       score: number;

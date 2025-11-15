@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProviderSelect from 'app/components/ProviderSelect';
 import AddProviderModal from 'app/components/AddProviderModal';
 import ReportModal from 'app/components/ReportModal';
@@ -18,9 +18,17 @@ export default function SearchPage(){
   const [provider, setProvider] = useState<ProviderType | null>(null);
   const [suspect, setSuspect] = useState('');
   const [addingProvider, setAddingProvider] = useState(false);
-  const [showProviderFeatures, setShowProviderFeatures] = useState<boolean>(() => {
-    try { return localStorage.getItem('showProviderFeatures') !== 'false'; } catch { return true; }
-  });
+  // avoid reading localStorage during render to prevent SSR/hydration mismatches
+  const [showProviderFeatures, setShowProviderFeatures] = useState<boolean>(false);
+  useEffect(() => {
+    try {
+      const val = localStorage.getItem('showProviderFeatures');
+      if (val !== null) setShowProviderFeatures(val !== 'false');
+      else setShowProviderFeatures(true);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   const [openReportModal, setOpenReportModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -72,8 +80,52 @@ export default function SearchPage(){
   }catch(err){ console.error(err); setErrorMessage('Signature failed'); }
   }
 
+  // ensure main content is interactive (in case a leftover navbar mobile-drawer side-effect disabled it)
+  function restoreMainInteractivity(){
+    try{
+      const main = document.getElementById('content');
+      if (main) {
+        main.removeAttribute('aria-hidden');
+        (main as HTMLElement).style.pointerEvents = '';
+        (main as HTMLElement).style.userSelect = '';
+        (main as HTMLElement).style.touchAction = '';
+      }
+      neutralizeStaleOverlays();
+    }catch(e){}
+  }
+
+  // defensive: if any full-screen overlay was left in the DOM (e.g., mobile drawer backdrop), make it non-interactive so page buttons work
+  function neutralizeStaleOverlays(){
+    try{
+      const children = Array.from(document.body.children) as HTMLElement[];
+      children.forEach((el)=>{
+        try{
+          const cs = window.getComputedStyle(el);
+          const z = Number(cs.zIndex) || 0;
+          const pos = cs.position || '';
+          const insetTop = cs.top || '';
+          const insetRight = cs.right || '';
+          const insetBottom = cs.bottom || '';
+          const insetLeft = cs.left || '';
+          const isFull = pos === 'fixed' && (insetTop === '0px' || insetTop === '0') && (insetRight === '0px' || insetRight === '0') && (insetBottom === '0px' || insetBottom === '0') && (insetLeft === '0px' || insetLeft === '0');
+          // skip elements that we intentionally created for modals/dropdowns (they include data-test-id)
+          const hasTestId = el.hasAttribute && el.hasAttribute('data-test-id');
+          if (isFull && z > 10000 && !hasTestId) {
+            el.style.pointerEvents = 'none';
+            // keep visible but non-blocking
+          }
+        }catch(e){}
+      });
+    }catch(e){}
+  }
+
+  React.useEffect(()=>{ restoreMainInteractivity(); }, []);
+
+  // remove debug capture listener now that stacking is normalized
+
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="min-h-screen flex flex-col">
+      <main className="max-w-3xl mx-auto p-6 pt-6 flex-1">
       <h1 className="text-2xl font-bold mb-4">Report a receiving address</h1>
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">My Wallet (owner)</label>
@@ -111,19 +163,38 @@ export default function SearchPage(){
         <label className="block text-sm font-medium mb-1">Receiving address</label>
         <input value={suspect} onChange={(e)=>setSuspect(e.target.value)} className="input w-full" placeholder="0x..." />
       </div>
-      <div className="flex gap-2">
-        <button onClick={()=>setAddingProvider(true)} className="btn">Add provider</button>
-  <button onClick={()=>{ console.log('Flag/Report clicked', { myWallet, suspect, chain }); setErrorMessage(null); setStatusMessage(null); setOpenReportModal(true); }} className="btn btn-primary">Flag / Report</button>
-        <button onClick={signAndVerify} className="btn">Sign & Verify my wallet</button>
-      </div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => { document.dispatchEvent(new Event('close-dropdowns')); restoreMainInteractivity(); setAddingProvider(true); }}
+            className="btn"
+            aria-haspopup="dialog"
+          >
+            Add provider
+          </button>
+          <button
+            onClick={() => { document.dispatchEvent(new Event('close-dropdowns')); restoreMainInteractivity(); setErrorMessage(null); setStatusMessage(null); setOpenReportModal(true); }}
+            className="btn btn-primary"
+            aria-haspopup="dialog"
+          >
+            Flag / Report
+          </button>
+          <button
+            onClick={() => { document.dispatchEvent(new Event('close-dropdowns')); restoreMainInteractivity(); signAndVerify(); }}
+            className="btn"
+          >
+            Sign & Verify my wallet
+          </button>
+        </div>
       {addingProvider && (
         <AddProviderModal initialName={provider?.name || ''} onClose={()=>setAddingProvider(false)} onCreated={(p)=>{ setProvider(p as ProviderType); setAddingProvider(false); }} />
       )}
       {openReportModal && (
-  <ReportModal chain={chain} myWallet={myWallet} provider={provider ?? undefined} suspect={suspect} onClose={()=>setOpenReportModal(false)} onSubmitted={(report)=>{ setSuspect(''); setOpenReportModal(false); try{ const rep = (report as Record<string, unknown> | null) || null; const rc = (rep && typeof rep.chain === 'string' ? rep.chain : chain) || 'ethereum'; const address = (rep && typeof rep.suspectAddress === 'string' ? rep.suspectAddress : suspect); router.push(`/wallet/${rc}/${address}`); }catch{ /* ignore */ } }} />
+        <ReportModal chain={chain} myWallet={myWallet} provider={provider ?? undefined} suspect={suspect} onClose={()=>setOpenReportModal(false)} onSubmitted={(report)=>{ setSuspect(''); setOpenReportModal(false); try{ const rep = (report as Record<string, unknown> | null) || null; const rc = (rep && typeof rep.chain === 'string' ? rep.chain : chain) || 'ethereum'; const address = (rep && typeof rep.suspectAddress === 'string' ? rep.suspectAddress : suspect); router.push(`/wallet/${rc}/${address}`); }catch{ /* ignore */ } }} />
       )}
       {statusMessage && <div className="mt-3 text-sm text-green-500">{statusMessage}</div>}
       {errorMessage && <div className="mt-3 text-sm text-red-500">{errorMessage}</div>}
+      </main>
+  {/* Footer temporarily removed for debugging potential overlap/blocking issues */}
     </div>
   );
 }
