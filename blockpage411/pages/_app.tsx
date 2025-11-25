@@ -1,6 +1,6 @@
 import "../styles/globals.css";
 import { WagmiConfig, createConfig } from "wagmi";
-import { mainnet } from 'wagmi/chains';
+import { mainnet } from 'viem/chains';
 import { http } from 'viem';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 

@@ -20,100 +20,102 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
   const [btnPressed, setBtnPressed] = useState(false);
   // call hook unconditionally to satisfy rules-of-hooks
   const pathname = usePathname() || '';
-      // navigation items - include all top-level routes and a couple useful legacy/admin links
-      const navItems: Array<{ href: string; label: string; Icon?: React.FC; show?: boolean }> = [
-  { href: '/', label: 'Home', Icon: IconHome },
-        { href: '/search', label: 'Search', Icon: IconSearch },
-        { href: '/charities', label: 'Charities', Icon: IconFund },
-        { href: '/fundraisers', label: 'Fundraisers', Icon: IconFund },
-  { href: '/profile', label: 'Profile', Icon: IconSignIn },
-        { href: '/donate', label: 'Donate', Icon: IconDonate },
-        { href: '/wallet/popular', label: 'Trending', Icon: IconTrending },
-        { href: '/admin', label: 'Admin', Icon: IconAdmin },
-        // legacy/utility pages
-        { href: '/admin-actions', label: 'Admin Actions', Icon: IconActions },
-        { href: '/login', label: 'Sign in', Icon: IconSignIn },
-      ];
 
-      const isActive = (href: string) => {
-        if (!pathname) return false;
-        if (href === '/') return pathname === '/';
-        return pathname === href || pathname.startsWith(href + '/') || pathname.startsWith(href);
-      };
+  // navigation items - include all top-level routes and a couple useful legacy/admin links
+  const navItems: Array<{ href: string; label: string; Icon?: React.FC; show?: boolean }> = [
+    { href: '/', label: 'Home', Icon: IconHome },
+    { href: '/search', label: 'Search', Icon: IconSearch },
+    { href: '/charities', label: 'Charities', Icon: IconFund },
+    { href: '/fundraisers', label: 'Fundraisers', Icon: IconFund },
+    { href: '/realtime-transactions', label: 'Live Feed', Icon: IconTrending },
+    { href: '/profile', label: 'Profile', Icon: IconSignIn },
+    { href: '/donate', label: 'Donate', Icon: IconDonate },
+    { href: '/wallet/popular', label: 'Trending', Icon: IconTrending },
+    { href: '/admin', label: 'Admin', Icon: IconAdmin },
+    // legacy/utility pages
+    { href: '/admin-actions', label: 'Admin Actions', Icon: IconActions },
+    { href: '/login', label: 'Sign in', Icon: IconSignIn },
+  ];
 
-      // focus trap and accessibility for mobile drawer
-      const drawerRef = React.useRef<HTMLDivElement | null>(null);
-      const prevActiveRef = React.useRef<Element | null>(null);
+  const isActive = (href: string) => {
+    if (!pathname) return false;
+    if (href === '/') return pathname === '/';
+    return pathname === href || pathname.startsWith(href + '/') || pathname.startsWith(href);
+  };
 
-      React.useEffect(() => {
-        if (!open) return;
-        prevActiveRef.current = document.activeElement;
-        const drawer = drawerRef.current;
-        const focusable = drawer?.querySelectorAll<HTMLElement>("a, button, [tabindex]:not([tabindex='-1'])");
-        focusable?.[0]?.focus();
+  // focus trap and accessibility for mobile drawer
+  const drawerRef = React.useRef<HTMLDivElement | null>(null);
+  const prevActiveRef = React.useRef<Element | null>(null);
 
-        function onKey(e: KeyboardEvent) {
-          if (e.key === 'Escape') {
-            setOpen(false);
-            return;
-          }
-          if (e.key === 'Tab') {
-            if (!focusable || focusable.length === 0) return;
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (e.shiftKey && document.activeElement === first) {
-              e.preventDefault();
-              last.focus();
-            } else if (!e.shiftKey && document.activeElement === last) {
-              e.preventDefault();
-              first.focus();
-            }
-          }
+  React.useEffect(() => {
+    if (!open) return;
+    prevActiveRef.current = document.activeElement;
+    const drawer = drawerRef.current;
+    const focusable = drawer?.querySelectorAll<HTMLElement>("a, button, [tabindex]:not([tabindex='-1'])");
+    focusable?.[0]?.focus();
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      if (e.key === 'Tab') {
+        if (!focusable || focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
         }
+      }
+    }
 
-        function onClickOutside(e: MouseEvent) {
-          const el = drawerRef.current;
-          if (!el) return;
-          if (e.target instanceof Node && !el.contains(e.target)) {
-            setOpen(false);
-          }
-        }
+    function onClickOutside(e: MouseEvent) {
+      const el = drawerRef.current;
+      if (!el) return;
+      if (e.target instanceof Node && !el.contains(e.target)) {
+        setOpen(false);
+      }
+    }
 
-        document.addEventListener('keydown', onKey);
-        document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onClickOutside);
 
-        // mark main content as aria-hidden for screen readers while popup is open
-        const main = document.getElementById('content');
-        if (main) {
-          main.setAttribute('aria-hidden', 'true');
-          // also make the main content non-interactive so it cannot overlap or accept clicks
-          (main as HTMLElement).style.pointerEvents = 'none';
-          (main as HTMLElement).style.userSelect = 'none';
-          (main as HTMLElement).style.touchAction = 'none';
-        }
+    // mark main content as aria-hidden for screen readers while popup is open
+    const main = document.getElementById('content');
+    if (main) {
+      main.setAttribute('aria-hidden', 'true');
+      // also make the main content non-interactive so it cannot overlap or accept clicks
+      (main as HTMLElement).style.pointerEvents = 'none';
+      (main as HTMLElement).style.userSelect = 'none';
+      (main as HTMLElement).style.touchAction = 'none';
+    }
 
-        return () => {
-          document.removeEventListener('keydown', onKey);
-          document.removeEventListener('mousedown', onClickOutside);
-          if (main) {
-            main.removeAttribute('aria-hidden');
-            (main as HTMLElement).style.pointerEvents = '';
-            (main as HTMLElement).style.userSelect = '';
-            (main as HTMLElement).style.touchAction = '';
-          }
-          try { (prevActiveRef.current as HTMLElement)?.focus(); } catch {}
-        };
-      }, [open]);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClickOutside);
+      if (main) {
+        main.removeAttribute('aria-hidden');
+        (main as HTMLElement).style.pointerEvents = '';
+        (main as HTMLElement).style.userSelect = '';
+        (main as HTMLElement).style.touchAction = '';
+      }
+      try { (prevActiveRef.current as HTMLElement)?.focus(); } catch {}
+    };
+  }, [open]);
 
-      // NavLinkItem is imported from ./NavLinkItem to keep markup consistent across desktop+mobile
+  // NavLinkItem is imported from ./NavLinkItem to keep markup consistent across desktop+mobile
 
-      return (
-        <>
-          <nav role="navigation" aria-label="Main" className="site-nav w-full flex items-center justify-between px-4 md:px-8 py-3">
+  return (
+    <>
+      <nav role="navigation" aria-label="Main" className="site-nav w-full flex items-center justify-between px-4 md:px-8 py-3">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-3 focus:outline-none" aria-label="Go to homepage">
             <Image src="/block411-logo.svg" alt="Blockpage411 Logo" width={36} height={36} />
-            <span className="text-lg md:text-xl font-semibold text-amber-300">Blockpage411</span>
+            <span className="text-lg md:text-xl font-semibold" style={{ color: "#ffffff" }}>Blockpage411</span>
           </Link>
         </div>
 
@@ -197,7 +199,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                     </svg>
                   </button>
                 </div>
-                <nav className="px-4 py-2" role="menu">
+                <nav className="px-4 py-3" role="menu">
                   <ul className="flex flex-col gap-2">
                     {navItems.map((item) => (
                       item.show === false ? null : (
@@ -215,17 +217,40 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
           document.body
         ) : null}
       </nav>
-      <style jsx>{`
-  .site-nav { position: fixed; top:0; left:0; right:0; z-index:1100; }
-        .site-nav { background: linear-gradient(90deg, rgba(6,8,15,0.95) 0%, rgba(10,12,20,0.98) 100%); background-color: rgba(6,8,15,0.98); box-shadow: 0 6px 40px rgba(2,6,23,0.6); backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%); border-bottom: 1px solid rgba(255,255,255,0.04); }
-        /* Scoped selectors to ensure global .nav-link in globals.css doesn't override our navbar styles */
-        .site-nav .nav-link { color: var(--link-color, #fbbf24); }
-        .site-nav .nav-link[data-active="true"] { --link-color: #f59e0b; }
-        .site-nav .nav-link[data-active="false"] { --link-color: #fbbf24; }
-        .site-nav .nav-link:hover { color: #fcd34d; transform: translateY(-3px); }
-        .site-nav .nav-link svg, .site-nav .nav-link-mobile svg { color: inherit; }
-        .site-nav .nav-link-mobile { color: var(--link-color, #fbbf24); }
-      `}</style>
+    <style jsx>{`
+    .site-nav { position: fixed; top:0; left:0; right:0; z-index:1100; }
+    .site-nav {
+      background: linear-gradient(90deg, rgba(6,8,15,0.95) 0%, rgba(10,12,20,0.98) 100%);
+      background-color: rgba(6,8,15,0.98);
+      box-shadow: 0 6px 40px rgba(2,6,23,0.6);
+      backdrop-filter: blur(8px) saturate(120%);
+      -webkit-backdrop-filter: blur(8px) saturate(120%);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    /* Scoped selectors to ensure global .nav-link in globals.css doesn't override our navbar styles */
+    .site-nav .nav-link { color: var(--link-color, #fbbf24); }
+    .site-nav .nav-link[data-active="true"] { --link-color: #f59e0b; }
+    .site-nav .nav-link[data-active="false"] { --link-color: #fbbf24; }
+    .site-nav .nav-link:hover { color: #fcd34d; transform: translateY(-3px); }
+    .site-nav .nav-link svg, .site-nav .nav-link-mobile svg { color: inherit; }
+    .site-nav .nav-link-mobile {
+      color: #facc15;
+      font-weight: 600;
+      border-radius: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: linear-gradient(135deg, rgba(250,204,21,0.12), rgba(248,250,252,0.02));
+      box-shadow: 0 10px 28px rgba(15,23,42,0.85);
+      backdrop-filter: blur(10px) saturate(130%);
+      -webkit-backdrop-filter: blur(10px) saturate(130%);
+      border: 1px solid rgba(250,204,21,0.35);
+    }
+    .site-nav .nav-link-mobile:hover {
+      color: #fef9c3;
+      background: linear-gradient(135deg, rgba(250,204,21,0.22), rgba(248,250,252,0.06));
+      box-shadow: 0 14px 38px rgba(15,23,42,0.95);
+      transform: translateY(-1px);
+    }
+        `}</style>
     </>
   );
 }

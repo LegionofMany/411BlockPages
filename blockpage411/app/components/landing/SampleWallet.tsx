@@ -1,5 +1,28 @@
 import Image from "next/image";
-import { FiCheckCircle, FiStar } from "react-icons/fi";
+
+function Badge({ label, text, tone }: { label: string; text: string; tone: "green" | "yellow" }) {
+  const colorMap = {
+    green: {
+      bg: "bg-green-500/15",
+      text: "text-green-400",
+    },
+    yellow: {
+      bg: "bg-yellow-500/15",
+      text: "text-yellow-400",
+    },
+  } as const;
+
+  const colors = colorMap[tone];
+
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${colors.bg} ${colors.text}`}>
+      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-current text-[11px] font-semibold">
+        {label}
+      </span>
+      <span className="text-sm font-medium">{text}</span>
+    </div>
+  );
+}
 
 export default function SampleWallet() {
   return (
@@ -18,8 +41,9 @@ export default function SampleWallet() {
         See how reputation, verification, and community feedback come together to form a complete on-chain identity.
       </p>
       <div className="mt-10 flex justify-center">
-        <div className="w-full max-w-md p-6 rounded-2xl shadow-2xl bg-[rgba(10,14,24,0.46)] backdrop-blur-lg border flex flex-col items-center transform hover:scale-105 transition-transform duration-300"
-          style={{ borderColor: 'rgba(99,179,237,0.22)' }}
+        <div
+          className="w-full max-w-md p-6 rounded-2xl shadow-2xl bg-[rgba(10,14,24,0.68)] backdrop-blur-xl flex flex-col items-center transform hover:scale-105 transition-transform duration-300"
+          style={{ border: 'none' }}
         >
           <Image
             src="/logos/ethereum.png"
@@ -32,14 +56,8 @@ export default function SampleWallet() {
           <p className="text-sm font-mono mb-4" style={{ color: 'rgba(255,215,120,0.82)' }}>0xd8dA6BF2...7aA96045</p>
           
           <div className="flex flex-wrap justify-center gap-3 mb-4">
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/30">
-              <FiCheckCircle />
-              <span className="text-sm font-medium">KYC Verified</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/30">
-              <FiStar />
-              <span className="text-sm font-medium">4.9 (1.2k reviews)</span>
-            </div>
+            <Badge tone="green" label="✓" text="KYC Verified" />
+            <Badge tone="yellow" label="★" text="4.9 (1.2k reviews)" />
           </div>
 
           <div className="w-full bg-slate-900/50 p-4 rounded-lg text-center">

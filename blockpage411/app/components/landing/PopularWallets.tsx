@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { FiArrowRight } from "react-icons/fi";
 
 interface Wallet {
   address: string;
@@ -32,21 +31,26 @@ export default function PopularWallets() {
 
   const WalletCard = ({ wallet }: { wallet: Wallet }) => (
     <div
-      className="group relative p-6 rounded-3xl backdrop-blur-md shadow-lg transition-all duration-300 hover:-translate-y-2"
+      className="group relative p-6 rounded-3xl backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] transition-all duration-300 hover:-translate-y-2"
       style={{
-        backgroundColor: 'var(--card-bg)',
-        border: '1px solid',
-        borderColor: 'var(--card-border)'
+        backgroundColor: "rgba(0,0,0,0.86)",
+        border: "none",
       }}
     >
       <p className="text-lg font-bold truncate mb-2" style={{ color: 'var(--section-text)' }}>{wallet.address}</p>
       <p className="text-sm font-mono" style={{ color: 'var(--muted-text)' }}>Searches: {wallet.searchCount}</p>
-      <FiArrowRight className="absolute top-6 right-6 text-slate-500 transition-colors duration-300 transform group-hover:rotate-[-45deg]" style={{ color: 'rgba(203,213,225,0.7)' }} />
+      <span
+        aria-hidden="true"
+        className="absolute top-6 right-6 text-slate-500 transition-transform duration-300 transform group-hover:rotate-[-45deg]"
+        style={{ color: 'rgba(203,213,225,0.7)' }}
+      >
+        e
+      </span>
     </div>
   );
 
   const LoadingSkeleton = () => (
-    <div className="p-6 rounded-3xl bg-white/5 backdrop-blur-md border border-white/10 animate-pulse">
+    <div className="p-6 rounded-3xl bg-white/5/ bg-opacity-5 backdrop-blur-2xl animate-pulse" style={{ border: "none" }}>
       <div className="h-7 bg-slate-700/50 rounded w-3/4 mb-3"></div>
       <div className="h-5 bg-slate-700/50 rounded w-1/2"></div>
     </div>
@@ -56,7 +60,8 @@ export default function PopularWallets() {
     <section
       className="w-full max-w-7xl mx-auto text-center py-20 px-4"
       style={{
-        color: '#e6d6a7'
+        color: "#e6d6a7",
+        border: "none",
       }}
     >
       <h2 className="text-4xl font-bold mb-12 bg-clip-text text-transparent bg-gradient-to-r from-amber-300 to-amber-500">

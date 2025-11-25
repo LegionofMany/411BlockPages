@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from 'react';
 import { showToast } from './simpleToast';
-import Portal from './Portal';
 
 export default function AddProviderModal({ initialName = '', onClose, onCreated, inline = false }:{ initialName?: string; onClose: ()=>void; onCreated: (p: unknown)=>void; inline?: boolean }){
   const [name, setName] = useState(initialName);
@@ -53,11 +52,10 @@ export default function AddProviderModal({ initialName = '', onClose, onCreated,
       </div>
     );
   }
+  // Inline, non-portal overlay (temporary: avoids portal-related visibility issues)
   return (
-    <Portal>
-      <div style={{ zIndex: 2000, background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }} data-test-id="add-provider-overlay" className="fixed inset-0 flex items-center justify-center" onMouseDown={(e)=>{ if (e.target === e.currentTarget) onClose(); }}>
-        {content}
-      </div>
-    </Portal>
+    <div style={{ zIndex: 2000, background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }} data-test-id="add-provider-overlay" className="fixed inset-0 flex items-center justify-center" onMouseDown={(e)=>{ if (e.target === e.currentTarget) onClose(); }}>
+      {content}
+    </div>
   );
 }

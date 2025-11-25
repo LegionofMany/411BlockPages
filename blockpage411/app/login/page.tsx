@@ -39,8 +39,8 @@ export default function LoginPage() {
       // 1. Get nonce
       const { data } = await axios.post("/api/auth/nonce", { address });
       const message = `Login nonce: ${data.nonce}`;
-      // 2. Sign nonce
-      const signature = await signMessageAsync({ message });
+      // 2. Sign nonce — include the account field required by wagmi's typing
+      const signature = await signMessageAsync({ account: address as any, message });
       // 3. Verify signature
       await axios.post("/api/auth/verify", { address, signature }, { withCredentials: true });
       // Save wallet address for admin panel access

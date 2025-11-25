@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
 import { Providers } from "./providers";
 import Navbar from "./components/Navbar";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Blockpage411",
@@ -27,27 +16,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`min-h-screen ${geistSans.variable} ${geistMono.variable}`}
+        className="min-h-screen"
         style={{
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
           background: 'radial-gradient(circle at top, #1a223a, #0a1020)',
           // reserve space for the fixed navbar
           paddingTop: '4rem'
         }}
       >
           <Providers>
-            {/* Accessible skip link and navbar placed in layout */}
+            {/* Accessible skip link: hidden until focused for keyboard users */}
             <a
               href="#content"
-              className="text-sm rounded px-3 py-1"
-              style={{
-                position: 'fixed',
-                left: 12,
-                top: 12,
-                zIndex: 4000,
-                background: 'rgba(255,255,255,0.02)',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.03)'
-              }}
+              className="sr-only fixed left-3 top-3 z-[4000] rounded-full border border-slate-700/60 bg-slate-900/80 px-3 py-1 text-sm font-medium text-slate-50 shadow-lg shadow-slate-950/40 focus:not-sr-only focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-950"
             >
               Skip to content
             </a>

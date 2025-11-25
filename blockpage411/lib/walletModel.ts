@@ -41,6 +41,8 @@ const WalletSchema = new Schema({
   lastTxWithinHours: { type: Number, default: 9999 },
   flagsCount: { type: Number, default: 0 },
   flagThreshold: { type: Number },
+  isPublic: { type: Boolean, default: false },
+  unlockLevel: { type: Number, default: 0 },
   kycStatus: { type: String, default: 'unknown' },
   lastFlagger: { type: String },
   kycDetails: {

@@ -62,7 +62,17 @@ export default function LiveStats({ apiUrl = '/api/stats/sample' }: { apiUrl?: s
 function StatCard({ stat }: { stat: Stat }) {
   const num = useAnimatedNumber(stat.value, 900);
   return (
-    <motion.div className="p-6 rounded-2xl card text-center" whileHover={{ translateY: -6 }}>
+    <motion.div
+      className="p-6 rounded-2xl text-center"
+      whileHover={{ translateY: -6 }}
+      style={{
+        backgroundColor: "rgba(0,0,0,0.86)",
+        boxShadow: "0 22px 64px rgba(0,0,0,0.95)",
+        backdropFilter: "blur(22px)",
+        WebkitBackdropFilter: "blur(22px)",
+        border: "none",
+      }}
+    >
       <div className="text-4xl font-extrabold" style={{ color: '#ffd67a' }}>{num.toLocaleString()}</div>
       <div className="text-sm mt-2" style={{ color: 'var(--muted-text)' }}>{stat.label}</div>
     </motion.div>

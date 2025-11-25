@@ -168,14 +168,38 @@ const WalletFlagSection: React.FC<WalletFlagSectionProps> = ({ flags, address, c
         ))}
       </div>
 
-      <form className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2" onSubmit={handleFlag}>
-        <input aria-label="flag comment" type="text" className="px-3 py-2 rounded border border-sky-700/30 w-full md:w-2/3 bg-transparent placeholder:text-slate-400 text-amber-100" placeholder="Add optional details (helps moderators)" value={flagComment} onChange={e => setFlagComment(e.target.value)} />
-        <div className="flex items-center gap-2">
-          <button type="submit" className={`px-4 py-2 rounded-lg font-semibold transition ${flagLoading ? 'opacity-70 cursor-not-allowed' : 'bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:scale-[1.02]'}`} disabled={flagLoading || !flagReason}>{flagLoading ? "Submitting..." : "Flag Wallet"}</button>
-          <button type="button" onClick={() => { setFlagReason(''); setFlagComment(''); setFlagError(null); }} className="px-3 py-2 rounded-md bg-white/3 text-white hover:bg-white/5">Reset</button>
+      <form
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 mt-1"
+        onSubmit={handleFlag}
+      >
+        <input
+          aria-label="flag comment"
+          type="text"
+          className="px-3 py-2 rounded border border-sky-700/30 w-full bg-transparent placeholder:text-slate-400 text-amber-100"
+          placeholder="Add optional details (helps moderators)"
+          value={flagComment}
+          onChange={e => setFlagComment(e.target.value)}
+        />
+        <div className="flex items-center gap-2 justify-start sm:justify-end flex-wrap">
+          <button
+            type="submit"
+            className={`px-4 py-2 rounded-lg font-semibold transition min-w-[9rem] text-center ${flagLoading ? 'opacity-70 cursor-not-allowed' : 'bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:scale-[1.02]'}`}
+            disabled={flagLoading || !flagReason}
+          >
+            {flagLoading ? "Submitting..." : "Flag Wallet"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setFlagReason(''); setFlagComment(''); setFlagError(null); }}
+            className="px-3 py-2 rounded-md bg-white/3 text-white hover:bg-white/5"
+          >
+            Reset
+          </button>
         </div>
-        {flagError && <span className="text-red-400 text-xs ml-2">{flagError}</span>}
-        {flagSuccess && <span className="text-green-400 text-xs ml-2">Flag submitted!</span>}
+        <div className="min-h-[1.25rem] flex items-center">
+          {flagError && <span className="text-red-400 text-xs">{flagError}</span>}
+          {flagSuccess && !flagError && <span className="text-green-400 text-xs">Flag submitted!</span>}
+        </div>
       </form>
       {/* remaining quota */}
       <div className="mt-2 text-xs text-slate-400">

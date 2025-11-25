@@ -1,4 +1,15 @@
-export function calculateTrustScore(wallet: any) {
+export type WalletSocials = {
+  twitter?: string | null;
+  telegram?: string | null;
+  whatsapp?: string | null;
+  instagram?: string | null;
+};
+
+export type WalletLike = {
+  socials?: WalletSocials | null;
+} | null | undefined;
+
+export function calculateTrustScore(wallet: WalletLike): number {
   let score = 0;
   if (!wallet) return 0;
   if (wallet?.socials?.twitter) score += 10;

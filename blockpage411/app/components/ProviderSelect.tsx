@@ -77,6 +77,8 @@ export default function ProviderSelect({ value: _value, onChange }:{ value?: Pro
     return ()=> document.removeEventListener('close-dropdowns', onCloseEvent as EventListener);
   }, []);
 
+  const hasSelection = !!_value && !!_value.name;
+
   return (
     <div className="w-full relative">
       <input
@@ -91,17 +93,25 @@ export default function ProviderSelect({ value: _value, onChange }:{ value?: Pro
       />
 
       {/* render dropdown in a body-level portal so it can't be overlapped by footer */}
-      { (focused || opts.length > 0 || loading) && rect && (
+      { !hasSelection && (focused || opts.length > 0 || loading) && rect && (
         <Portal>
           <div
             ref={dropdownRef}
             style={{ position: 'fixed', left: rect.left, top: rect.bottom + 6, width: rect.width, zIndex: 1200, pointerEvents: 'auto' }}
-            className="max-h-48 overflow-auto bg-white shadow rounded border border-gray-200"
+            className="max-h-[60vh] overflow-auto bg-white shadow rounded border border-gray-200"
           >
             {loading && <div className="p-2 text-sm text-gray-500">Loading…</div>}
             {!loading && opts.length === 0 && <div className="p-2 text-sm">No providers found — you can add a new one.</div>}
             {opts.map((p)=> (
-              <button key={p._id || p.name} onMouseDown={(e)=>{ e.preventDefault(); onChange(p); }} className="w-full text-left p-2 hover:bg-gray-50">
+              <button
+                key={p._id || p.name}
+                onClick={(e)=>{
+                  e.preventDefault();
+                  onChange(p);
+                  setFocused(false);
+                }}
+                className="w-full text-left p-2 hover:bg-gray-50"
+              >
                 <div className="font-medium truncate">
                   {p.name} {p.rank ? <span className="text-xs text-gray-400">#{p.rank}</span> : null}
                   {p.reportsCount && p.reportsCount >= 10 ? <span title="Many reports" className="ml-2 text-yellow-600">⚠️</span> : null}
@@ -110,7 +120,16 @@ export default function ProviderSelect({ value: _value, onChange }:{ value?: Pro
               </button>
             ))}
             <div className="p-2 border-t">
-              <button onMouseDown={(e)=>{ e.preventDefault(); onChange({ name: q || 'Other', aliases: [], website: '' }); }} className="text-sm text-blue-600">Add new provider: “{q || 'Other'}”</button>
+              <button
+                onMouseDown={(e)=>{
+                  e.preventDefault();
+                  // Signal to parent that the user wants to add a new provider with this name
+                  onChange({ name: q || 'Other' } as Provider);
+                }}
+                className="text-sm text-blue-600"
+              >
+                Add new provider: “{q || 'Other'}”
+              </button>
             </div>
           </div>
         </Portal>

@@ -11,10 +11,21 @@ export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
   return (
     <section className="w-full max-w-4xl mx-auto px-4 py-12">
-      <h2 className="text-2xl font-bold mb-6" style={{ color: '#e6d6a7' }}>How it works</h2>
+      <h2 className="text-2xl font-bold mb-6" style={{ color: '#e5e7eb' }}>How it works</h2>
       <div className="space-y-3">
         {faq.map((f, i) => (
-          <div key={i} className="card p-4 rounded-2xl">
+          <div
+            key={i}
+            className="p-4 rounded-2xl"
+            style={{
+              background:
+                "radial-gradient(circle at top, rgba(34,197,94,0.1), transparent 55%), radial-gradient(circle at bottom right, rgba(56,189,248,0.12), transparent 60%), rgba(0,0,0,0.9)",
+              boxShadow: "0 22px 64px rgba(0,0,0,0.95)",
+              backdropFilter: "blur(22px)",
+              WebkitBackdropFilter: "blur(22px)",
+              border: "none",
+            }}
+          >
             <button className="w-full text-left" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
               <div className="flex justify-between items-center">
                 <div className="font-semibold">{f.q}</div>

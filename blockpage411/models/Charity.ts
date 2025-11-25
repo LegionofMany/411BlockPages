@@ -17,8 +17,8 @@ export interface CharityDocument extends Document {
 
 const CharitySchema = new Schema<CharityDocument>({
   givingBlockId: { type: String, index: true },
-  charityId: { type: String, index: true },
-  name: { type: String, required: true, index: true },
+  charityId: { type: String },
+  name: { type: String, required: true },
   description: { type: String },
   website: { type: String },
   logo: { type: String },
@@ -30,6 +30,7 @@ const CharitySchema = new Schema<CharityDocument>({
   createdAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+// Compound indexes defined explicitly to avoid duplicates from field-level index flags
 CharitySchema.index({ charityId: 1 });
 CharitySchema.index({ name: 1 });
 

@@ -46,7 +46,10 @@ function WalletProfile({ params }: { params: Promise<{ chain: string; address: s
           <RiskMeter score={data?.riskScore} category={data?.riskCategory} />
           <StatusBadges suspicious={data?.suspicious} popular={data?.popular} blacklisted={data?.blacklisted} flagsCount={data?.flags?.length} kycStatus={data?.kycStatus} verificationBadge={data?.verificationBadge} />
           <div className="my-6 border-t border-blue-800"></div>
-          <WalletFlagSection flags={data?.flags} address={address} chain={chain} onFlag={async (reason, comment) => {
+          {/* Flag + rating cluster: full-width, stacked on mobile, side-by-side on larger screens */}
+          <section className="flex flex-col lg:flex-row lg:items-start lg:gap-8">
+            <div className="flex-1 min-w-0">
+              <WalletFlagSection flags={data?.flags} address={address} chain={chain} onFlag={async (reason, comment) => {
             const res = await fetch("/api/flags", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -65,6 +68,25 @@ function WalletProfile({ params }: { params: Promise<{ chain: string; address: s
             await mutate();
             return res;
           }} />
+            </div>
+            <div className="flex-1 min-w-0 mt-8 lg:mt-0">
+              <WalletRatingSection
+                address={address}
+                chain={chain}
+                ratings={data?.ratings || []}
+                userRating={Number(data?.userRating || 0)}
+                verificationScore={data?.verificationScore}
+                onRate={async (score, text) => {
+                  await fetch("/api/ratings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ address, chain, rating: score, text })
+                  });
+                  mutate();
+                }}
+              />
+            </div>
+          </section>
           {isAdmin && (
             <CommunityTab data={data} address={address} mutate={mutate} />
           )}
@@ -89,21 +111,6 @@ function WalletProfile({ params }: { params: Promise<{ chain: string; address: s
             </div>
           )}
           <div className="my-6 border-t border-blue-800"></div>
-          <WalletRatingSection
-            address={address}
-            chain={chain}
-            ratings={data?.ratings || []}
-            userRating={Number(data?.userRating || 0)}
-            verificationScore={data?.verificationScore}
-            onRate={async (score, text) => {
-              await fetch("/api/ratings", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address, chain, rating: score, text })
-              });
-              mutate();
-            }}
-          />
           <div className="my-6 border-t border-blue-800"></div>
           {data?.assetsHidden ? (
             <div className="p-4 bg-yellow-900/30 border border-yellow-700 rounded-lg">

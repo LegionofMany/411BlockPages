@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { showToast } from './simpleToast';
 import { ethers } from 'ethers';
-import Portal from './Portal';
 
 export default function ReportModal({ chain = 'ethereum', myWallet, provider, suspect, onClose, onSubmitted, inline = false }:{ chain?: string; myWallet?: string; provider?: { _id?: string; name?: string; website?: string; type?: string } ; suspect?: string; onClose: ()=>void; onSubmitted?: (report: Record<string, unknown>)=>void; inline?: boolean }){
   const [confirmed, setConfirmed] = useState(false);
@@ -103,11 +102,10 @@ export default function ReportModal({ chain = 'ethereum', myWallet, provider, su
       </div>
     );
   }
+  // Inline, non-portal overlay (temporary: avoids portal-related visibility issues)
   return (
-    <Portal>
-      <div style={{ zIndex: 2000, background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }} data-test-id="report-overlay" className="fixed inset-0 flex items-center justify-center" onMouseDown={(e)=>{ if (e.target === e.currentTarget) onClose(); }}>
-        {content}
-      </div>
-    </Portal>
+    <div style={{ zIndex: 2000, background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }} data-test-id="report-overlay" className="fixed inset-0 flex items-center justify-center" onMouseDown={(e)=>{ if (e.target === e.currentTarget) onClose(); }}>
+      {content}
+    </div>
   );
 }

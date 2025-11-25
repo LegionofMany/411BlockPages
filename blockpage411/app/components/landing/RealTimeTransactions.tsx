@@ -1,9 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { FiArrowRight, FiZap, FiLoader } from "react-icons/fi";
 import { ethers } from "ethers";
-import { Connection, LogsCallback } from "@solana/web3.js";
+import { Connection, Logs } from "@solana/web3.js";
 
 type Tx = {
   hash: string;
@@ -58,6 +56,13 @@ const NETWORKS: Record<string, { name: string; type?: "evm" | "solana" | "bitcoi
   },
 };
 
+type EvmTx = {
+  hash: string;
+  from: string | null;
+  to: string | null;
+  value: bigint | string;
+};
+
 export default function RealTimeTransactions() {
   const [network, setNetwork] = useState<string>("ethereum");
   const [transactions, setTransactions] = useState<Tx[]>([]);
@@ -67,7 +72,11 @@ export default function RealTimeTransactions() {
   // ethers v6 exports provider classes at the top-level (no `providers` namespace)
   let provider: ethers.WebSocketProvider | undefined;
   // holder for cleanup hooks when provider is not available (solana/bitcoin/polling)
-  const cleanupHolder: any = {};
+  const cleanupHolder: {
+    _solanaCleanup?: () => void;
+    _bitcoinWs?: WebSocket;
+    _pollingCleanup?: () => void;
+  } = {};
     let active = true;
 
     async function subscribe() {
@@ -96,13 +105,13 @@ export default function RealTimeTransactions() {
           // Subscribe to all logs; this is broad — consider narrowing with programId filters
           let subId: number | undefined;
           try {
-            subId = connection.onLogs("all", (log) => {
+            subId = connection.onLogs("all", (log: Logs) => {
               if (!active) return;
               try {
                 // log.signature is the tx signature
                 setTransactions((prev) => [
                   {
-                    hash: (log as any).signature || "unknown",
+                    hash: log.signature || "unknown",
                     from: "Unknown",
                     to: "Unknown",
                     value: net.symbol,
@@ -114,8 +123,8 @@ export default function RealTimeTransactions() {
                 console.error("solana log handler error", e);
               }
             });
-          } catch (e) {
-            console.error("solana subscribe error", e);
+          } catch (error) {
+            console.error("solana subscribe error", error);
           }
 
           // attach cleanup handler to the central holder so outer return can clean it
@@ -136,8 +145,8 @@ export default function RealTimeTransactions() {
           let ws: WebSocket | undefined;
           try {
             ws = new WebSocket(net.wss);
-          } catch (e) {
-            console.error("bitcoin ws connect error", e);
+          } catch (error) {
+            console.error("bitcoin ws connect error", error);
             setLoading(false);
             return;
           }
@@ -147,19 +156,24 @@ export default function RealTimeTransactions() {
             setLoading(false);
           };
 
-          ws.onmessage = (ev) => {
+          ws.onmessage = (ev: MessageEvent) => {
             if (!active) return;
             try {
-              const data = JSON.parse((ev as MessageEvent).data as string);
+              const data = JSON.parse(ev.data as string) as {
+                txid?: string;
+                x?: { hash?: string };
+                data?: { txid?: string };
+                tx?: { hash?: string };
+              };
               // handle several possible shapes
-              const txid = data.txid || data.x?.hash || data.data?.txid || data?.tx?.hash;
+              const txid = data.txid || data.x?.hash || data.data?.txid || data.tx?.hash;
               if (txid) {
                 setTransactions((prev) => [
                   { hash: txid, from: "N/A", to: "N/A", value: net.symbol },
                   ...prev,
                 ].slice(0, 25));
               }
-            } catch (e) {
+            } catch {
               // non-json messages or unexpected shape
             }
           };
@@ -178,8 +192,8 @@ export default function RealTimeTransactions() {
           if (!net.rpc) return;
           try {
             jsonProvider = new ethers.JsonRpcProvider(net.rpc);
-          } catch (e) {
-            console.error("json provider error", e);
+          } catch (error) {
+            console.error("json provider error", error);
             return;
           }
 
@@ -190,17 +204,14 @@ export default function RealTimeTransactions() {
               const bn = await jsonProvider.getBlockNumber();
               if (bn === last) return;
               last = bn;
-              const block = await (jsonProvider as any).getBlockWithTransactions(bn as any);
-              const txs = (block?.transactions || []).slice(0, 5);
+              const block = await jsonProvider.getBlock(bn);
+              const txs: EvmTx[] = (block?.transactions || []).slice(0, 5) as unknown as EvmTx[];
               setTransactions((prev) => [
-                ...txs.map((tx: any) => {
-                  const raw = tx.value ?? 0;
+                ...txs.map((tx) => {
+                  const raw = tx.value ?? BigInt(0);
                   let valueFormatted = "0";
-                  try {
-                    valueFormatted = `${ethers.formatEther(typeof raw === "string" ? BigInt(raw) : raw)} ${net.symbol}`;
-                  } catch (e) {
-                    valueFormatted = `0 ${net.symbol}`;
-                  }
+                  const asBigInt = typeof raw === "string" ? BigInt(raw) : (raw as bigint);
+                  valueFormatted = `${ethers.formatEther(asBigInt)} ${net.symbol}`;
                   return {
                     hash: tx.hash,
                     from: tx.from ?? null,
@@ -211,8 +222,8 @@ export default function RealTimeTransactions() {
                 ...prev,
               ].slice(0, 25));
               setLoading(false);
-            } catch (err) {
-              console.error("polling error", err);
+            } catch (error: unknown) {
+              console.error("polling error", error);
             }
           }, 5000);
         };
@@ -220,47 +231,30 @@ export default function RealTimeTransactions() {
         // If the provided WSS is missing or immediately fails, the browser console will
         // log websocket errors; we also attach handlers to switch to polling.
         try {
-          (p as any)._websocket?.addEventListener?.('error', () => {
+          (p as { _websocket?: WebSocket })._websocket?.addEventListener?.('error', () => {
             console.warn('websocket error, switching to RPC polling');
             startPolling();
           });
-          (p as any)._websocket?.addEventListener?.('close', () => {
+          (p as { _websocket?: WebSocket })._websocket?.addEventListener?.('close', () => {
             console.warn('websocket closed, switching to RPC polling');
             startPolling();
           });
-        } catch (e) {
+        } catch {
           // ignore attach errors
         }
 
         p.on("block", async (blockNumber: number) => {
           if (!active) return;
           try {
-            let block: any;
-            if (typeof (p as any).getBlockWithTransactions === "function") {
-              block = await (p as any).getBlockWithTransactions(blockNumber as any);
-            } else {
-              const hex = "0x" + Number(blockNumber).toString(16);
-              try {
-                block = await p.send("eth_getBlockByNumber", [hex, true]);
-              } catch (rpcErr) {
-                console.error("rpc fallback error", rpcErr);
-                // If the websocket can't fetch the block body, switch to polling
-                startPolling();
-                return;
-              }
-            }
-
-            const txs = (block?.transactions || []).slice(0, 5);
+            const block = await p.getBlock(blockNumber);
+            const txs: EvmTx[] = (block?.transactions || []).slice(0, 5) as unknown as EvmTx[];
 
             setTransactions((prev) => [
-              ...txs.map((tx: any) => {
-                const raw = tx.value ?? 0;
+              ...txs.map((tx) => {
+                const raw = tx.value ?? BigInt(0);
                 let valueFormatted = "0";
-                try {
-                  valueFormatted = `${ethers.formatEther(typeof raw === "string" ? BigInt(raw) : raw)} ${net.symbol}`;
-                } catch (e) {
-                  valueFormatted = `0 ${net.symbol}`;
-                }
+                const asBigInt = typeof raw === "string" ? BigInt(raw) : (raw as bigint);
+                valueFormatted = `${ethers.formatEther(asBigInt)} ${net.symbol}`;
 
                 return {
                   hash: tx.hash,
@@ -272,12 +266,12 @@ export default function RealTimeTransactions() {
               ...prev,
             ].slice(0, 25));
             setLoading(false);
-          } catch (err) {
-            console.error("block fetch error", err);
+          } catch (error) {
+            console.error("block fetch error", error);
           }
         });
-      } catch (err) {
-        console.error("ws connect error", err);
+      } catch (error: unknown) {
+        console.error("ws connect error", error);
         // If we couldn't connect to the websocket at all, start RPC polling if available
         if (net.rpc) {
           try {
@@ -290,17 +284,14 @@ export default function RealTimeTransactions() {
                 const bn = await jsonProvider.getBlockNumber();
                 if (bn === last) return;
                 last = bn;
-                const block = await (jsonProvider as any).getBlockWithTransactions(bn as any);
-                const txs = (block?.transactions || []).slice(0, 5);
+                const block = await jsonProvider.getBlock(bn);
+                const txs: EvmTx[] = (block?.transactions || []).slice(0, 5) as unknown as EvmTx[];
                 setTransactions((prev) => [
-                  ...txs.map((tx: any) => {
-                    const raw = tx.value ?? 0;
+                  ...txs.map((tx) => {
+                    const raw = tx.value ?? BigInt(0);
                     let valueFormatted = "0";
-                    try {
-                      valueFormatted = `${ethers.formatEther(typeof raw === "string" ? BigInt(raw) : raw)} ${net.symbol}`;
-                    } catch (e) {
-                      valueFormatted = `0 ${net.symbol}`;
-                    }
+                    const asBigInt = typeof raw === "string" ? BigInt(raw) : (raw as bigint);
+                    valueFormatted = `${ethers.formatEther(asBigInt)} ${net.symbol}`;
                     return {
                       hash: tx.hash,
                       from: tx.from ?? null,
@@ -311,12 +302,12 @@ export default function RealTimeTransactions() {
                   ...prev,
                 ].slice(0, 25));
                 setLoading(false);
-              } catch (err) {
-                console.error("polling error", err);
+              } catch (error: unknown) {
+                console.error("polling error", error);
               }
             }, 5000);
-          } catch (e) {
-            console.error("polling setup error", e);
+          } catch (error) {
+            console.error("polling setup error", error);
           }
         }
       }
@@ -341,8 +332,8 @@ export default function RealTimeTransactions() {
       try {
         // destroy ethers provider when present
         provider?.destroy?.();
-      } catch (e) {
-        try { (provider as any)?._websocket?.close?.(); } catch {}
+      } catch {
+        try { (provider as { _websocket?: WebSocket })?._websocket?.close?.(); } catch {}
       }
 
       // run any polling cleanup attached earlier
@@ -359,34 +350,88 @@ export default function RealTimeTransactions() {
   const current = NETWORKS[network];
 
   return (
-    <section className="w-full max-w-3xl mx-auto p-6 bg-gray-900 text-white rounded-2xl shadow-xl border border-gray-700">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold">🔴 Live Blockchain Transactions</h2>
-        <select value={network} onChange={(e) => setNetwork(e.target.value)} className="bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-600">
-          {Object.entries(NETWORKS).map(([key, net]) => (
-            <option key={key} value={key}>{net.name}</option>
-          ))}
-        </select>
+    <section className="w-full px-0 mt-4 md:mt-6">
+      <div
+        className="relative overflow-hidden rounded-2xl px-4 sm:px-6 py-5 sm:py-6"
+        style={{
+          backgroundColor: "rgba(0,0,0,0.86)",
+          boxShadow: "0 22px 64px rgba(0,0,0,0.95)",
+          backdropFilter: "blur(22px)",
+          WebkitBackdropFilter: "blur(22px)",
+          border: "none",
+        }}
+      >
+        <div className="absolute inset-x-0 -top-32 h-40 bg-gradient-to-br from-sky-500/20 via-violet-500/10 to-amber-400/0 blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-sky-300/80 mb-1">Network Activity</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-slate-50 flex items-center gap-2">
+              <span className="inline-flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              Live Blockchain Transactions
+            </h2>
+            <p className="text-sm text-slate-400 mt-1 max-w-xl">
+              Watch fresh on-chain activity stream in from the networks your community actually uses.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">Network</span>
+            <select
+              value={network}
+              onChange={(e) => setNetwork(e.target.value)}
+              className="bg-slate-900/80 text-slate-50 px-3 py-2 rounded-lg border border-slate-600/80 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-sky-500/60"
+            >
+              {Object.entries(NETWORKS).map(([key, net]) => (
+                <option key={key} value={key}>{net.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {loading && (
+          <p className="text-slate-400 text-sm mb-3">Connecting to {current.name}...</p>
+        )}
+
+        <div className="max-h-96 overflow-y-auto pr-1 mt-2">
+          <ul className="space-y-2">
+            {transactions.map((tx) => (
+              <li
+                key={tx.hash}
+                className="rounded-xl px-3 py-2 text-sm flex flex-col gap-1 bg-slate-900/70 hover:bg-slate-900 transition-colors"
+                style={{ border: "none" }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-mono text-slate-400 truncate flex-1">{tx.hash}</p>
+                  <span className="text-xs font-semibold text-emerald-300 whitespace-nowrap">{tx.value}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-[12px] text-slate-300">
+                  <span className="text-slate-500">From</span>
+                  <span className="truncate max-w-[8rem] md:max-w-[10rem]">{tx.from ?? "—"}</span>
+                  <span aria-hidden="true" className="text-slate-500">
+                    e
+                  </span>
+                  <span className="text-slate-500">To</span>
+                  <span className="truncate max-w-[8rem] md:max-w-[10rem]">{tx.to ?? "—"}</span>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <a
+                    href={`${current.explorer}${tx.hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-sky-400 hover:text-sky-300 underline underline-offset-2"
+                  >
+                    View on Explorer
+                  </a>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-[0.18em]">Live</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {transactions.length === 0 && !loading && (
+          <p className="text-slate-500 text-sm mt-3">Waiting for transactions...</p>
+        )}
       </div>
-
-      {loading && <p className="text-gray-400">Connecting to {current.name}...</p>}
-
-      <ul className="space-y-3 mt-3">
-        {transactions.map((tx) => (
-          <li key={tx.hash} className="p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition">
-            <p className="text-xs font-mono truncate">{tx.hash}</p>
-            <div className="flex gap-2 items-center text-sm mt-1">
-              <span className="text-gray-300">From:</span> <span className="truncate">{tx.from ?? '—'}</span>
-              <FiArrowRight />
-              <span className="text-gray-300">To:</span> <span className="truncate">{tx.to ?? '—'}</span>
-            </div>
-            <div className="mt-2 text-sm text-green-300 font-semibold">{tx.value}</div>
-            <a href={`${current.explorer}${tx.hash}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline text-sm">View on Explorer</a>
-          </li>
-        ))}
-      </ul>
-
-      {transactions.length === 0 && !loading && <p className="text-gray-400 mt-4">Waiting for transactions...</p>}
     </section>
   );
 }

@@ -12,7 +12,7 @@ export default function Footer() {
     <footer className="w-full bg-gray-900/80 text-white py-8 px-4 mt-12 shadow-inner border-t-2 border-blue-700">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-3">
-          <Image src="/block411-logo.svg" alt="Blockpage411 Logo" width={36} height={36} />
+          <Image src="/block411-logo.svg" alt="Blockpage411 Logo" width={36} height={36} priority />
           <span className="font-bold text-xl">Blockpage411</span>
         </div>
         <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold justify-center">

@@ -11,11 +11,12 @@ type EthereumProvider = { request: (req: { method: string; params?: unknown[] | 
 
 type ProviderType = { _id?: string; name: string; website?: string; type?: string; rank?: number; status?: string };
 
-export default function SearchPage(){
+export default function SearchPage() {
   const router = useRouter();
   const [myWallet, setMyWallet] = useState('');
   const [chain, setChain] = useState('ethereum');
   const [provider, setProvider] = useState<ProviderType | null>(null);
+  const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
   const [suspect, setSuspect] = useState('');
   const [addingProvider, setAddingProvider] = useState(false);
   // avoid reading localStorage during render to prevent SSR/hydration mismatches
@@ -34,18 +35,16 @@ export default function SearchPage(){
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function signAndVerify(){
+  async function signAndVerify() {
     setErrorMessage(null);
     setStatusMessage(null);
     if (!myWallet) { setErrorMessage('Enter your wallet address to verify'); return; }
     try{
       // request accounts
-      const win = window as unknown as { ethereum?: { request?: (...args: unknown[]) => Promise<unknown> } };
-  if (!win.ethereum || typeof win.ethereum.request !== 'function') { setErrorMessage('No web3 provider found'); return; }
-      // request may accept various payload shapes; keep unknown to avoid `any`
-      await win.ethereum.request({ method: 'eth_requestAccounts' } as unknown);
-  // use a narrow unknown->typed cast to avoid explicit any
-  const providerE = new ethers.BrowserProvider(win.ethereum as unknown as EthereumProvider);
+        const win = window as unknown as { ethereum?: { request?: (...args: unknown[]) => Promise<unknown> } };
+        if (!win.ethereum || typeof win.ethereum.request !== 'function') { setErrorMessage('No web3 provider found'); return; }
+        await win.ethereum.request({ method: 'eth_requestAccounts' } as unknown);
+        const providerE = new ethers.BrowserProvider(win.ethereum as unknown as EthereumProvider);
       const signer = await providerE.getSigner();
       // auto-fill My Wallet with connected address to avoid mismatch
   try{ const connected = await signer.getAddress(); if (connected) setMyWallet(connected); }catch{ /* ignore */ }
@@ -77,11 +76,11 @@ export default function SearchPage(){
       const resp = await fetch('/api/wallets/verify', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ address: myWallet, chain, message: proofMessage, signature: proofSignature }), credentials: 'include' });
       if (!resp.ok) { const j = await resp.json().catch(()=>null); setErrorMessage('Verify failed: ' + (j?.message || resp.statusText)); setStatusMessage(null); return; }
       setStatusMessage('Wallet verified successfully and session created');
-  }catch(err){ console.error(err); setErrorMessage('Signature failed'); }
+    } catch (err) { console.error(err); setErrorMessage('Signature failed'); }
   }
 
   // ensure main content is interactive (in case a leftover navbar mobile-drawer side-effect disabled it)
-  function restoreMainInteractivity(){
+  function restoreMainInteractivity() {
     try{
       const main = document.getElementById('content');
       if (main) {
@@ -95,7 +94,7 @@ export default function SearchPage(){
   }
 
   // defensive: if any full-screen overlay was left in the DOM (e.g., mobile drawer backdrop), make it non-interactive so page buttons work
-  function neutralizeStaleOverlays(){
+  function neutralizeStaleOverlays() {
     try{
       const children = Array.from(document.body.children) as HTMLElement[];
       children.forEach((el)=>{
@@ -119,82 +118,286 @@ export default function SearchPage(){
     }catch(e){}
   }
 
-  React.useEffect(()=>{ restoreMainInteractivity(); }, []);
-
-  // remove debug capture listener now that stacking is normalized
+  React.useEffect(() => { restoreMainInteractivity(); }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className="max-w-3xl mx-auto p-6 pt-6 flex-1">
-      <h1 className="text-2xl font-bold mb-4">Report a receiving address</h1>
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">My Wallet (owner)</label>
-        <input value={myWallet} onChange={(e)=>setMyWallet(e.target.value)} className="input w-full" placeholder="0x..." />
-      </div>
-      <div className="mb-4">
-        <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium mb-1">Provider / Exchange</label>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        backgroundColor: "#020617",
+        backgroundImage:
+          "radial-gradient(circle_at_top,_rgba(15,23,42,0.9),transparent_55%),radial-gradient(circle_at_bottom,_rgba(15,23,42,0.9),transparent_55%)",
+        color: "#e5e7eb",
+      }}
+    >
+      <header className="sticky top-0 z-20 bg-black/70 backdrop-blur border-b border-slate-800/60">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <h1
+              className="text-base sm:text-lg md:text-xl font-semibold tracking-tight drop-shadow-[0_0_16px_rgba(250,204,21,0.45)]"
+              style={{ color: "rgba(252,211,77,0.96)" }}
+            >
+              Search &amp; report counterparties
+            </h1>
+            <p className="text-xs md:text-sm mt-1" style={{ color: "#e5e7eb" }}>
+              Look up a wallet, link a provider, and send high-signal reports into the reputation graph.
+            </p>
+          </div>
           <button
             type="button"
-            aria-pressed={!showProviderFeatures}
-            onClick={() => { const val = !showProviderFeatures; setShowProviderFeatures(val); try{ localStorage.setItem('showProviderFeatures', String(val)); }catch{} }}
-            className="text-sm text-slate-400 hover:text-slate-200"
+            className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-cyan-400 px-3.5 py-1.5 text-[11px] font-semibold text-slate-950 shadow-[0_10px_30px_rgba(16,185,129,0.5)] hover:brightness-110 hover:-translate-y-0.5 active:translate-y-px transition-transform transition-shadow"
+            onClick={signAndVerify}
           >
-            {showProviderFeatures ? 'Hide' : 'Show'}
+            Verify my wallet
           </button>
         </div>
-        {showProviderFeatures && (
-          <ProviderSelect value={provider} onChange={(p)=>setProvider(p)} />
-        )}
-      </div>
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Chain</label>
-        <select value={chain} onChange={(e)=>setChain(e.target.value)} className="input w-full">
-          <option value="ethereum">Ethereum</option>
-          <option value="bsc">BSC</option>
-          <option value="polygon">Polygon</option>
-          <option value="bitcoin">Bitcoin</option>
-          <option value="solana">Solana</option>
-          <option value="tron">Tron</option>
-          <option value="xrp">XRP</option>
-        </select>
-      </div>
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Receiving address</label>
-        <input value={suspect} onChange={(e)=>setSuspect(e.target.value)} className="input w-full" placeholder="0x..." />
-      </div>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => { document.dispatchEvent(new Event('close-dropdowns')); restoreMainInteractivity(); setAddingProvider(true); }}
-            className="btn"
-            aria-haspopup="dialog"
+      </header>
+
+      <main className="flex-1">
+        <div
+          id="content"
+          className="w-full px-4 py-8 md:py-12 flex flex-col items-stretch lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] lg:gap-10"
+          style={{ maxWidth: "72rem", margin: "0 auto" }}
+        >
+          {/* Left column: search & context */}
+          <section
+            className="space-y-4"
+            style={{ width: "100%", maxWidth: "32rem" }}
           >
-            Add provider
-          </button>
-          <button
-            onClick={() => { document.dispatchEvent(new Event('close-dropdowns')); restoreMainInteractivity(); setErrorMessage(null); setStatusMessage(null); setOpenReportModal(true); }}
-            className="btn btn-primary"
-            aria-haspopup="dialog"
-          >
-            Flag / Report
-          </button>
-          <button
-            onClick={() => { document.dispatchEvent(new Event('close-dropdowns')); restoreMainInteractivity(); signAndVerify(); }}
-            className="btn"
-          >
-            Sign & Verify my wallet
-          </button>
+            <div
+              className="rounded-[1.5rem] p-4 md:p-6 space-y-5"
+              style={{
+                background:
+                  "radial-gradient(circle_at_top,_rgba(34,197,94,0.1),transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.12),transparent_60%),rgba(0,0,0,0.9)",
+                boxShadow: "0 22px 64px rgba(0,0,0,0.95)",
+                backdropFilter: "blur(22px)",
+                WebkitBackdropFilter: "blur(22px)",
+                border: "none",
+              }}
+            >
+              <div className="space-y-2 mb-7"
+                   style={{ marginBottom: "1.9rem" }}
+              >
+                <label className="block text-[11px] sm:text-xs font-medium uppercase tracking-[0.16em]" style={{ color: "#cbd5f5", letterSpacing: "0.16em", marginBottom: "0.45rem" }}>
+                  My wallet (owner)
+                </label>
+                <input
+                  value={myWallet}
+                  onChange={(e) => setMyWallet(e.target.value)}
+                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm md:text-base placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  style={{ border: "none" }}
+                  placeholder="0x1234... (address you control)"
+                />
+              </div>
+
+              <div className="space-y-3 pt-5 pb-4 border-t border-slate-800/70 mb-6"
+                   style={{ paddingTop: "1.4rem", paddingBottom: "1.1rem", marginBottom: "1.9rem" }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-[11px] sm:text-xs font-medium uppercase tracking-[0.16em]" style={{ color: "#cbd5f5", letterSpacing: "0.16em", marginBottom: "0.45rem" }}>
+                    Provider / exchange
+                  </label>
+                  <button
+                    type="button"
+                    aria-pressed={!showProviderFeatures}
+                    onClick={() => {
+                      const val = !showProviderFeatures;
+                      if (!val) {
+                        setProvider(null);
+                      }
+                      setShowProviderFeatures(val);
+                      try { localStorage.setItem('showProviderFeatures', String(val)); } catch { /* ignore */ }
+                    }}
+                    className="text-[11px] sm:text-xs font-medium text-slate-400 hover:text-emerald-300"
+                  >
+                    {showProviderFeatures ? 'Hide selector' : 'Show selector'}
+                  </button>
+                </div>
+                {showProviderFeatures && (
+                  <div className="space-y-3" style={{ marginTop: "0.4rem" }}>
+                    <div className="space-y-2" style={{ marginBottom: "0.6rem" }}>
+                      <ProviderSelect
+                        value={provider}
+                        onChange={(p) => {
+                          // If the selector asks to add a new provider (no _id), open the modal
+                          if (p && !('_id' in p) && p.name) {
+                            setPendingProviderName(p.name);
+                            setAddingProvider(true);
+                          } else {
+                            setProvider(p as ProviderType | null);
+                          }
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAddingProvider(true)}
+                      className="inline-flex items-center rounded-full px-3.5 py-2 text-xs sm:text-sm font-medium"
+                      style={{
+                        border: "none",
+                        backgroundColor: "rgba(34,197,94,0.12)",
+                        color: "#bbf7d0",
+                        boxShadow: "0 0 0 1px rgba(34,197,94,0.55)",
+                      }}
+                      aria-haspopup="dialog"
+                    >
+                      + Add provider to directory
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-6 border-t border-slate-800/70 mb-4"
+                   style={{ paddingTop: "1.7rem", marginTop: "0.1rem", marginBottom: "1.6rem" }}
+              >
+                <div className="space-y-3">
+                  <label className="block text-[11px] sm:text-xs font-medium uppercase tracking-[0.16em]" style={{ color: "#cbd5f5", letterSpacing: "0.16em", marginBottom: "0.45rem" }}>
+                    Chain
+                  </label>
+                  <select
+                    value={chain}
+                    onChange={(e) => setChain(e.target.value)}
+                    className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm md:text-base focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                    style={{ border: "none" }}
+                  >
+                    <option value="ethereum">Ethereum</option>
+                    <option value="bsc">BSC</option>
+                    <option value="polygon">Polygon</option>
+                    <option value="bitcoin">Bitcoin</option>
+                    <option value="solana">Solana</option>
+                    <option value="tron">Tron</option>
+                    <option value="xrp">XRP</option>
+                  </select>
+                </div>
+                <div className="space-y-3" style={{ marginTop: "0.6rem" }}>
+                  <label className="block text-[11px] sm:text-xs font-medium uppercase tracking-[0.16em]" style={{ color: "#cbd5f5", letterSpacing: "0.16em", marginBottom: "0.55rem" }}>
+                    Receiving address
+                  </label>
+                  <input
+                    value={suspect}
+                    onChange={(e) => setSuspect(e.target.value)}
+                    className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm md:text-base placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                    style={{ border: "none" }}
+                    placeholder="Address you want to check or flag"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => { setErrorMessage(null); setStatusMessage(null); setOpenReportModal((v) => !v); }}
+                  className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-2.5 text-sm md:text-base font-semibold text-slate-950 shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 transition-colors"
+                >
+                  Flag / Report address
+                </button>
+                <button
+                  type="button"
+                  onClick={signAndVerify}
+                  className="inline-flex items-center justify-center rounded-full px-4 py-2.5 text-sm md:text-base font-semibold"
+                  style={{
+                    backgroundImage: "linear-gradient(135deg, #22c55e, #22c55e)",
+                    color: "#020617",
+                    boxShadow: "0 10px 30px rgba(16,185,129,0.55)",
+                    border: "none",
+                  }}
+                >
+                  Sign & verify my wallet
+                </button>
+              </div>
+
+              {statusMessage && <div className="mt-3 text-xs font-medium text-emerald-400">{statusMessage}</div>}
+              {errorMessage && <div className="mt-2 text-xs font-medium text-red-400">{errorMessage}</div>}
+
+              {/* Inline expanding panels */}
+              <div className="mt-4 space-y-3">
+                {/* Report panel */}
+                <div
+                  className={`overflow-hidden rounded-xl bg-slate-950/60 transition-all duration-300 ease-out ${
+                    openReportModal ? 'max-h-[480px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-1'
+                  }`}
+                  aria-hidden={!openReportModal}
+                >
+                  {openReportModal && (
+                    <div className="p-4 md:p-5">
+                      <ReportModal
+                        inline
+                        chain={chain}
+                        myWallet={myWallet}
+                        provider={provider ?? undefined}
+                        suspect={suspect}
+                        onClose={() => setOpenReportModal(false)}
+                        onSubmitted={(report) => {
+                          setSuspect('');
+                          setOpenReportModal(false);
+                          try {
+                            const rep = (report as Record<string, unknown> | null) || null;
+                            const rc = (rep && typeof rep.chain === 'string' ? rep.chain : chain) || 'ethereum';
+                            const address = (rep && typeof rep.suspectAddress === 'string' ? rep.suspectAddress : suspect);
+                            if (address) router.push(`/wallet/${rc}/${address}`);
+                          } catch {
+                            // ignore navigation errors
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Add provider inline panel */}
+                <div
+                  className={`overflow-hidden rounded-xl bg-slate-950/60 transition-all duration-300 ease-out ${
+                    addingProvider ? 'max-h-[520px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-1'
+                  }`}
+                  aria-hidden={!addingProvider}
+                >
+                  {addingProvider && (
+                    <div className="p-4 md:p-5">
+                      <AddProviderModal
+                        inline
+                        initialName={pendingProviderName || provider?.name || ''}
+                        onClose={() => { setAddingProvider(false); setPendingProviderName(null); }}
+                        onCreated={(p) => {
+                          setProvider(p as ProviderType);
+                          setAddingProvider(false);
+                          setPendingProviderName(null);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Right column: helper card */}
+          <aside className="space-y-4 mt-8 lg:mt-0">
+            <div
+              className="rounded-2xl p-4 md:p-5 shadow-lg shadow-black/40 sticky top-[4.5rem]"
+              style={{
+                background:
+                  "radial-gradient(circle_at_top,_rgba(34,197,94,0.1),transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.12),transparent_60%),rgba(0,0,0,0.9)",
+                border: "none",
+              }}
+            >
+              <h2 className="text-sm font-semibold mb-2" style={{ color: "#e5e7eb" }}>
+                How this works
+              </h2>
+              <p className="text-xs mb-3" style={{ color: "var(--muted-text)" }}>
+                Blockpage411 lets you attach context to wallet addresses: which exchange or provider they belong to, and whether you believe they
+                are safe or risky.
+              </p>
+              <ol className="text-xs space-y-1 list-decimal list-inside" style={{ color: "var(--muted-text)" }}>
+                <li>Connect / enter your own wallet address.</li>
+                <li>Optionally link a known provider or add a new one.</li>
+                <li>Paste the receiving address you want to check or report.</li>
+                <li>Submit a report and we’ll route it into the reputation system.</li>
+              </ol>
+            </div>
+          </aside>
         </div>
-      {addingProvider && (
-        <AddProviderModal initialName={provider?.name || ''} onClose={()=>setAddingProvider(false)} onCreated={(p)=>{ setProvider(p as ProviderType); setAddingProvider(false); }} />
-      )}
-      {openReportModal && (
-        <ReportModal chain={chain} myWallet={myWallet} provider={provider ?? undefined} suspect={suspect} onClose={()=>setOpenReportModal(false)} onSubmitted={(report)=>{ setSuspect(''); setOpenReportModal(false); try{ const rep = (report as Record<string, unknown> | null) || null; const rc = (rep && typeof rep.chain === 'string' ? rep.chain : chain) || 'ethereum'; const address = (rep && typeof rep.suspectAddress === 'string' ? rep.suspectAddress : suspect); router.push(`/wallet/${rc}/${address}`); }catch{ /* ignore */ } }} />
-      )}
-      {statusMessage && <div className="mt-3 text-sm text-green-500">{statusMessage}</div>}
-      {errorMessage && <div className="mt-3 text-sm text-red-500">{errorMessage}</div>}
       </main>
-  {/* Footer temporarily removed for debugging potential overlap/blocking issues */}
+      {/* full-screen modal variants removed in favor of inline expanding panels above */}
     </div>
   );
 }

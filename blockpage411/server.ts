@@ -1,14 +1,17 @@
 
-import WebSocket, { WebSocketServer } from 'ws';
+import * as ws from 'ws';
+
+// Normalize WebSocketServer export across ws versions
+const WebSocketServer: any = (ws as any).WebSocketServer ?? (ws as any).Server;
 
 // Only start the demo websocket server when running directly (not during tests or when imported)
 function startDemoServer(port = 8080) {
   const wss = new WebSocketServer({ port });
 
-  wss.on('connection', function connection(ws) {
-    ws.on('error', console.error);
+  wss.on('connection', function connection(client: any) {
+    client.on('error', console.error);
 
-    ws.send('Welcome to the real-time transaction feed!');
+    client.send('Welcome to the real-time transaction feed!');
 
     // Simulate a new transaction every 3 seconds
     const interval = setInterval(() => {
@@ -20,15 +23,15 @@ function startDemoServer(port = 8080) {
         timestamp: new Date().toISOString(),
       };
       
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(transaction));
+      wss.clients.forEach((c: any) => {
+        if (c.readyState === (ws as any).OPEN) {
+          c.send(JSON.stringify(transaction));
         }
       });
 
     }, 3000);
 
-    ws.on('close', () => {
+    client.on('close', () => {
       clearInterval(interval);
     });
   });

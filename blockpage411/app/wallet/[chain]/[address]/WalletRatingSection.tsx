@@ -42,7 +42,7 @@ const WalletRatingSection: React.FC<WalletRatingSectionProps> = ({ address, chai
   return (
     <div className="mt-4 w-full text-left">
       <h3 className="text-cyan-300 font-semibold mb-2">Rate This Wallet</h3>
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
         <span className="text-cyan-200">Average Rating:</span>
         <span className="font-bold text-yellow-400">{verificationScore ? verificationScore.toFixed(2) : "N/A"}</span>
         <span className="text-xs text-cyan-400">(out of 5)</span>
@@ -51,18 +51,43 @@ const WalletRatingSection: React.FC<WalletRatingSectionProps> = ({ address, chai
       {ratings && ratings.length > 0 && (
         <RatingBreakdown ratings={ratings} />
       )}
-      <form className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2 mt-4" onSubmit={handleRate}>
-        <div className="flex items-center gap-2">
+      <form
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 mt-4"
+        onSubmit={handleRate}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
           <label htmlFor="rateValue" className="text-cyan-200">Your Rating:</label>
-          <select id="rateValue" className="px-2 py-1 rounded border border-yellow-400" value={rateValue} onChange={e => setRateValue(Number(e.target.value))} required>
+          <select
+            id="rateValue"
+            className="px-2 py-1 rounded border border-yellow-400 bg-slate-950 text-cyan-50"
+            value={rateValue}
+            onChange={e => setRateValue(Number(e.target.value))}
+            required
+          >
             <option value="">Select</option>
             {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}</option>)}
           </select>
         </div>
-        <textarea className="px-2 py-1 rounded border border-blue-400 w-full md:w-64" placeholder="Leave a comment (optional)" value={rateText} onChange={e => setRateText(e.target.value)} rows={2} />
-        <button type="submit" className="px-3 py-1 rounded bg-yellow-500 text-white font-bold" disabled={rateLoading || !rateValue}>{rateLoading ? "Submitting..." : "Rate"}</button>
-        {rateError && <span className="text-red-400 text-xs ml-2">{rateError}</span>}
-        {rateSuccess && <span className="text-green-400 text-xs ml-2">Thank you for rating!</span>}
+        <textarea
+          className="px-2 py-1 rounded border border-blue-400 w-full sm:w-64 bg-slate-950 text-cyan-50"
+          placeholder="Leave a comment (optional)"
+          value={rateText}
+          onChange={e => setRateText(e.target.value)}
+          rows={2}
+        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="submit"
+            className="px-3 py-2 rounded bg-yellow-500 text-slate-950 font-bold min-w-[6rem] text-center disabled:opacity-60 disabled:cursor-not-allowed hover:bg-yellow-400 transition"
+            disabled={rateLoading || !rateValue}
+          >
+            {rateLoading ? "Submitting..." : "Rate"}
+          </button>
+          <div className="min-h-[1.25rem] flex items-center">
+            {rateError && <span className="text-red-400 text-xs">{rateError}</span>}
+            {rateSuccess && !rateError && <span className="text-green-400 text-xs">Thank you for rating!</span>}
+          </div>
+        </div>
       </form>
       <div className="mt-4">
         <h4 className="text-cyan-200 font-semibold mb-2">Recent Ratings</h4>

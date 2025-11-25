@@ -1,15 +1,24 @@
 import Image from "next/image";
 
-const chains = [
+type Chain = {
+  name: string;
+  src: string;
+  soon?: boolean;
+};
+
+const chains: Chain[] = [
   { name: "Ethereum", src: "/logos/ethereum.png" },
   { name: "Polygon", src: "/logos/polygon.png" },
-  { name: "BNB", src: "/logos/binance.png" },
+  { name: "BNB Chain", src: "/logos/binance.png" },
   { name: "Solana", src: "/logos/solana.png" },
   { name: "Avalanche", src: "/logos/avalanche.png" },
   { name: "Bitcoin", src: "/logos/bitcoin.png" },
   { name: "Cardano", src: "/logos/cardano.png" },
   { name: "Tron", src: "/logos/tron.png" },
   { name: "XRP", src: "/logos/xrp.png" },
+  // roadmap / upcoming networks
+  { name: "Base", src: "/logos/base.png", soon: true },
+  { name: "Arbitrum", src: "/logos/arbitrum.png", soon: true },
 ];
 
 export default function ChainCarousel() {
@@ -71,12 +80,28 @@ export default function ChainCarousel() {
                   />
                 </div>
 
-                <span
-                  className="mt-3 text-sm sm:text-base font-semibold text-center truncate"
-                  style={{ color: '#e6d6a7' }}
-                >
-                  {c.name}
-                </span>
+                <div className="mt-3 flex flex-col items-center gap-1 min-h-[2.25rem]">
+                  <span
+                    className="text-xs sm:text-sm font-semibold text-center truncate px-1"
+                    style={{ color: "#e6d6a7" }}
+                  >
+                    {c.name}
+                  </span>
+                  {c.soon && (
+                    <span
+                      className="inline-flex items-center justify-center rounded-full text-[10px] tracking-wide uppercase px-2 py-[2px]"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(56,189,248,0.12), rgba(59,130,246,0.18))",
+                        border: "1px solid rgba(59,130,246,0.7)",
+                        color: "rgba(191,219,254,0.96)",
+                        boxShadow: "0 0 12px rgba(37,99,235,0.6)",
+                      }}
+                    >
+                      Soon
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           ))}
