@@ -8,7 +8,7 @@ import SampleWallet from "./components/landing/SampleWallet";
 import PopularWallets from "./components/landing/PopularWallets";
 import RealTimeTransactions from "./components/landing/RealTimeTransactions";
 import Testimonials from "./components/landing/Testimonials";
-import LiveStats from "./components/landing/LiveStats";
+import LiveStats from "./components/landing/LiveStatsClient";
 import LandingSearchDemo from "./components/landing/LandingSearchDemo";
 import SocialProof from "./components/landing/SocialProof";
 import FAQ from "./components/landing/FAQ";

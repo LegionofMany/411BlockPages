@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import ClientOnlyMotion from '../ClientOnlyMotion';
 
 type Stat = { label: string; value: number; id: string };
 
@@ -62,9 +62,10 @@ export default function LiveStats({ apiUrl = '/api/stats/sample' }: { apiUrl?: s
 function StatCard({ stat }: { stat: Stat }) {
   const num = useAnimatedNumber(stat.value, 900);
   return (
-    <motion.div
+    <ClientOnlyMotion
       className="p-6 rounded-2xl text-center"
-      whileHover={{ translateY: -6 }}
+      data-while-hover
+      whileHover={{ translateY: -6 } as any}
       style={{
         backgroundColor: "rgba(0,0,0,0.86)",
         boxShadow: "0 22px 64px rgba(0,0,0,0.95)",
@@ -75,6 +76,6 @@ function StatCard({ stat }: { stat: Stat }) {
     >
       <div className="text-4xl font-extrabold" style={{ color: '#ffd67a' }}>{num.toLocaleString()}</div>
       <div className="text-sm mt-2" style={{ color: 'var(--muted-text)' }}>{stat.label}</div>
-    </motion.div>
+    </ClientOnlyMotion>
   );
 }

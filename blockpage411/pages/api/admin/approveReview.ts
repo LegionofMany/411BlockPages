@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
+import { withAdminAuth } from '../../../lib/adminMiddleware';
 
 interface Rating {
   user: string;
@@ -13,7 +14,7 @@ interface Rating {
   flaggedReason: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
   const { address, chain, user } = req.body;
   if (!address || !chain || !user) return res.status(400).json({ message: 'Missing params' });
@@ -26,3 +27,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await wallet.save();
   res.status(200).json({ success: true });
 }
+
+export default withAdminAuth(handler);

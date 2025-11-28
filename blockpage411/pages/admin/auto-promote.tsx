@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { GetServerSideProps } from 'next';
+import { isAdminRequest } from '../../lib/admin';
 
 type Candidate = { provider?: { _id?: string; name?: string; readyForOutreach?: boolean }; totalReports?: number; uniqueReporters?: number };
 type AutoPromoteResult = { candidates?: Candidate[]; promoted?: number; skipped?: number } | null;
@@ -26,9 +28,9 @@ const AdminAutoPromotePage: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Auto-Promote Providers</h1>
-      <p className="mb-4">Run the auto-promotion routine to mark providers as ready for outreach based on reports.</p>
+    <div style={{ padding: 24, maxWidth: '1000px', margin: '0 auto' }}>
+      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Auto-Promote Providers</h1>
+      <p style={{ marginBottom: 12, color: '#9AA8B3' }}>Run the auto-promotion routine to mark providers as ready for outreach based on reports.</p>
       <div className="flex gap-3 mb-4">
         <button className="btn-primary" onClick={() => run(true)} disabled={loading}>Dry-run</button>
         <button className="btn-primary" onClick={() => run(false)} disabled={loading}>Run</button>
@@ -91,3 +93,15 @@ const AdminAutoPromotePage: React.FC = () => {
 };
 
 export default AdminAutoPromotePage;
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { req } = context;
+  try {
+    if (!isAdminRequest(req as any)) {
+      return { redirect: { destination: '/login', permanent: false } };
+    }
+    return { props: {} };
+  } catch (err) {
+    return { redirect: { destination: '/login', permanent: false } };
+  }
+};

@@ -8,6 +8,9 @@ export default function Hero() {
     <section
       aria-labelledby="hero-heading"
       className="relative w-full max-w-6xl mx-auto px-4 pt-20 pb-12 text-center sm:pt-24 sm:pb-20"
+      // Inline width cap to avoid full-bleed layout being forced by global styles.
+      // This inline style intentionally overrides any global/container rules.
+      style={{ maxWidth: '1000px', marginLeft: 'auto', marginRight: 'auto' }}
     >
       {/* Radiant blockchain glow */}
       <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-[120%] -translate-x-1/2">

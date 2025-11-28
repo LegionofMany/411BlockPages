@@ -31,7 +31,7 @@ export default function ChainCarousel() {
   return (
     <section
       className="w-full py-8 sm:py-12 lg:py-16 px-4 sm:px-8 md:px-12"
-      style={{ color: '#e6d6a7', position: 'relative', zIndex: 50, overflow: 'hidden' }}
+      style={{ color: '#e6d6a7', position: 'relative', zIndex: 50, overflow: 'hidden', maxWidth: '1000px', marginLeft: 'auto', marginRight: 'auto' }}
     >
       <h2
         className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-6 sm:mb-10 bg-clip-text text-transparent"

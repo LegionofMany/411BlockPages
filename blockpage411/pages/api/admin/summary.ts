@@ -2,8 +2,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import Wallet from 'lib/walletModel';
+import { withAdminAuth } from '../../../lib/adminMiddleware';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -11,8 +12,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const suspicious = await Wallet.find({ suspicious: true });
   const popular = await Wallet.find({ popular: true });
   // Recent flags and ratings
-  const flags = [];
-  const ratings = [];
+  const flags: any[] = [];
+  const ratings: any[] = [];
   for (const wallet of await Wallet.find({})) {
     for (const flag of wallet.flags || []) {
       flags.push({ ...flag._doc, address: wallet.address, chain: wallet.chain });
@@ -31,3 +32,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ratings: ratings.slice(0, 10)
   });
 }
+
+export default withAdminAuth(handler);

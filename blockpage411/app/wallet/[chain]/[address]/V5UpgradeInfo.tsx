@@ -1,23 +1,39 @@
 import React from "react";
 
-const features = [
-  "Multi-chain wallet support",
-  "Community wallet rating system",
-  "Donation requests and history",
-  "KYC status and verification",
-  "Admin flagging and moderation",
-  "Suspicious/Popular/Blacklisted badges",
-  "Improved UI/UX and modular components"
-];
-
-const V5UpgradeInfo: React.FC = () => (
-  <div className="mb-6 w-full bg-gradient-to-r from-indigo-900 via-blue-900 to-blue-950 border border-yellow-500 rounded-xl p-4 shadow-lg flex flex-col items-center">
-    <span className="px-4 py-1 rounded-full bg-yellow-500 text-white font-bold text-lg mb-2">v5 Upgrade</span>
-  <h3 className="text-yellow-200 font-bold text-xl mb-2">What&apos;s New in v5?</h3>
-    <ul className="list-disc list-inside text-yellow-100 text-sm">
-      {features.map(f => <li key={f}>{f}</li>)}
-    </ul>
+// Replaced the old v5 upgrade blurb with a professional promo header.
+// This component intentionally uses inline styles to override any global layout
+// rules so the header remains visually distinct and consistent across themes.
+const ProfilePromo: React.FC = () => (
+  <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', marginBottom: '1.5rem' }}>
+    <header
+      role="banner"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '0.5rem',
+        padding: '18px',
+        borderRadius: '12px',
+        background: 'linear-gradient(90deg, rgba(6,10,27,0.7), rgba(10,16,36,0.6))',
+        border: '1px solid rgba(99,102,241,0.12)',
+        boxShadow: '0 8px 30px rgba(2,6,23,0.6)'
+      }}
+    >
+      <h1 style={{
+        margin: 0,
+        color: '#E6F3F1',
+        fontSize: '1.4rem',
+        lineHeight: 1.2,
+        fontWeight: 700,
+        letterSpacing: '-0.01em'
+      }}>
+        Blockpage411 — Wallet intelligence and trust insights
+      </h1>
+      <p style={{ margin: 0, color: '#A7BBC1', fontSize: '0.95rem' }}>
+        Fast, clear risk scores and community signals for on-chain addresses — built for researchers, exchanges and compliance teams.
+      </p>
+    </header>
   </div>
 );
 
-export default V5UpgradeInfo;
+export default ProfilePromo;

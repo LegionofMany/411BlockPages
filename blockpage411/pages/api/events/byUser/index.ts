@@ -41,8 +41,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-
-  await dbConnect();
+  try {
+    await dbConnect();
+  } catch (err) {
+    // If DB isn't configured (local dev), return empty lists instead of 500
+    console.warn('dbConnect failed in /api/events/byuser:', err);
+    res.status(200).json({ active: [], completed: [] });
+    return;
+  }
 
   const now = new Date();
 

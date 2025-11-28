@@ -10,7 +10,7 @@ const faq = [
 export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <section className="w-full max-w-4xl mx-auto px-4 py-12">
+    <section className="w-full max-w-4xl mx-auto px-4 py-12" style={{ maxWidth: '1000px', marginLeft: 'auto', marginRight: 'auto' }}>
       <h2 className="text-2xl font-bold mb-6" style={{ color: '#e5e7eb' }}>How it works</h2>
       <div className="space-y-3">
         {faq.map((f, i) => (

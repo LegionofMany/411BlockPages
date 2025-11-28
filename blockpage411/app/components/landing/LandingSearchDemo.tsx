@@ -75,46 +75,25 @@ export default function LandingSearchDemo() {
       className="w-full max-w-3xl mx-auto rounded-2xl"
       style={{
         border: "none",
-        background:
-          "radial-gradient(circle at top, rgba(34,197,94,0.1), transparent 55%), radial-gradient(circle at bottom right, rgba(56,189,248,0.12), transparent 60%), rgba(0,0,0,0.9)",
-        boxShadow: "0 22px 64px rgba(0,0,0,0.95)",
-        backdropFilter: "blur(22px)",
-        WebkitBackdropFilter: "blur(22px)",
+        // match hero: dark translucent card for contrast on page background
+        backgroundColor: "rgba(0,0,0,0.82)",
+        boxShadow: "0 26px 70px rgba(0,0,0,0.95)",
+        backdropFilter: "blur(26px)",
+        WebkitBackdropFilter: "blur(26px)",
+        maxWidth: '1000px',
+        marginLeft: 'auto',
+        marginRight: 'auto',
       }}
     >
       <CardBody className="space-y-4">
         <div className="flex flex-col gap-2">
-          <h2
-            className="text-sm sm:text-base font-semibold"
-            style={{ color: "#e5e7eb" }}
-          >
-            Quick wallet reputation check
-          </h2>
-          <p className="text-xs sm:text-sm text-[var(--muted-text)]">
-            Start with a well-known address or ENS name to see how Blockpage411 summarizes on-chain trust signals.
-          </p>
+          <h2 className="text-sm sm:text-base font-semibold" style={{ color: '#fff' }}>Quick wallet reputation check</h2>
+          <p className="text-xs sm:text-sm text-[var(--muted-text)]">Enter an address or ENS to see a concise trust summary — results are limited in this demo.</p>
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row items-stretch" role="search" aria-label="Wallet search demo">
-          <div
-            className="flex-1 flex items-center gap-2 rounded-2xl"
-            style={{
-              boxShadow: "0 0 28px rgba(37, 99, 235, 0.35)",
-              background: "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(15,23,42,0.86))",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
-              padding: "0.35rem 0.75rem",
-            }}
-          >
-            <span
-              className="hidden sm:inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold tracking-wide"
-              style={{
-                background:
-                  "radial-gradient(circle at 30% 0%, rgba(34,197,94,0.32), rgba(0,0,0,0.7))",
-                boxShadow: "0 0 0 1px rgba(34,197,94,0.7), 0 10px 26px rgba(34,197,94,0.65)",
-                color: "#bbf7d0",
-              }}
-            >
+          <div className="flex-1 flex items-center gap-2 rounded-2xl" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+            <span className="hidden sm:inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold tracking-wide" style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--muted-text)', border: '1px solid rgba(255,255,255,0.03)' }}>
               ENS
             </span>
             <input
@@ -123,19 +102,24 @@ export default function LandingSearchDemo() {
               aria-label="Search wallets by address or ENS name"
               className="flex-1 bg-transparent text-sm focus:outline-none landing-search-input"
               style={{
-                color: "rgba(226,232,240,0.96)",
-                textShadow: "0 0 6px rgba(15,23,42,0.9)",
-                caretColor: "rgba(148,163,184,0.95)",
+                color: "#f8fafc",
+                caretColor: "#9ca3af",
+                outline: 'none'
               }}
               placeholder="Search by address or ENS (e.g. vitalik.eth)"
               autoComplete="off"
             />
           </div>
+
           <Button
             type="submit"
             size="md"
             disabled={loading || !q.trim()}
-            className="w-full sm:w-auto text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed bg-emerald-500/90 text-white shadow-[0_16px_46px_rgba(16,185,129,0.6)] hover:bg-emerald-400 hover:shadow-[0_18px_52px_rgba(34,197,94,0.7)] hover:-translate-y-0.5 active:translate-y-px active:brightness-95"
+            className="w-full sm:w-auto text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed text-white"
+            style={{
+              backgroundColor: '#05d07a',
+              boxShadow: '0 26px 64px rgba(5,208,122,0.55)'
+            }}
           >
             {loading ? "Searching…" : "Search"}
           </Button>
@@ -143,7 +127,7 @@ export default function LandingSearchDemo() {
 
         <div className="mt-2 min-h-[4rem]" aria-live="polite" aria-busy={loading}>
           {error && (
-            <div className="rounded-lg bg-red-950/40 px-3 py-2 text-xs text-[var(--color-danger)]/90" style={{ border: "none" }}>
+            <div className="rounded-lg bg-red-950/20 px-3 py-2 text-xs text-[var(--color-danger)]/90" style={{ border: "none" }}>
               {error}
             </div>
           )}
@@ -178,7 +162,7 @@ export default function LandingSearchDemo() {
                 return (
                   <li
                     key={i}
-                    className="rounded-xl bg-[var(--color-bg-dark)]/80 p-3.5 sm:p-4 flex flex-col gap-1.5 cursor-pointer transition hover:bg-[var(--color-bg-mid)]/90"
+                    className="rounded-xl bg-[var(--color-bg-dark)]/70 p-3.5 sm:p-4 flex flex-col gap-1.5 cursor-pointer transition hover:scale-[1.01] hover:bg-[var(--color-bg-mid)]/85"
                     onClick={() => {
                       const nextQuery = title;
                       setQ(nextQuery);

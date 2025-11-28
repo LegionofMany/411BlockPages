@@ -14,9 +14,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   // In development allow calls without admin header to make local seeding easy.
-  const devAllow = process.env.NODE_ENV === 'development';
-  if (!devAllow) {
-    // when not in development, the wrapper will enforce admin auth
+  // Prefer SEED_SECRET when set. If provided it must match. Otherwise rely on admin auth wrapper in non-dev.
+  const seedSecret = process.env.SEED_SECRET;
+  const providedSecret = String(req.query.secret ?? req.headers['x-seed-secret'] ?? '');
+  if (seedSecret && providedSecret !== seedSecret) {
+    return res.status(403).json({ error: 'Invalid seed secret' });
   }
 
   try {

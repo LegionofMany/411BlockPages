@@ -1,6 +1,9 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import Skeleton from '../components/ui/Skeleton';
+import Toast from '../components/ui/Toast';
 
 interface EventItem {
   _id: string;
@@ -174,42 +177,86 @@ export default function ProfilePage() {
     }
   }
 
+  function handleCopyLink(url: string) {
+    try {
+      navigator.clipboard.writeText(url);
+      setToast('Link copied to clipboard');
+    } catch {
+      setToast('Copied (fallback)');
+    }
+  }
+
   const now = new Date();
+  const [toast, setToast] = useState<string | null>(null);
+
+  function formatDeadline(deadlineIso?: string) {
+    if (!deadlineIso) return 'No deadline';
+    try {
+      const d = new Date(deadlineIso);
+      const diffMs = d.getTime() - Date.now();
+      const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (days > 1) return `in ${days} days`;
+      if (days === 1) return 'tomorrow';
+      if (days === 0) return 'today';
+      // past
+      return `ended ${Math.abs(days)} days ago`;
+    } catch {
+      return deadlineIso;
+    }
+  }
 
   return (
     <div className="min-h-screen">
       <main className="max-w-4xl mx-auto p-6">
         <h1 className="text-2xl font-bold mb-4">Profile</h1>
-        <div className="mb-4 flex gap-2 border-b border-slate-700 pb-2">
+        <div className="mb-4 flex gap-2 border-b border-slate-700 pb-2" role="tablist" aria-label="Profile tabs">
           <button
             className={`px-3 py-1 rounded ${tab === 'profile' ? 'bg-slate-800 text-white' : 'text-slate-300'}`}
             onClick={() => setTab('profile')}
+            aria-selected={tab === 'profile'}
           >
             Overview
           </button>
           <button
             className={`px-3 py-1 rounded ${tab === 'events' ? 'bg-slate-800 text-white' : 'text-slate-300'}`}
             onClick={() => setTab('events')}
+            aria-selected={tab === 'events'}
           >
             Charity Events
           </button>
-          <Link href="/profile/edit" className="ml-auto text-sm text-cyan-300 hover:underline">Edit profile</Link>
+          <Link href="/profile/edit" className="ml-auto text-sm hover:underline" style={{ color: '#ffffff' }}>Edit profile</Link>
         </div>
 
         {tab === 'profile' && (
           <div className="space-y-4 text-slate-200">
             <div className="space-y-2">
-              <div><span className="font-semibold">Address:</span> {me?.address}</div>
-              <div><span className="font-semibold">Display name:</span> {me?.displayName || '—'}</div>
-              <div><span className="font-semibold">Trust score:</span> {me?.socialLinks?.trustScore ?? 0} / 100</div>
+              <div>
+                <span className="font-semibold">Address:</span>
+                {' '}
+                {me ? <span className="break-all">{me.address}</span> : <Skeleton className="h-4 w-48" />}
+              </div>
+              <div>
+                <span className="font-semibold">Display name:</span>
+                {' '}
+                {me ? (me.displayName || '—') : <Skeleton className="h-4 w-32" />}
+              </div>
+              <div>
+                <span className="font-semibold">Trust score:</span>
+                {' '}
+                {me ? `${me.socialLinks?.trustScore ?? 0} / 100` : <Skeleton className="h-4 w-24" />}
+              </div>
             </div>
             {featuredCharity && (
               <div className="bg-slate-900 p-4 rounded border border-slate-800">
                 <h2 className="font-semibold text-sm mb-2">Featured charity</h2>
                 <div className="flex items-start gap-3">
                   {featuredCharity.logo && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={featuredCharity.logo} alt={featuredCharity.name} className="w-12 h-12 rounded object-cover" />
+                    featuredCharity.logo.startsWith('/') ? (
+                      <Image src={featuredCharity.logo} alt={featuredCharity.name} width={48} height={48} className="rounded object-cover" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={featuredCharity.logo} alt={featuredCharity.name} className="w-12 h-12 rounded object-cover" />
+                    )
                   )}
                   <div className="flex-1">
                     <div className="font-medium text-slate-100">{featuredCharity.name}</div>
@@ -236,6 +283,18 @@ export default function ProfilePage() {
                         </Link>
                       )}
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {!featuredCharity && me === null && (
+              <div className="bg-slate-900 p-4 rounded border border-slate-800">
+                <Skeleton className="h-4 w-32 mb-2" />
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-12 w-12 rounded" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-48 mb-2" />
+                    <Skeleton className="h-3 w-64" />
                   </div>
                 </div>
               </div>
@@ -274,12 +333,13 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
-            <form onSubmit={saveWalletMetadata} className="bg-slate-900 p-4 rounded border border-slate-800 space-y-3">
+            <form onSubmit={saveWalletMetadata} className="bg-slate-900 p-4 rounded border border-slate-800 space-y-3" aria-label="Wallet exchange and storage form">
               <h2 className="font-semibold text-sm">Wallet Exchange & Storage</h2>
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="md:col-span-1">
-                  <label className="block text-xs mb-1 text-slate-300">Chain</label>
+                  <label htmlFor="chain" className="block text-xs mb-1 text-slate-300">Chain</label>
                   <select
+                    id="chain"
                     className="w-full px-3 py-2 bg-gray-800 rounded text-white text-sm"
                     value={walletMeta.chain}
                     onChange={(e) => setWalletMeta({ ...walletMeta, chain: e.target.value })}
@@ -291,8 +351,9 @@ export default function ProfilePage() {
                   </select>
                 </div>
                 <div className="md:col-span-1">
-                  <label className="block text-xs mb-1 text-slate-300">Exchange used</label>
+                  <label htmlFor="exchange" className="block text-xs mb-1 text-slate-300">Exchange used</label>
                   <select
+                    id="exchange"
                     className="w-full px-3 py-2 bg-gray-800 rounded text-white text-sm"
                     value={walletMeta.exchangeSource}
                     onChange={(e) => setWalletMeta({ ...walletMeta, exchangeSource: e.target.value })}
@@ -305,8 +366,9 @@ export default function ProfilePage() {
                   </select>
                 </div>
                 <div className="md:col-span-1">
-                  <label className="block text-xs mb-1 text-slate-300">Wallet type/brand</label>
+                  <label htmlFor="storage" className="block text-xs mb-1 text-slate-300">Wallet type/brand</label>
                   <select
+                    id="storage"
                     className="w-full px-3 py-2 bg-gray-800 rounded text-white text-sm"
                     value={walletMeta.storageType}
                     onChange={(e) => setWalletMeta({ ...walletMeta, storageType: e.target.value })}
@@ -334,60 +396,85 @@ export default function ProfilePage() {
 
         {tab === 'events' && (
           <div className="grid gap-6 md:grid-cols-2">
-            <form onSubmit={submitEvent} className="bg-slate-900 p-4 rounded border border-slate-800 space-y-3">
-              <h2 className="font-semibold mb-1">Create Charity Event</h2>
-              <input
-                className="w-full px-3 py-2 bg-gray-800 rounded text-white"
-                placeholder="Title"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                required
-              />
-              <textarea
-                className="w-full px-3 py-2 bg-gray-800 rounded text-white"
-                placeholder="Description"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                required
-              />
-              <input
-                type="number"
-                className="w-full px-3 py-2 bg-gray-800 rounded text-white"
-                placeholder="Goal amount"
-                min="0"
-                step="0.00000001"
-                value={form.goalAmount}
-                onChange={(e) => setForm({ ...form, goalAmount: e.target.value })}
-                required
-              />
-              <input
-                type="date"
-                className="w-full px-3 py-2 bg-gray-800 rounded text-white"
-                value={form.deadline}
-                onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-                required
-              />
-              <input
-                className="w-full px-3 py-2 bg-gray-800 rounded text-white"
-                placeholder="Recipient wallet"
-                value={form.recipientWallet}
-                onChange={(e) => setForm({ ...form, recipientWallet: e.target.value })}
-                required
-              />
-              <input
-                className="w-full px-3 py-2 bg-gray-800 rounded text-white"
-                placeholder="Optional Giving Block charity ID"
-                value={form.givingBlockCharityId}
-                onChange={(e) => setForm({ ...form, givingBlockCharityId: e.target.value })}
-              />
-              {error && <div className="text-sm text-red-400">{error}</div>}
-              <button
-                type="submit"
-                disabled={creating}
-                className="px-4 py-2 bg-emerald-600 rounded text-white"
-              >
-                {creating ? 'Creating...' : 'Create Event'}
-              </button>
+            <form onSubmit={submitEvent} className="rounded-[1.5rem] p-6 bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.06),transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.06),transparent_60%),rgba(0,0,0,0.85)] border border-slate-800" style={{ boxShadow: '0 22px 64px rgba(0,0,0,0.95)', backdropFilter: 'blur(12px)' }}>
+              <h2 className="font-semibold mb-3 text-lg" style={{ color: '#e5e7eb' }}>Create Charity Event</h2>
+              <div className="space-y-3">
+                <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Title</label>
+                <input
+                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm md:text-base placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  placeholder="Short descriptive title"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  required
+                />
+
+                <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Description</label>
+                <textarea
+                  className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  placeholder="What is the event for?"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={4}
+                  required
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Goal amount</label>
+                    <input
+                      type="number"
+                      className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                      placeholder="Goal amount"
+                      min="0"
+                      step="0.00000001"
+                      value={form.goalAmount}
+                      onChange={(e) => setForm({ ...form, goalAmount: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Deadline</label>
+                    <input
+                      type="date"
+                      className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                      value={form.deadline}
+                      onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Recipient wallet</label>
+                    <input
+                      className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                      placeholder="0xabc..."
+                      value={form.recipientWallet}
+                      onChange={(e) => setForm({ ...form, recipientWallet: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Giving Block charity ID (optional)</label>
+                <input
+                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  placeholder="Optional Giving Block charity ID"
+                  value={form.givingBlockCharityId}
+                  onChange={(e) => setForm({ ...form, givingBlockCharityId: e.target.value })}
+                />
+
+                {error && <div className="text-sm text-red-400">{error}</div>}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="inline-flex items-center rounded-full bg-emerald-500 px-5 py-2.5 text-sm md:text-base font-semibold text-slate-950 shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                  >
+                    {creating ? 'Creating...' : 'Create Event'}
+                  </button>
+                </div>
+              </div>
             </form>
 
             <div className="space-y-3">
@@ -408,7 +495,7 @@ export default function ProfilePage() {
                         <div className="flex justify-between items-center mb-1">
                           <h3 className="font-semibold text-sm">{ev.title}</h3>
                           <span className={`text-xs px-2 py-0.5 rounded ${active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/40 text-slate-200'}`}>
-                            {active ? `${daysLeft} days left` : 'Completed'}
+                            {active ? formatDeadline(ev.deadline) : `Completed (${formatDeadline(ev.deadline)})`}
                           </span>
                         </div>
                         <p className="text-xs text-slate-300 mb-1 line-clamp-3">{ev.description}</p>
@@ -419,7 +506,7 @@ export default function ProfilePage() {
                           <button
                             type="button"
                             className="text-xs underline"
-                            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/events/${ev._id}`)}
+                            onClick={() => handleCopyLink(`${window.location.origin}/events/${ev._id}`)}
                           >
                             Copy share link
                           </button>
@@ -433,6 +520,7 @@ export default function ProfilePage() {
           </div>
         )}
       </main>
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   );
 }

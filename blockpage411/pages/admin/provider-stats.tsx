@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { GetServerSideProps } from 'next';
+import { isAdminRequest } from '../../lib/admin';
 
 type ProviderRow = { provider?: { name?: string } | null; totalReports?: number; uniqueReporters?: number };
 
@@ -37,10 +39,10 @@ export default function ProviderStats(){
     }
   }
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Provider Stats</h1>
-        <button onClick={handleExport} disabled={exporting} className="ml-4 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50">
+    <div style={{ padding: 24, maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700 }}>Provider Stats</h1>
+        <button onClick={handleExport} disabled={exporting} style={{ marginLeft: 12, background: '#2563EB', color: '#fff', padding: '8px 12px', borderRadius: 6, opacity: exporting ? 0.6 : 1 }}>
           {exporting ? 'Downloading...' : 'Export CSV'}
         </button>
       </div>

@@ -6,9 +6,9 @@ import { getCache, setCache } from '../lib/redisCache';
 const GB_CACHE_KEY = 'givingblock:organizations';
 const GB_CACHE_TTL = Number(process.env.GIVINGBLOCK_CACHE_TTL || '21600'); // 6 hours by default
 
-// The Giving Block public organizations endpoint (no auth) — if an API key is required,
-// set it in process.env.GIVINGBLOCK_API_KEY and add an Authorization header.
-const GIVINGBLOCK_URL = 'https://api.thegivingblock.com/v1/organizations';
+// Use base URL from env (set in .env.local). Build organizations endpoint path.
+const GIVINGBLOCK_BASE = (process.env.GIVINGBLOCK_BASE_URL || process.env.GIVINGBLOCK_BASE_URL?.trim() || 'https://api.thegivingblock.com').replace(/\/$/, '');
+const GIVINGBLOCK_URL = `${GIVINGBLOCK_BASE}/v1/organizations`;
 
 export async function fetchGivingBlockCharities(): Promise<unknown[]> {
   // try cache first
@@ -20,7 +20,14 @@ export async function fetchGivingBlockCharities(): Promise<unknown[]> {
   }
 
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (process.env.GIVINGBLOCK_API_KEY) headers.Authorization = `Bearer ${process.env.GIVINGBLOCK_API_KEY}`;
+  // Prefer API key (Bearer). If not provided, allow Basic auth via username/password.
+  if (process.env.GIVINGBLOCK_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.GIVINGBLOCK_API_KEY}`;
+  } else if (process.env.GIVINGBLOCK_USERNAME && process.env.GIVINGBLOCK_PASSWORD) {
+    const creds = `${process.env.GIVINGBLOCK_USERNAME}:${process.env.GIVINGBLOCK_PASSWORD}`;
+    // Buffer available in Node; safe to use in Next.js server runtime
+    headers.Authorization = `Basic ${Buffer.from(creds).toString('base64')}`;
+  }
 
   const res = await fetch(GIVINGBLOCK_URL, { headers });
   if (!res.ok) {

@@ -84,5 +84,9 @@ const WalletSchema = new Schema({
 WalletSchema.index({ address: 1, chain: 1 }, { unique: true });
 WalletSchema.index({ exchangeSource: 1 });
 WalletSchema.index({ storageType: 1 });
+// Compound index to help queries that filter by chain and suspicious status
+// and sort by flagsCount (descending). Useful for listing high-priority
+// suspicious wallets per chain.
+WalletSchema.index({ chain: 1, suspicious: 1, flagsCount: -1 });
 
 export default models.Wallet || model('Wallet', WalletSchema);

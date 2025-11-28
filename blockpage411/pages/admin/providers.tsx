@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { GetServerSideProps } from 'next';
+import { isAdminRequest } from '../../lib/admin';
 
 type ProviderType = { _id?: string; name: string; website?: string; rank?: number; status?: string };
 
@@ -28,8 +30,11 @@ export default function AdminProvidersPage(){
     await fetchList();
   }
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Providers (Admin)</h1>
+    <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Providers — Admin</h1>
+        <div style={{ color: '#94A3B8', fontSize: 13 }}>Authenticated admin area</div>
+      </header>
       <div className="space-y-2">
         {list.map(p=> (
           <div key={p._id || p.name} className="p-3 border rounded flex justify-between items-center">
@@ -84,3 +89,15 @@ export default function AdminProvidersPage(){
     }catch(e){ console.error(e); alert('Failed to dismiss'); }
   }
 }
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { req } = context;
+  try {
+    if (!isAdminRequest(req as any)) {
+      return { redirect: { destination: '/login', permanent: false } };
+    }
+    return { props: {} };
+  } catch (err) {
+    return { redirect: { destination: '/login', permanent: false } };
+  }
+};

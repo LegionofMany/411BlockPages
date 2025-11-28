@@ -7,6 +7,8 @@ import ProviderWallet from 'lib/providerWalletModel';
 import Provider from 'lib/providerModel';
 import { computeRiskScore, WalletLike } from 'lib/risk';
 import { Transaction } from 'lib/types';
+import { getCache, setCache } from 'lib/redisCache';
+import redisRateLimit from 'lib/redisRateLimit';
 
 // Types for Wallet document
 type WalletDoc = {
@@ -146,8 +148,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!chain || typeof chain !== 'string' || !address || typeof address !== 'string') {
     return res.status(400).json({ message: 'Chain and address required' });
   }
+
+  // Rate limit per-IP using Redis sliding window
+  try {
+    const ok = await redisRateLimit(req, res, { windowSec: 60, max: 30 });
+    if (!ok) return; // redisRateLimit already sent response
+  } catch (err) {
+    // continue permissive if rate limiter fails
+  }
+
+  // Basic validation / normalization: whitelist known chains
+  const allowedChains = new Set<string>([...Object.keys(CHAIN_IDS), 'bitcoin', 'solana', 'tron', 'xrp']);
+  if (!allowedChains.has(String(chain))) {
+    return res.status(400).json({ message: 'Unsupported chain' });
+  }
+
+  // Normalize addresses for EVM-like chains to lowercase to match DB keys
+  const chainStr = String(chain);
+  let addr = String(address);
+  if (CHAIN_IDS[chainStr]) {
+    addr = addr.toLowerCase();
+  }
   await dbConnect();
-  let wallet = await Wallet.findOne({ address, chain });
+  // Pagination params (page & pageSize) for transactions
+  const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+  const pageSizeRaw = parseInt(String(req.query.pageSize || '50'), 10) || 50;
+  const pageSize = Math.min(Math.max(10, pageSizeRaw), 200); // enforce 10..200
+
+  // Try Redis cache first for this page-specific profile payload
+  const cacheKey = `wallet:${chainStr}:${addr}:profile:p${page}:s${pageSize}`;
+  try {
+    const cached = await getCache(cacheKey) as any | null;
+    if (cached) {
+      try { res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300'); } catch {}
+      return res.status(200).json(cached);
+    }
+  } catch {}
+
+  let wallet = await Wallet.findOne({ address: addr, chain: chainStr });
   if (wallet && wallet.blacklisted) {
     return res.status(403).json({ message: 'This wallet is blacklisted.' });
   }
@@ -181,8 +219,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       // Upsert wallet with new txs and lastRefreshed
       wallet = await Wallet.findOneAndUpdate(
-        { address, chain },
-        { $set: { transactions: txs, lastRefreshed: now }, $setOnInsert: { address, chain } },
+        { address: addr, chain: chainStr },
+        { $set: { transactions: txs, lastRefreshed: now }, $setOnInsert: { address: addr, chain: chainStr } },
         { new: true, upsert: true }
       );
     } catch {
@@ -217,7 +255,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // attempt to find a provider wallet mapping and include provider label
   let providerLabel: { providerId?: string; name?: string; note?: string } | null = null;
   try{
-    const pw = await ProviderWallet.findOne({ address: String(address).toLowerCase(), chain: String(chain).toLowerCase() }).lean() as { providerId?: unknown; note?: string } | null;
+    const pw = await ProviderWallet.findOne({ address: String(addr).toLowerCase(), chain: String(chainStr).toLowerCase() }).lean() as { providerId?: unknown; note?: string } | null;
     if (pw) {
   const p = await Provider.findById(String(pw.providerId || '')).lean() as { name?: string } | null;
   providerLabel = { providerId: String(pw.providerId || ''), name: p?.name || undefined, note: pw.note || undefined };
@@ -230,28 +268,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ? (wallet as any).flagsCount >= threshold
     : flagsCount >= threshold;
 
-  // If balances should be hidden, avoid returning transaction list and NFT count for privacy.
+  // If balances should be hidden, hide the txs and nft count
   const returnedTxs = showBalance ? txs : [];
   const returnedNftCount = showBalance ? (wallet?.nftCount || 0) : 0;
 
-  res.status(200).json({
+  // Pagination: compute slice for requested page
+  const totalTxs = Array.isArray(returnedTxs) ? returnedTxs.length : 0;
+  const start = (page - 1) * pageSize;
+  const pagedTxs = Array.isArray(returnedTxs) ? returnedTxs.slice(start, start + pageSize) : [];
+  const hasMore = start + pagedTxs.length < totalTxs;
+
+  const payload = {
     address: wallet?.address || address,
     chain: wallet?.chain || chain,
-    // provider label if we can match the address to a provider wallet
     providerLabel,
     flags: wallet?.flags || [],
     flagsCount,
     flagThreshold: threshold,
     showBalance,
-    ratings: (wallet?.ratings || []).map((r: {
-      user: string;
-      score: number;
-      date: string;
-      text?: string;
-      approved?: boolean;
-      flagged?: boolean;
-      flaggedReason?: string;
-    }) => ({
+    ratings: (wallet?.ratings || []).map((r: any) => ({
       user: r.user,
       score: r.score,
       date: r.date,
@@ -261,10 +296,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       flaggedReason: r.flaggedReason,
     })),
     avgRating: wallet?.avgRating || 0,
-    transactions: returnedTxs,
-    ens: wallet?.ens || null,
+    transactions: pagedTxs,
     nftCount: returnedNftCount,
     lastRefreshed: wallet?.lastRefreshed || null,
     statusTags: getStatusTags(wallet),
-  });
+    // pagination meta
+    pagination: { total: totalTxs, page, pageSize, hasMore },
+  };
+
+  // write page-specific cache (short TTL)
+  try { await setCache(cacheKey, payload, 60); } catch {}
+
+  // short CDN cache + SWR
+  try { res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300'); } catch (err) {}
+
+  return res.status(200).json(payload);
 }

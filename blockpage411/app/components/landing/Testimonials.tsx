@@ -1,6 +1,6 @@
 "use client";
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import ClientOnlyMotion from '../ClientOnlyMotion';
 
 const testimonials = [
   { name: 'Alice', quote: 'Blockpage411 saved me from interacting with a scammer — accurate and fast.', avatar: '/logos/ethereum.png' },
@@ -26,10 +26,14 @@ export default function Testimonials() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {testimonials.map((t) => (
-          <motion.div
+          <ClientOnlyMotion
             key={t.name}
             className="p-6 rounded-2xl text-left"
-            whileHover={{ translateY: -6 }}
+            // ClientOnlyMotion forwards props to motion.div when available
+            // and falls back to a plain div during server render.
+            // whileHover will only take effect when framer-motion is loaded on the client.
+            data-while-hover
+            whileHover={{ translateY: -6 } as any}
             style={{
               background:
                 "radial-gradient(circle at top, rgba(34,197,94,0.1), transparent 55%), radial-gradient(circle at bottom right, rgba(56,189,248,0.12), transparent 60%), rgba(0,0,0,0.9)",
@@ -46,7 +50,7 @@ export default function Testimonials() {
               </div>
             </div>
             <p style={{ color: 'rgba(255,215,90,0.98)', lineHeight: 1.6 }}>&quot;{t.quote}&quot;</p>
-          </motion.div>
+          </ClientOnlyMotion>
         ))}
       </div>
     </section>

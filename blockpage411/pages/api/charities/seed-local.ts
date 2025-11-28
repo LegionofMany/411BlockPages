@@ -11,8 +11,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // allow in development or when explicitly allowed via query param
-  const allow = req.query.allow === '1' || req.query.allow === 'true' || process.env.NODE_ENV === 'development';
-  if (!allow) return res.status(403).json({ error: 'Seeding is disabled in this environment' });
+  // Protection guard: prefer SEED_SECRET when set. In development allow without secret for convenience.
+  const seedSecret = process.env.SEED_SECRET;
+  const providedSecret = String(req.query.secret ?? req.headers['x-seed-secret'] ?? '');
+  if (seedSecret) {
+    if (providedSecret !== seedSecret) return res.status(403).json({ error: 'Invalid seed secret' });
+  } else {
+    const allow = req.query.allow === '1' || req.query.allow === 'true' || process.env.NODE_ENV === 'development';
+    if (!allow) return res.status(403).json({ error: 'Seeding is disabled in this environment' });
+  }
 
   const dataPath = path.join(process.cwd(), 'data', 'charities.json');
   if (!fs.existsSync(dataPath)) return res.status(400).json({ error: 'data/charities.json missing' });

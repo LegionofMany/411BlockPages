@@ -1,5 +1,4 @@
 "use client";
-import { motion, Variants } from "framer-motion";
 
 function FeatureIcon({ label }: { label: string }) {
   return (
@@ -47,26 +46,12 @@ const features = [
 ];
 
 export default function FeaturesClient() {
-  const cardVariants: Variants = {
-    offscreen: {
-      opacity: 0,
-      y: 50,
-    },
-    onscreen: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: 'spring',
-        bounce: 0.4,
-        duration: 0.8,
-      },
-    },
-  };
 
   return (
     <section
       aria-labelledby="features-heading"
       className="relative py-16 md:py-24 overflow-hidden"
+      style={{ maxWidth: '1000px', marginLeft: 'auto', marginRight: 'auto' }}
     >
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.16)_0%,_rgba(15,23,42,0)_70%)] blur-3xl" />
@@ -93,13 +78,8 @@ export default function FeaturesClient() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-7">
           {features.map((feature, i) => (
-            <motion.article
+            <article
               key={feature.title}
-              initial="offscreen"
-              whileInView="onscreen"
-              viewport={{ once: true, amount: 0.45 }}
-              variants={cardVariants}
-              transition={{ delay: i * 0.06 }}
               className="group relative rounded-2xl px-5 py-6 overflow-hidden"
               style={{
                 backgroundColor: "rgba(0,0,0,0.88)",
@@ -147,7 +127,7 @@ export default function FeaturesClient() {
                   <span className="hidden sm:inline text-slate-500 group-hover:text-slate-300">Designed for security teams & DAOs</span>
                 </div>
               </div>
-            </motion.article>
+            </article>
           ))}
         </div>
       </div>
