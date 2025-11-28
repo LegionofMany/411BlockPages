@@ -8,6 +8,7 @@ type Tx = {
   from: string | null;
   to: string | null;
   value: string;
+  id?: string;
 };
 
 const NETWORKS: Record<string, { name: string; type?: "evm" | "solana" | "bitcoin"; wss?: string; rpc?: string; symbol: string; explorer?: string }> = {
@@ -64,6 +65,14 @@ type EvmTx = {
 };
 
 export default function RealTimeTransactions() {
+  const genId = () => {
+    try {
+      // prefer crypto.randomUUID when available
+      // @ts-ignore
+      if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') return (crypto as any).randomUUID();
+    } catch {}
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  };
   const [network, setNetwork] = useState<string>("ethereum");
   const [transactions, setTransactions] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(false);
@@ -111,6 +120,7 @@ export default function RealTimeTransactions() {
                 // log.signature is the tx signature
                 setTransactions((prev) => [
                   {
+                    id: genId(),
                     hash: log.signature || "unknown",
                     from: "Unknown",
                     to: "Unknown",
@@ -167,9 +177,9 @@ export default function RealTimeTransactions() {
               };
               // handle several possible shapes
               const txid = data.txid || data.x?.hash || data.data?.txid || data.tx?.hash;
-              if (txid) {
+                if (txid) {
                 setTransactions((prev) => [
-                  { hash: txid, from: "N/A", to: "N/A", value: net.symbol },
+                  { id: genId(), hash: txid, from: "N/A", to: "N/A", value: net.symbol },
                   ...prev,
                 ].slice(0, 25));
               }
@@ -213,6 +223,7 @@ export default function RealTimeTransactions() {
                   const asBigInt = typeof raw === "string" ? BigInt(raw) : (raw as bigint);
                   valueFormatted = `${ethers.formatEther(asBigInt)} ${net.symbol}`;
                   return {
+                    id: genId(),
                     hash: tx.hash,
                     from: tx.from ?? null,
                     to: tx.to ?? null,
@@ -257,6 +268,7 @@ export default function RealTimeTransactions() {
                 valueFormatted = `${ethers.formatEther(asBigInt)} ${net.symbol}`;
 
                 return {
+                  id: genId(),
                   hash: tx.hash,
                   from: tx.from ?? null,
                   to: tx.to ?? null,
@@ -293,6 +305,7 @@ export default function RealTimeTransactions() {
                     const asBigInt = typeof raw === "string" ? BigInt(raw) : (raw as bigint);
                     valueFormatted = `${ethers.formatEther(asBigInt)} ${net.symbol}`;
                     return {
+                      id: genId(),
                       hash: tx.hash,
                       from: tx.from ?? null,
                       to: tx.to ?? null,
@@ -393,9 +406,9 @@ export default function RealTimeTransactions() {
 
         <div className="max-h-96 overflow-y-auto pr-1 mt-2">
           <ul className="space-y-2">
-            {transactions.map((tx) => (
+            {transactions.map((tx, i) => (
               <li
-                key={tx.hash}
+                key={tx.id ?? `${tx.hash ?? 'unknown'}-${i}`}
                 className="rounded-xl px-3 py-2 text-sm flex flex-col gap-1 bg-slate-900/70 hover:bg-slate-900 transition-colors"
                 style={{ border: "none" }}
               >

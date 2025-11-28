@@ -74,6 +74,7 @@ export default function ChainCarousel() {
                     alt={c.name}
                     width={160}
                     height={160}
+                    unoptimized
                     className="object-contain"
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                     sizes="(max-width: 640px) 40vw, (max-width: 1024px) 20vw, 10vw"
