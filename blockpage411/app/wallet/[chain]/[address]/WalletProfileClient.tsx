@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import dynamic from 'next/dynamic';
 import ProfileInfo from "./ProfileInfo";
 import RiskMeter from "../../../components/RiskMeter";
+import RiskBadge from "../../../../components/RiskBadge";
 import StatusBadges from "./StatusBadges";
 import ShowTransactionsButton from "./ShowTransactionsButton";
 import DonationSectionSkeleton from './DonationSectionSkeleton';
@@ -35,14 +36,22 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   if (!data) return <div className="text-center py-10 text-cyan-200">Loading...</div>;
 
   const hasActiveDonation = data?.donationRequests?.some((d: DonationRequest) => d.active);
+  const avatarUrl: string | undefined = data?.nftAvatarUrl || data?.avatarUrl;
+  const riskScore: number | null = typeof data?.riskScore === 'number' ? data.riskScore : null;
+  const riskCategory = (data?.riskCategory || null) as 'green' | 'yellow' | 'red' | null;
 
   return (
     <div className="min-h-screen flex flex-col items-center">
       <main className="flex-1 w-full max-w-3xl px-4 py-8 mt-16" style={{ width: '100%', maxWidth: '920px' }}>
         <div className="rounded-xl shadow-md p-6" style={{ background: 'linear-gradient(180deg, #061026 0%, #071630 100%)', border: '1px solid rgba(99,102,241,0.06)', boxShadow: '0 6px 18px rgba(2,6,23,0.6)' }}>
           <V5UpgradeInfo />
-          <ProfileInfo displayName={data?.displayName} avatarUrl={data?.avatarUrl} address={address} chain={chain} />
-          <RiskMeter score={data?.riskScore} category={data?.riskCategory} />
+          <ProfileInfo displayName={data?.displayName} avatarUrl={avatarUrl} address={address} chain={chain} />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <RiskMeter score={riskScore ?? undefined} category={riskCategory ?? undefined} />
+            <div className="mt-2">
+              <RiskBadge score={riskScore} category={riskCategory || undefined} />
+            </div>
+          </div>
           <StatusBadges suspicious={data?.suspicious} popular={data?.popular} blacklisted={data?.blacklisted} flagsCount={data?.flags?.length} kycStatus={data?.kycStatus} verificationBadge={data?.verificationBadge} />
           <div className="my-6 border-t border-blue-800"></div>
 

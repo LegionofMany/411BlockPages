@@ -46,6 +46,7 @@ export interface RiskScoreInput {
 
 export function computeRiskScore(input: RiskScoreInput): { riskScore: number; riskCategory: string } {
   const {
+    wallet,
     verifiedLinksCount,
     flagsCount,
     ratingsAverage,
@@ -53,6 +54,13 @@ export function computeRiskScore(input: RiskScoreInput): { riskScore: number; ri
     txCount,
     lastTxWithinHours,
   } = input;
+
+  // If the wallet already has an explicit riskScore / riskCategory (admin override),
+  // always respect that instead of recomputing.
+  if (wallet && typeof wallet.riskScore === 'number' && wallet.riskCategory) {
+    const clamped = Math.max(0, Math.min(100, Math.round(wallet.riskScore)));
+    return { riskScore: clamped, riskCategory: wallet.riskCategory };
+  }
 
   // Base trust score from existing helper (0-100, higher is more trusted)
   const trustScore = computeTrustScore({ verifiedLinksCount, flagsCount });

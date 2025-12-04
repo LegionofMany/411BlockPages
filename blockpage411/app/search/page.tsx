@@ -34,6 +34,7 @@ export default function SearchPage() {
   const [openReportModal, setOpenReportModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [nftAvatarUrl, setNftAvatarUrl] = useState<string | null>(null);
 
   async function signAndVerify() {
     setErrorMessage(null);
@@ -119,6 +120,23 @@ export default function SearchPage() {
   }
 
   React.useEffect(() => { restoreMainInteractivity(); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMe() {
+      try {
+        const res = await fetch('/api/me', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.nftAvatarUrl) setNftAvatarUrl(data.nftAvatarUrl);
+      } catch {
+        // ignore
+      }
+    }
+    loadMe();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div
@@ -372,6 +390,51 @@ export default function SearchPage() {
 
           {/* Right column: helper card */}
           <aside className="space-y-4 mt-8 lg:mt-0">
+            <div
+              className="rounded-2xl p-3 md:p-4 shadow-lg shadow-black/40"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle_at_top,_rgba(34,197,94,0.32),transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(250,204,21,0.32),transparent_60%),rgba(3,7,18,0.96)',
+                border: '1px solid rgba(34,197,94,0.45)',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="relative rounded-xl overflow-hidden flex-shrink-0"
+                  style={{ width: '3.2rem', height: '3.2rem', background: 'radial-gradient(circle_at_top,_rgba(34,197,94,0.5),rgba(3,7,18,1))' }}
+                >
+                  {nftAvatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={nftAvatarUrl}
+                      alt="My NFT avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl" aria-hidden="true">
+                      📸
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: '#facc15' }}>
+                    My NFT photo
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: '#fefce8' }}>
+                    Your linked NFT from Profile is used as your identity photo across wallet and search.
+                  </p>
+                  {!nftAvatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => router.push('/profile')}
+                      className="mt-1.5 inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-slate-950 shadow-sm hover:bg-emerald-400"
+                    >
+                      Link NFT in Profile
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             <div
               className="rounded-2xl p-4 md:p-5 shadow-lg shadow-black/40 sticky top-[4.5rem]"
               style={{

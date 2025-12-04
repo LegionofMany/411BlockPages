@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from 'react-dom';
 import { usePathname } from "next/navigation";
 import Image from "next/image";
@@ -18,6 +18,8 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
   const [open, setOpen] = useState(false);
   const [btnHover, setBtnHover] = useState(false);
   const [btnPressed, setBtnPressed] = useState(false);
+  const [nftAvatarUrl, setNftAvatarUrl] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   // call hook unconditionally to satisfy rules-of-hooks
   const pathname = usePathname() || '';
 
@@ -31,9 +33,10 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     { href: '/profile', label: 'Profile', Icon: IconSignIn },
     { href: '/donate', label: 'Donate', Icon: IconDonate },
     { href: '/wallet/popular', label: 'Trending', Icon: IconTrending },
-    { href: '/admin', label: 'Admin', Icon: IconAdmin },
+    // admin links rendered conditionally once we know the user is admin
+    { href: '/admin', label: 'Admin', Icon: IconAdmin, show: isAdmin },
     // legacy/utility pages
-    { href: '/admin-actions', label: 'Admin Actions', Icon: IconActions },
+    { href: '/admin-actions', label: 'Admin Actions', Icon: IconActions, show: isAdmin },
     { href: '/login', label: 'Sign in', Icon: IconSignIn },
   ];
 
@@ -107,6 +110,34 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     };
   }, [open]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMe() {
+      try {
+        const res = await fetch('/api/me', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.nftAvatarUrl) setNftAvatarUrl(data.nftAvatarUrl);
+        const envAdmins = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '')
+          .split(',')
+          .map((w) => w.trim().toLowerCase())
+          .filter(Boolean);
+
+        const address: string | undefined = data?.address || data?.wallet || data?.user?.address;
+
+        const hasAdminFlag = data?.isAdmin === true || data?.admin === true || data?.role === 'admin';
+        const isAddressAdmin = !!(address && envAdmins.length && envAdmins.includes(address.toLowerCase()));
+
+        setIsAdmin(Boolean(hasAdminFlag || isAddressAdmin));
+      } catch {
+        // ignore
+      }
+    }
+    loadMe();
+    return () => { cancelled = true; };
+  }, []);
+
   // NavLinkItem is imported from ./NavLinkItem to keep markup consistent across desktop+mobile
 
   return (
@@ -120,20 +151,91 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
         </div>
 
         {/* Desktop links */}
-        <ul className="hidden md:flex gap-6 items-center list-none m-0 p-0">
-          {navItems.map((item) => {
-            if (item.show === false) return null;
-            const active = isActive(item.href);
-            return (
-              <li key={item.href}>
-                <NavLinkItem href={item.href} label={item.label} Icon={item.Icon} active={active} />
-              </li>
-            );
-          })}
-        </ul>
+        <div className="hidden md:flex items-center gap-4">
+          <ul className="flex gap-6 items-center list-none m-0 p-0">
+            {navItems.map((item) => {
+              if (item.show === false) return null;
+              const active = isActive(item.href);
+              return (
+                <li key={item.href}>
+                  <NavLinkItem href={item.href} label={item.label} Icon={item.Icon} active={active} />
+                </li>
+              );
+            })}
+          </ul>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="group relative inline-flex items-center gap-2 rounded-full px-3 py-1 border border-lime-300/80 bg-lime-400/20 hover:bg-lime-400/30 transition-colors shadow-[0_0_18px_rgba(190,242,100,0.55)]"
+              aria-label="Open admin dashboard"
+              title="Admin mode  in progress"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400/30 text-[11px] font-semibold text-emerald-200">
+                A
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime-200 group-hover:text-lime-50">
+                Admin
+              </span>
+              <span className="pointer-events-none absolute left-1/2 top-full z-[1300] -translate-x-1/2 translate-y-2 whitespace-nowrap rounded-md bg-black/95 px-3 py-1.5 text-[11px] font-medium text-lime-200 opacity-0 shadow-xl ring-1 ring-lime-300/60 transition-opacity group-hover:opacity-100 flex items-center gap-1.5">
+                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-lime-400/40 text-[9px] text-black">
+                  ✓
+                </span>
+                <span>Admin mode ��� in progress</span>
+              </span>
+            </Link>
+          )}
+          <Link
+            href="/profile"
+            className="group inline-flex items-center gap-2 rounded-full px-1.5 py-1 border border-emerald-400/40 bg-black/30 hover:bg-emerald-500/10 transition-colors"
+            aria-label="Open profile"
+          >
+            <div
+              className="relative rounded-full overflow-hidden flex-shrink-0"
+              style={{ width: '2.1rem', height: '2.1rem', background: 'radial-gradient(circle at 30% 0%, rgba(34,197,94,0.75), rgba(2,6,23,1))' }}
+            >
+              {nftAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={nftAvatarUrl} alt="My NFT avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-lg" aria-hidden="true">📸</div>
+              )}
+            </div>
+            <span className="pr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-200 group-hover:text-amber-100">
+              My NFT
+            </span>
+          </Link>
+        </div>
 
         {/* Mobile menu button */}
-        <div className="md:hidden flex items-center">
+        <div className="md:hidden flex items-center gap-2">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="inline-flex items-center justify-center rounded-full border border-emerald-500/60 bg-emerald-500/10 px-2 py-1 mr-1"
+              aria-label="Open admin dashboard"
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
+                Admin
+              </span>
+            </Link>
+          )}
+          <Link
+            href="/profile"
+            className="inline-flex items-center justify-center rounded-full border border-emerald-400/35 bg-black/40 p-1.5"
+            aria-label="Open profile"
+          >
+            <div
+              className="relative rounded-full overflow-hidden flex-shrink-0"
+              style={{ width: '1.9rem', height: '1.9rem', background: 'radial-gradient(circle at 30% 0%, rgba(34,197,94,0.75), rgba(2,6,23,1))' }}
+            >
+              {nftAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={nftAvatarUrl} alt="My NFT avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-base" aria-hidden="true">📸</div>
+              )}
+            </div>
+          </Link>
           <button
             aria-label="Toggle menu"
             aria-expanded={open}

@@ -28,6 +28,7 @@ export const profileUpdateSchema = z.object({
     })
     .partial()
     .optional(),
+  nftAvatarUrl: z.string().url().optional(),
   telegram: z.string().max(64).optional(),
   twitter: z.string().max(64).optional(),
   discord: z.string().max(64).optional(),

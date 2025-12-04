@@ -29,7 +29,10 @@ const AdminAutoPromotePage: React.FC = () => {
 
   return (
     <div style={{ padding: 24, maxWidth: '1000px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Auto-Promote Providers</h1>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: '#22c55e' }}>Admin mode · In progress</div>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>Auto-Promote Providers</h1>
+      </div>
       <p style={{ marginBottom: 12, color: '#9AA8B3' }}>Run the auto-promotion routine to mark providers as ready for outreach based on reports.</p>
       <div className="flex gap-3 mb-4">
         <button className="btn-primary" onClick={() => run(true)} disabled={loading}>Dry-run</button>
@@ -95,13 +98,15 @@ const AdminAutoPromotePage: React.FC = () => {
 export default AdminAutoPromotePage;
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { req } = context;
+  const { req, res } = context;
   try {
     if (!isAdminRequest(req as any)) {
-      return { redirect: { destination: '/login', permanent: false } };
+      res.statusCode = 404;
+      return { notFound: true };
     }
     return { props: {} };
   } catch (err) {
-    return { redirect: { destination: '/login', permanent: false } };
+    res.statusCode = 404;
+    return { notFound: true };
   }
 };

@@ -2,7 +2,20 @@ import Redis from 'ioredis';
 
 const url = process.env.REDIS_URL;
 let client: Redis | null = null;
-if (url) client = new Redis(url);
+
+// Respect DISABLE_REDIS flag used elsewhere in the app
+if (url && url !== 'DISABLE_REDIS') {
+  client = new Redis(url);
+  client.on('error', (err) => {
+    // Avoid throwing on connection issues; just log and keep going
+    // so callers can gracefully fall back when Redis is unavailable.
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[ioredis] connection error (redisCache):',
+      err instanceof Error ? err.message : err,
+    );
+  });
+}
 
 export async function getCache(key: string): Promise<unknown | null> {
   if (client) {

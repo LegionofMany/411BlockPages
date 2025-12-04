@@ -7,6 +7,7 @@ const UserSchema = new Schema({
   // v3 profile fields
   displayName: { type: String },
   avatarUrl: { type: String },
+  nftAvatarUrl: { type: String },
   bio: { type: String },
   telegram: { type: String },
   twitter: { type: String },

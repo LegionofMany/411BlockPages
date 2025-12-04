@@ -32,8 +32,11 @@ export default function AdminProvidersPage(){
   return (
     <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Providers — Admin</h1>
-        <div style={{ color: '#94A3B8', fontSize: 13 }}>Authenticated admin area</div>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: '#22c55e' }}>Admin mode · In progress</div>
+          <h1 style={{ fontSize: '20px', fontWeight: 700, marginTop: 4 }}>Providers — Admin</h1>
+        </div>
+        <div style={{ color: '#94A3B8', fontSize: 13 }}>Only visible to signed-in admins</div>
       </header>
       <div className="space-y-2">
         {list.map(p=> (
@@ -91,13 +94,15 @@ export default function AdminProvidersPage(){
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { req } = context;
+  const { req, res } = context;
   try {
     if (!isAdminRequest(req as any)) {
-      return { redirect: { destination: '/login', permanent: false } };
+      res.statusCode = 404;
+      return { notFound: true };
     }
     return { props: {} };
   } catch (err) {
-    return { redirect: { destination: '/login', permanent: false } };
+    res.statusCode = 404;
+    return { notFound: true };
   }
 };

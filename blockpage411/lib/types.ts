@@ -59,6 +59,7 @@ export interface UserProfile {
     widgetId?: string;
     charityId?: string;
   };
+  nftAvatarUrl?: string;
   kycStatus?: KycStatus;
   kycRequestedAt?: string;
   kycVerifiedAt?: string;

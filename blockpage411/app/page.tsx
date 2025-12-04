@@ -6,7 +6,6 @@ import Features from "./components/landing/Features";
 import ChainCarousel from "./components/landing/ChainCarousel";
 import SampleWallet from "./components/landing/SampleWallet";
 import PopularWallets from "./components/landing/PopularWallets";
-import RealTimeTransactions from "./components/landing/RealTimeTransactions";
 import Testimonials from "./components/landing/Testimonials";
 import LiveStats from "./components/landing/LiveStatsClient";
 import LandingSearchDemo from "./components/landing/LandingSearchDemo";

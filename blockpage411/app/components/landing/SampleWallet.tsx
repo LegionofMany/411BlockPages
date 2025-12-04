@@ -62,7 +62,7 @@ export default function SampleWallet() {
 
           <div className="w-full bg-slate-900/50 p-4 rounded-lg text-center">
             <p className="text-slate-300 text-sm">
-              Accepting Donations for Public Goods
+              Accepting donations for public services
             </p>
           </div>
         </div>

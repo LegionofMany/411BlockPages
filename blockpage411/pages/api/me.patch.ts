@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ message: 'User not found' });
   }
   // Only allow updating certain fields
-  const alwaysAllowed: (keyof import('../../lib/types').UserProfile)[] = ['displayName', 'avatarUrl', 'bio', 'donationRequests', 'featuredCharityId', 'activeEventId', 'donationLink', 'donationWidgetEmbed'];
+  const alwaysAllowed: (keyof import('../../lib/types').UserProfile)[] = ['displayName', 'avatarUrl', 'bio', 'donationRequests', 'featuredCharityId', 'activeEventId', 'donationLink', 'donationWidgetEmbed', 'nftAvatarUrl'];
   const kycGated: (keyof import('../../lib/types').UserProfile)[] = ['telegram', 'twitter', 'discord', 'website', 'phoneApps'];
   const updatedFields: (keyof import('../../lib/types').UserProfile)[] = [];
 

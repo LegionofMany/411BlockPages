@@ -93,11 +93,23 @@ export default function EditProfilePage() {
 
   return (
     <div className="min-h-screen">
-      <main className="max-w-3xl mx-auto p-6 pt-6">
-        <div className="mb-4">
-          <button onClick={() => router.back()} className="text-sm text-white hover:underline">← Back</button>
+      <main className="max-w-4xl mx-auto p-6 pt-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-black/40 px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-500/10"
+          >
+            <span className="text-[12px]"></span>
+            Back
+          </button>
+          <span className="text-[11px] uppercase tracking-[0.16em]" style={{ color: '#22c55e' }}>
+            Profile settings
+          </span>
         </div>
-        <h1 className="text-2xl font-bold mb-4">Edit Profile</h1>
+        <h1 className="text-2xl font-semibold mb-1" style={{ color: '#fefce8' }}>Edit profile</h1>
+        <p className="text-xs mb-4" style={{ color: '#9ca3af' }}>
+          Refine your public identity, social proofs, and charity presets.
+        </p>
 
         {loading ? (
           <div className="space-y-3">
@@ -106,17 +118,39 @@ export default function EditProfilePage() {
             <Skeleton className="h-24 w-full rounded" />
           </div>
         ) : (
-          <form onSubmit={save} className="space-y-6 bg-slate-900 p-6 rounded-lg border border-slate-800">
+          <form
+            onSubmit={save}
+            className="space-y-6 rounded-[1.5rem] p-6"
+            style={{
+              background:
+                'radial-gradient(circle at 0% 0%, rgba(34,197,94,0.1), transparent 55%), radial-gradient(circle at 100% 120%, rgba(56,189,248,0.12), transparent 60%), rgba(0,0,0,0.9)',
+              boxShadow: '0 22px 64px rgba(0,0,0,0.95)',
+              border: '1px solid rgba(15,23,42,0.9)',
+              maxWidth: '38rem',
+              width: '100%',
+              margin: '0 auto',
+            }}
+          >
             <div>
-              <label className="block text-xs text-slate-300 mb-1">Display name</label>
-              <input value={String(values.displayName ?? '')} onChange={e=>setValues({...values, displayName: e.target.value})} placeholder="Display name" className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
+              <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Display name</label>
+              <input
+                value={String(values.displayName ?? '')}
+                onChange={e=>setValues({...values, displayName: e.target.value})}
+                placeholder="Display name"
+                className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+              />
             </div>
             <div>
-              <label className="block text-xs text-slate-300 mb-1">Bio</label>
-              <textarea value={String(values.bio ?? '')} onChange={e=>setValues({...values, bio: e.target.value})} placeholder="Bio" className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
+              <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Bio</label>
+              <textarea
+                value={String(values.bio ?? '')}
+                onChange={e=>setValues({...values, bio: e.target.value})}
+                placeholder="Short description for your public profile"
+                className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+              />
             </div>
             <div>
-              <label className="block text-xs text-slate-300 mb-2">Telegram</label>
+              <label className="block text-[11px] text-slate-300 mb-2 font-medium uppercase tracking-[0.16em]">Telegram</label>
 
               <div className="flex gap-2 items-center">
                 <input value={String(values.telegram ?? '')} onChange={e=>setValues({...values, telegram: e.target.value})} placeholder="Telegram handle" className="flex-1 rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
@@ -132,7 +166,7 @@ export default function EditProfilePage() {
               {values.__telegramMsg ? <div className="text-sm text-slate-300 mt-1">{values.__telegramMsg}</div> : null}
             </div>
             <div>
-              <label className="block text-xs text-slate-300 mb-2">Twitter</label>
+              <label className="block text-[11px] text-slate-300 mb-2 font-medium uppercase tracking-[0.16em]">Twitter</label>
               <div className="flex gap-2 items-center">
                 <input value={String(values.twitter ?? '')} onChange={e=>setValues({...values, twitter: e.target.value})} placeholder="Twitter handle" className="flex-1 rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
                 <div className="text-sm text-slate-300">{values.twitter ? (values.twitterVerified ? <span className="text-emerald-300">Verified</span> : <span className="text-amber-300">Unverified</span>) : null}</div>
@@ -155,15 +189,15 @@ export default function EditProfilePage() {
               <input value={String(values.phoneApps ?? '')} onChange={e=>setValues({...values, phoneApps: e.target.value})} placeholder="Phone apps (comma separated) e.g. WhatsApp, Signal" className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
             </div>
 
-            <div className="pt-4 border-t border-slate-800 mt-4">
-              <h2 className="text-lg font-semibold mb-3 text-slate-100">Charity presets</h2>
-              <p className="text-sm text-slate-300 mb-4">
-                Highlight a featured charity and active event on your profile. These settings power your default donation call-to-action.
+            <div className="pt-4 border-t border-slate-800/80 mt-2">
+              <h2 className="text-lg font-semibold mb-1" style={{ color: '#fefce8' }}>Charity presets</h2>
+              <p className="text-xs text-slate-300 mb-4">
+                Choose which charity and campaign your profile promotes by default.
               </p>
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-1">Featured charity</label>
+                  <label className="block text-xs font-medium text-slate-200 mb-1 uppercase tracking-[0.12em]">Featured charity</label>
                   <select
                     value={String(values.featuredCharityId ?? '')}
                     onChange={e => setValues({ ...values, featuredCharityId: e.target.value })}
@@ -178,7 +212,7 @@ export default function EditProfilePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-1">Active event</label>
+                  <label className="block text-xs font-medium text-slate-200 mb-1 uppercase tracking-[0.12em]">Active event</label>
                   <select
                     value={String(values.activeEventId ?? '')}
                     onChange={e => setValues({ ...values, activeEventId: e.target.value })}
@@ -193,7 +227,7 @@ export default function EditProfilePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-1">Donation link (optional)</label>
+                  <label className="block text-xs font-medium text-slate-200 mb-1 uppercase tracking-[0.12em]">Donation link (optional)</label>
                   <input
                     value={String(values.donationLink ?? '')}
                     onChange={e => setValues({ ...values, donationLink: e.target.value })}
@@ -221,9 +255,20 @@ export default function EditProfilePage() {
               </div>
             </div>
             {error && <div className="text-red-400">{error}</div>}
-            <div className="flex gap-2">
-              <button disabled={saving} className="px-4 py-2 bg-emerald-600 text-white rounded-full">{saving ? 'Saving...' : 'Save'}</button>
-              <button type="button" onClick={()=>router.push('/')} className="px-4 py-2 bg-gray-700 text-white rounded-full">Cancel</button>
+            <div className="flex gap-3 pt-2">
+              <button
+                disabled={saving}
+                className="px-5 py-2.5 bg-emerald-500 text-slate-950 rounded-full text-sm font-semibold shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              >
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+              <button
+                type="button"
+                onClick={()=>router.push('/')}
+                className="px-4 py-2.5 bg-slate-800 text-slate-100 rounded-full text-sm hover:bg-slate-700"
+              >
+                Cancel
+              </button>
             </div>
           </form>
         )}

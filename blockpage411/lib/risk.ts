@@ -6,9 +6,18 @@ export type WalletLike = Document & {
   flags?: Array<{ reason?: string }>;
   txCount?: number;
   kycStatus?: string;
+  riskScore?: number;
+  riskCategory?: string;
 };
 
 export function computeRiskScore(wallet: WalletLike) {
+  // Admin overrides: if a riskScore/riskCategory are already set on the wallet,
+  // respect them and return early so automated logic does not fight overrides.
+  if (typeof wallet.riskScore === 'number' && wallet.riskCategory) {
+    const clamped = Math.max(0, Math.min(100, Math.round(wallet.riskScore)));
+    return { score: clamped, category: wallet.riskCategory as 'black' | 'red' | 'yellow' | 'green' } as const;
+  }
+
   // Start with a base score (100 = highest risk)
   let score = 100;
   // blacklisted -> immediate high risk

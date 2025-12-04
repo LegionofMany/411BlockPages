@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import RealTimeTransactions from "../components/landing/RealTimeTransactions";
+import LiveFeed from "../../components/LiveFeed/LiveFeed";
 
 export default function RealTimeTransactionsPage() {
   return (
@@ -26,7 +26,7 @@ export default function RealTimeTransactionsPage() {
               deep links in a single professional console.
             </p>
           </header>
-          <RealTimeTransactions />
+          <LiveFeed />
         </div>
       </main>
     </div>

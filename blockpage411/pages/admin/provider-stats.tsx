@@ -41,7 +41,10 @@ export default function ProviderStats(){
   return (
     <div style={{ padding: 24, maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700 }}>Provider Stats</h1>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: '#22c55e' }}>Admin mode · In progress</div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>Provider Stats</h1>
+        </div>
         <button onClick={handleExport} disabled={exporting} style={{ marginLeft: 12, background: '#2563EB', color: '#fff', padding: '8px 12px', borderRadius: 6, opacity: exporting ? 0.6 : 1 }}>
           {exporting ? 'Downloading...' : 'Export CSV'}
         </button>
@@ -58,4 +61,18 @@ export default function ProviderStats(){
       </table>
     </div>
   );
-}
+} 
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { req, res } = context;
+  try {
+    if (!isAdminRequest(req as any)) {
+      res.statusCode = 404;
+      return { notFound: true };
+    }
+    return { props: {} };
+  } catch (err) {
+    res.statusCode = 404;
+    return { notFound: true };
+  }
+};

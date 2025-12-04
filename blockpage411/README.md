@@ -134,6 +134,7 @@ GIVINGBLOCK_BASE_URL=https://public-api.sandbox.thegivingblock.com
 GIVINGBLOCK_WEBHOOK_SECRET=...
 GIVINGBLOCK_ENCRYPTION_KEY=...
 GIVINGBLOCK_ENCRYPTION_IV=...
+NEXT_PUBLIC_ADMIN_WALLETS=0xAdminWallet1,0xAdminWallet2
 ```
 
 ### 4. Seed Exchange List
@@ -160,6 +161,24 @@ Visit [http://localhost:3000/search](http://localhost:3000/search)
 npm run build
 npm run start
 ```
+
+---
+
+## 🛡️ Risk Scoring & Admin Overrides
+
+The app includes a wallet **risk scoring system** and a dedicated **admin risk page**:
+
+- `GET /api/wallet/risk` — returns a computed risk score and category for any wallet.
+- `GET /api/wallet/[chain]/[address]` — now includes `riskScore` and `riskCategory` fields in the payload.
+- `app/admin/risk` — admin-only UI listing high-risk wallets with inline override controls.
+
+To grant access to the risk admin page and other admin tools, configure:
+
+```bash
+NEXT_PUBLIC_ADMIN_WALLETS=0xAdmin1,0xAdmin2
+```
+
+These addresses are matched (checksummed/normalized) in the client and also validated on the server via `/api/admin/check`. Only wallets in this list with a valid admin session will be able to load `/admin` and `/admin/risk`.
 
 ---
 

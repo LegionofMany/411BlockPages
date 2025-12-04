@@ -236,17 +236,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // compute risk and persist a short audit history
   try {
     if (wallet) {
-  // computeRiskScore expects a WalletLike; cast wallet document to WalletLike safely
-  const input = wallet as unknown as WalletLike;
-  const { score, category } = computeRiskScore(input);
-      const nowRisk = new Date();
-      // push a short history entry and update latest fields
-      await Wallet.updateOne({ _id: wallet._id }, {
-        $set: { riskScore: score, riskCategory: category, lastRiskAt: nowRisk },
-        $push: { riskHistory: { date: nowRisk, score, category, note: 'auto' } }
-      }).exec();
-      // refresh the wallet object with new risk fields
-      wallet = await Wallet.findOne({ address, chain });
+      // If an admin has explicitly set riskScore/riskCategory, do not overwrite it.
+      const hasOverride = typeof (wallet as any).riskScore === 'number' && (wallet as any).riskCategory;
+
+      if (!hasOverride) {
+        // computeRiskScore expects a WalletLike; cast wallet document to WalletLike safely
+        const input = wallet as unknown as WalletLike;
+        const { score, category } = computeRiskScore(input);
+        const nowRisk = new Date();
+        // push a short history entry and update latest fields
+        await Wallet.updateOne({ _id: wallet._id }, {
+          $set: { riskScore: score, riskCategory: category, lastRiskAt: nowRisk },
+          $push: { riskHistory: { date: nowRisk, score, category, note: 'auto' } }
+        }).exec();
+        // refresh the wallet object with new risk fields
+        wallet = await Wallet.findOne({ address, chain });
+      }
     }
   } catch (err) {
     console.error('[risk] compute/persist error', err);
@@ -281,6 +286,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const payload = {
     address: wallet?.address || address,
     chain: wallet?.chain || chain,
+    riskScore: (wallet as any)?.riskScore ?? null,
+    riskCategory: (wallet as any)?.riskCategory ?? null,
     providerLabel,
     flags: wallet?.flags || [],
     flagsCount,
