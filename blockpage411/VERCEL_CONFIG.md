@@ -24,6 +24,4 @@ Example `vercel.json`:
     { "path": "/api/poller/run", "schedule": "*/15 * * * *" }
   ]
 }
-```
 
-If you want, I can add this as a section to `README.md` instead or create a short CI check that warns when `.ts` occurs in `vercel.json` keys.

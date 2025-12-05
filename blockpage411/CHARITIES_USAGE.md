@@ -105,4 +105,3 @@ If you want me to:
 
 Contact
 
-If anything above fails or you want enhancements, tell me which change you'd like next and I'll implement it.

@@ -52,5 +52,3 @@ Note: history rewrites rewrite commits — coordinate with your team and follow 
   - Create a new key/secret in the service provider's console.
   - Update your deployment environment variables (e.g., in Vercel, Render, or Docker secrets) with the new value.
   - If you had to rewrite git history, rotate tokens used by CI/CD systems and update deploy keys.
-
-If you want, I can add a small automated migration script that creates the TTL index for AdminAction explicitly (instead of relying on Mongoose auto-indexing during app startup), or add example `git filter-repo` commands tailored to files we detect.
