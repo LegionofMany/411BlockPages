@@ -12,6 +12,7 @@ export interface CharityDocument extends Document {
   tags?: string[];
   categories?: string[];
   givingBlockEmbedUrl?: string;
+  hidden?: boolean;
   createdAt: Date;
 }
 
@@ -27,6 +28,7 @@ const CharitySchema = new Schema<CharityDocument>({
   tags: [{ type: String }],
   categories: [{ type: String }],
   givingBlockEmbedUrl: { type: String },
+  hidden: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 

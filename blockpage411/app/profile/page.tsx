@@ -235,9 +235,10 @@ export default function ProfilePage() {
     }
     try {
       setConnectingWallet(true);
-      const accounts = await eth.request({ method: 'eth_requestAccounts' });
-      if (Array.isArray(accounts) && accounts.length > 0) {
-        const addr = accounts[0];
+      const accounts = (await eth.request({ method: 'eth_requestAccounts' })) as unknown;
+      const list = Array.isArray(accounts) ? (accounts as string[]) : [];
+      if (list.length > 0) {
+        const addr = list[0];
         setWalletAddress(addr);
         // Automatically fetch NFTs for the connected wallet
         setNftsLoading(true);
@@ -255,8 +256,14 @@ export default function ProfilePage() {
       } else {
         setNftError('No accounts returned from MetaMask.');
       }
-    } catch (err) {
-      setNftError((err as Error)?.message || 'Failed to connect wallet');
+    } catch (err: any) {
+      const msg = (err && (err.message as string | undefined)) || '';
+      const lower = msg.toLowerCase();
+      if (lower.includes('user rejected') || lower.includes('rejected')) {
+        setNftError('Connection request was cancelled in MetaMask.');
+      } else {
+        setNftError(msg || 'Failed to connect wallet');
+      }
     } finally {
       setConnectingWallet(false);
     }

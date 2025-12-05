@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { getAddress } from 'ethers';
+import { usePathname } from "next/navigation";
 
 import AdminWalletsTable from "../components/admin/AdminWalletsTable";
 import FlaggedWalletsTable from "../components/admin/FlaggedWalletsTable";
@@ -10,6 +11,7 @@ import ContentModerationTable from "../components/admin/ContentModerationTable";
 import RecentTransactionsTable from "../components/admin/RecentTransactionsTable";
 import SystemSettingsPanel from "../components/admin/SystemSettingsPanel";
 import AdminStatsCards from "../components/admin/AdminStatsCards";
+import AdminLayout from "../components/admin/AdminLayout";
 // local minimal Ethereum provider shape for typings
 type EthereumProvider = {
   on?: (event: string, callback: (...args: unknown[]) => void) => void;
@@ -22,6 +24,7 @@ export default function AdminPage() {
   const [adminWallet, setAdminWallet] = useState<string>("");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [checked, setChecked] = useState(false);
+  const pathname = usePathname() || '/admin';
   // router not used here; admin auth is client+server checked
   // const router = useRouter();
 
@@ -45,15 +48,10 @@ export default function AdminPage() {
           try { return getAddress(a); } catch { return a.toLowerCase().trim(); }
         });
 
-      console.log("[ADMIN DEBUG] Wallet:", wallet);
-      console.log("[ADMIN DEBUG] Admin Wallets:", adminWallets);
-
       if (wallet && adminWallets.map(a => (a || "").toLowerCase().trim()).includes((wallet || "").toLowerCase().trim())) {
         setIsAdmin(true);
-        console.log("[ADMIN DEBUG] Access granted");
       } else {
         setIsAdmin(false);
-        console.log("[ADMIN DEBUG] Access denied");
       }
       setChecked(true);
     }
@@ -68,19 +66,17 @@ export default function AdminPage() {
           const body = await res.json();
           if (body && body.isAdmin) {
             setIsAdmin(true);
-            console.log('[ADMIN DEBUG] Server-side access granted for', body.address);
           } else {
             // only set false if server explicitly says not admin
             setIsAdmin(false);
-            console.log('[ADMIN DEBUG] Server-side access denied', body && body.allowed ? body.allowed : 'no-list');
           }
           // if server responded we can trust its decision
           setChecked(true);
         } else {
-          console.log('[ADMIN DEBUG] Server admin check failed', res.status);
+          // non-ok response; leave client-side result in place
         }
       } catch (err) {
-        console.warn('[ADMIN DEBUG] Server admin check error', err);
+        // ignore network errors; fall back to client-side check
       }
     }
     checkServerAdmin();
@@ -119,7 +115,7 @@ export default function AdminPage() {
   }, []);
 
   if (!checked) {
-    return <div className="text-center py-10 text-cyan-200">Checking admin access...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-black text-cyan-200">Checking admin access...</div>;
   }
   if (!isAdmin) {
     return (
@@ -143,54 +139,53 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-transparent">
-      <main className="flex-1 w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-10 mt-16">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-cyan-300">Admin Dashboard</h1>
-          <div className="text-sm text-cyan-200">Signed in as <span className="font-mono ml-2">{adminWallet || '(none)'}</span></div>
+    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
+      <section className="mb-6">
+        <h2 className="text-xl md:text-2xl font-semibold text-amber-100 mb-1">
+          Overview
+        </h2>
+        <p className="text-sm text-slate-300/90">
+          Quick glance at risk, flags, fundraisers, and admin activity.
+        </p>
+      </section>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="rounded-3xl bg-black/70 border border-emerald-500/25 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
+          <AdminStatsCards />
         </div>
+        <div className="rounded-3xl bg-black/70 border border-amber-400/25 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4 md:col-span-2">
+          <h3 className="text-sm font-semibold text-amber-100 mb-3">Recent Transactions</h3>
+          <RecentTransactionsTable />
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Main column */}
-          <div className="md:col-span-2 space-y-6">
-            <div className="card">
-              <RecentTransactionsTable />
-            </div>
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="rounded-3xl bg-black/70 border border-emerald-500/25 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
+          <h3 className="text-sm font-semibold text-emerald-200 mb-3">Flagged Transactions</h3>
+          <FlaggedTransactionsTable adminWallet={adminWallet} />
+        </div>
+        <div className="rounded-3xl bg-black/70 border border-emerald-500/25 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
+          <h3 className="text-sm font-semibold text-emerald-200 mb-3">Flagged Wallets</h3>
+          <FlaggedWalletsTable adminWallet={adminWallet} />
+        </div>
+      </section>
 
-            <div className="card">
-              <FlaggedTransactionsTable adminWallet={adminWallet} />
-            </div>
-
-            <div className="card">
-              <FlaggedWalletsTable adminWallet={adminWallet} />
-            </div>
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-3xl bg-black/70 border border-slate-600/40 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
+          <h3 className="text-sm font-semibold text-slate-100 mb-3">Content Moderation</h3>
+          <ContentModerationTable />
+        </div>
+        <div className="rounded-3xl bg-black/70 border border-slate-600/40 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
+          <h3 className="text-sm font-semibold text-slate-100 mb-3">Admin Activity Log</h3>
+          <AuditLogTable adminWallet={adminWallet} />
+          <div className="mt-3 rounded-2xl bg-slate-900/80 border border-slate-700/60 p-3 text-[11px] text-slate-300">
+            <p className="font-semibold text-slate-100 mb-1">Quick links</p>
+            <p className="mb-1">Use the sidebar to jump to charities, fundraisers, risk, and reports.</p>
+            <p>Only wallets listed in <span className="font-mono">NEXT_PUBLIC_ADMIN_WALLETS</span> with a valid session can access these tools.</p>
           </div>
-
-          {/* Sidebar */}
-          <aside className="md:col-span-1 space-y-6">
-            <div className="card">
-              <AdminStatsCards />
-            </div>
-
-            <div className="card">
-              <SystemSettingsPanel />
-            </div>
-
-            <div className="card">
-              <ContentModerationTable />
-            </div>
-
-            <div className="card">
-              <AdminWalletsTable />
-            </div>
-
-            <div className="card">
-              <AuditLogTable adminWallet={adminWallet} />
-            </div>
-          </aside>
         </div>
-      </main>
-    </div>
+      </section>
+    </AdminLayout>
   );
 }
 

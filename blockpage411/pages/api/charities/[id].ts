@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '../../../lib/db';
 import Charity from '../../../models/Charity';
 import { getCache, setCache } from '../../../lib/redisCache';
+import mongoose from 'mongoose';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
@@ -22,8 +23,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // ignore cache errors
   }
 
-  const byId = await Charity.findOne({ $or: [{ _id: id }, { givingBlockId: id }, { name: id }] }).lean();
+  const orClauses: Record<string, unknown>[] = [
+    { givingBlockId: id },
+    { charityId: id },
+    { name: id },
+  ];
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    orClauses.unshift({ _id: id });
+  }
+
+  const byId = await Charity.findOne({ $or: orClauses }).lean();
   if (!byId) return res.status(404).json({ error: 'Not found' });
-  try { await setCache(`charity:${id}`, byId, 3600); } catch {}
+  // cache individual charity lookups for ~15 minutes
+  try { await setCache(`charity:${id}`, byId, 900); } catch {}
   return res.status(200).json({ charity: byId });
 }

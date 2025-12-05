@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
-import CharityCard from '../../components/CharityCard';
+import CharityGrid from '../../components/charities/CharityGrid';
 import Navbar from '../../app/components/Navbar';
 import Footer from '../../app/components/Footer';
 import ThemeProvider from '../../app/components/ThemeProvider';
@@ -8,6 +8,9 @@ import ThemeProvider from '../../app/components/ThemeProvider';
 export default function CharitiesPage() {
   const [list, setList] = useState<Record<string, unknown>[] | null>(null);
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(24);
+  const [total, setTotal] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
 
@@ -15,13 +18,20 @@ export default function CharitiesPage() {
     setErr(null);
     setList(null);
     try {
-      const res = await fetch(`/api/charities?q=${encodeURIComponent(q)}`);
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      params.set('page', String(page));
+      params.set('pageSize', String(pageSize));
+      const res = await fetch(`/api/charities?${params.toString()}`);
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const js = await res.json() as unknown;
-      if (Array.isArray(js)) setList(js as Record<string, unknown>[]);
-      else {
+      if (Array.isArray(js)) {
+        setList(js as Record<string, unknown>[]);
+        setTotal(null);
+      } else {
         const obj = js as Record<string, unknown>;
         setList((obj.results as Record<string, unknown>[]) || []);
+        if (typeof obj.total === 'number') setTotal(obj.total as number);
       }
     } catch (e: unknown) {
       const errMsg = e && typeof e === 'object' && Object.prototype.hasOwnProperty.call(e, 'message') ? String((e as Record<string, unknown>)['message']) : String(e);
@@ -30,7 +40,7 @@ export default function CharitiesPage() {
     }
   };
 
-  useEffect(() => { load(); }, [q]);
+  useEffect(() => { load(); }, [q, page]);
 
   async function seedLocal() {
     if (!confirm('Seed sample charities into the local database? This action is intended for development.')) return;
@@ -51,57 +61,84 @@ export default function CharitiesPage() {
     <ThemeProvider>
       <div className="flex flex-col items-center justify-center min-h-screen bg-black">
         <Navbar />
-        <main id="charities-page" className="flex-1 w-full max-w-6xl mx-auto p-6 pt-20 rounded-md" style={{ background: 'linear-gradient(135deg,#071127 0%, #0b1330 100%)', color: '#f8fafc' }}>
+        <main
+          id="charities-page"
+          className="flex-1 w-full max-w-6xl mx-auto rounded-3xl px-4 pb-10 pt-24 sm:px-6 lg:px-8"
+          style={{
+            background:
+              'radial-gradient(circle at top left, rgba(16,185,129,0.35), transparent 55%), radial-gradient(circle at bottom right, rgba(6,95,70,0.6), #020617 70%)',
+          }}
+        >
       <Head>
         <title>Charities — Blockpage411</title>
         <meta name="description" content="Browse verified charities and donate using on-chain wallets or The Giving Block embeds." />
         <meta name="og:title" content="Charities — Blockpage411" />
       </Head>
 
-      <h1 className="text-2xl font-bold mb-4" style={{ color: '#ffffff' }}>Charities</h1>
-      {/* force-override styles in case global layout or utility classes are more specific */}
-      <style jsx global>{`
-        #charities-page {
-          background: linear-gradient(135deg,#071127 0%, #0b1330 100%) !important;
-          color: #f8fafc !important;
-        }
-        /* ensure headings and body text within the charities page are highly legible */
-        #charities-page h1,
-        #charities-page h2,
-        #charities-page p,
-        #charities-page .text-slate-300,
-        #charities-page .text-slate-400,
-        #charities-page .muted {
-          color: #e6eef8 !important;
-        }
-        /* darken card backgrounds inside this page to improve contrast */
-        #charities-page .rounded-lg,
-        #charities-page .card {
-          background-color: rgba(8,12,24,0.64) !important;
-          border-color: rgba(124,58,237,0.10) !important;
-        }
-      `}</style>
+      <h1 className="mb-2 text-3xl font-extrabold tracking-tight text-emerald-100 sm:text-4xl">Verified Charities</h1>
+      <p className="mb-6 max-w-2xl text-sm text-emerald-100/80">
+        Discover audited nonprofits and donate directly on-chain. All donations are peer-to-peer  you always control your wallet.
+      </p>
 
-      <div className="mb-4 flex gap-2 items-center">
-        <input placeholder="Search charities" value={q} onChange={e=>setQ(e.target.value)} className="input flex-1" />
-        <button className="btn" onClick={() => load()}>Refresh</button>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex-1">
+          <input
+            placeholder="Search charities by name or category"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-10 w-full rounded-full border border-emerald-500/40 bg-black/70 px-4 text-sm text-emerald-100 placeholder:text-emerald-500/70 shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-400"
+          />
+        </div>
+        <button
+          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-black shadow hover:from-emerald-300 hover:to-emerald-500"
+          onClick={() => load()}
+        >
+          Refresh
+        </button>
         {process.env.NODE_ENV !== 'production' ? (
           <button className="btn btn-secondary" onClick={() => seedLocal()} disabled={seeding}>{seeding ? 'Seeding…' : 'Seed sample (dev)'}</button>
         ) : null}
       </div>
 
       {err ? (
-        <div className="p-4 rounded bg-red-900/40 text-red-200">Error loading charities: {err}</div>
+        <div className="mt-4 rounded-xl border border-red-500/40 bg-red-900/40 p-4 text-sm text-red-100">
+          Error loading charities: {err}
+        </div>
       ) : list === null ? (
-        <div className="p-6 text-center text-slate-200">Loading charities…</div>
+        <div className="mt-6 text-center text-sm text-emerald-100">Loading charities</div>
       ) : list.length === 0 ? (
-        <div className="p-6 text-center text-slate-200">
+        <div className="mt-6 text-center text-sm text-emerald-100">
           No charities found. You can seed sample data for development using the button above, or connect a real database and seed from The Giving Block.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {list.map(c => <CharityCard key={String(c['_id'] ?? c['name'] ?? '')} charity={c} />)}
-        </div>
+        <>
+          <CharityGrid charities={list as any} />
+          {total && total > pageSize ? (
+            <div className="mt-6 flex items-center justify-between text-xs text-emerald-100/80">
+              <div>
+                Page {page} of {Math.ceil(total / pageSize)}
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="rounded-full border border-emerald-500/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => (total ? Math.min(Math.ceil(total / pageSize), p + 1) : p + 1))}
+                  disabled={total ? page >= Math.ceil(total / pageSize) : false}
+                  className="rounded-full border border-emerald-500/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
         </main>
         <Footer />

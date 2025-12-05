@@ -32,7 +32,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     { href: '/realtime-transactions', label: 'Live Feed', Icon: IconTrending },
     { href: '/profile', label: 'Profile', Icon: IconSignIn },
     { href: '/donate', label: 'Donate', Icon: IconDonate },
-    { href: '/wallet/popular', label: 'Trending', Icon: IconTrending },
+    { href: '/trending', label: 'Trending', Icon: IconTrending },
     // admin links rendered conditionally once we know the user is admin
     { href: '/admin', label: 'Admin', Icon: IconAdmin, show: isAdmin },
     // legacy/utility pages
