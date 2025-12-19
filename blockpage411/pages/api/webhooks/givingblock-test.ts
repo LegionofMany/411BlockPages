@@ -5,6 +5,14 @@ const WEBHOOK_URL = process.env.GIVINGBLOCK_WEBHOOK_URL || `${process.env.NEXT_P
 const WEBHOOK_SECRET = process.env.GIVINGBLOCK_WEBHOOK_SECRET || '';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Safety guard: this helper should never be reachable in production.
+  // It can generate valid signed webhook requests using your secret,
+  // so we hard-disable it when NODE_ENV === 'production'.
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).end('Not Found');
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     res.status(405).end('Method Not Allowed');
