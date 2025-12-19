@@ -6,6 +6,7 @@ const adminNav: Array<{ href: string; label: string }> = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/charities", label: "Charities" },
   { href: "/admin/fundraisers", label: "Fundraisers" },
+  { href: "/admin/givingblock-donations", label: "GivingBlock Donations" },
   { href: "/admin/risk", label: "Wallet Risk Scores" },
   { href: "/admin/alerts", label: "Flags / Reports" },
   { href: "/admin/popular-wallets", label: "Trending Wallets" },

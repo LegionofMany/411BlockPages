@@ -18,7 +18,8 @@
     "test": "jest --config jest.config.js --runInBand",
     "test:swc-load": "node scripts/test_swc_load.js",
     "pretest": "echo \"Skipping lint in pretest; run npm run lint manually when needed\"",
-    "migrate:pledge:index": "ts-node scripts/migrate_pledge_index.ts"
+    "migrate:pledge:index": "ts-node scripts/migrate_pledge_index.ts",
+    "test:givingblock:webhook": "ts-node scripts/send_givingblock_webhook.ts"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.20.0",

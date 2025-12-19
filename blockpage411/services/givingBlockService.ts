@@ -7,9 +7,14 @@ const WEBHOOK_SECRET = process.env.GIVINGBLOCK_WEBHOOK_SECRET || '';
 const ENCRYPTION_KEY = process.env.GIVINGBLOCK_ENCRYPTION_KEY || '';
 const ENCRYPTION_IV = process.env.GIVINGBLOCK_ENCRYPTION_IV || '';
 
-if (!API_KEY) {
+// New token-based auth credentials (Public API user)
+const USERNAME = process.env.GIVINGBLOCK_USERNAME || '';
+const PASSWORD = process.env.GIVINGBLOCK_PASSWORD || '';
+
+// In production, prefer the login/refresh flow over a static API key.
+if (!API_KEY && (!USERNAME || !PASSWORD)) {
   // eslint-disable-next-line no-console
-  console.warn('GIVINGBLOCK_API_KEY is not set');
+  console.warn('GivingBlock credentials are not fully configured (no API key and no username/password)');
 }
 
 export interface GivingBlockCharityApi {
@@ -32,14 +37,7 @@ export interface NormalizedCharity {
 }
 
 export async function fetchCharities(page = 1): Promise<{ charities: NormalizedCharity[]; hasMore: boolean }> {
-  const url = `${BASE_URL}/v1/charities?page=${page}`;
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    cache: 'no-store',
-  });
+  const res = await authorizedGivingBlockFetch(`/v1/charities?page=${page}`);
 
   if (!res.ok) {
     throw new Error(`GivingBlock API error ${res.status}`);
@@ -50,6 +48,142 @@ export async function fetchCharities(page = 1): Promise<{ charities: NormalizedC
   const current = data.meta?.current_page ?? page;
   const last = data.meta?.last_page ?? current;
   return { charities, hasMore: current < last };
+}
+
+// --- Auth helpers for Public API user (login + refresh tokens) ---
+
+let cachedAccessToken: string | null = null;
+let cachedRefreshToken: string | null = null;
+
+async function loginAndGetTokens(): Promise<{ accessToken: string; refreshToken: string }> {
+  if (!USERNAME || !PASSWORD) {
+    throw new Error('GivingBlock username/password are not configured');
+  }
+
+  const loginUrl = `${BASE_URL}/v1/login`;
+  const res = await fetch(loginUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // API expects fields named `login` and `password` for the Public API user
+    body: JSON.stringify({ login: USERNAME, password: PASSWORD }),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const text = await res.text();
+      if (text) detail = `: ${text.slice(0, 300)}`;
+    } catch {
+      // ignore body parse errors
+    }
+    throw new Error(`GivingBlock login failed ${res.status}${detail}`);
+  }
+
+  const body = (await res.json()) as any;
+  const accessToken = body.accessToken || body.access_token;
+  const refreshToken = body.refreshToken || body.refresh_token;
+
+  if (!accessToken || !refreshToken) {
+    throw new Error('GivingBlock login response missing access/refresh tokens');
+  }
+
+  cachedAccessToken = accessToken;
+  cachedRefreshToken = refreshToken;
+  return { accessToken, refreshToken };
+}
+
+async function refreshTokens(): Promise<string> {
+  if (!cachedRefreshToken) {
+    const { accessToken } = await loginAndGetTokens();
+    return accessToken;
+  }
+
+  const refreshUrl = `${BASE_URL}/v1/refresh-tokens`;
+  const res = await fetch(refreshUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: cachedRefreshToken }),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    // Fallback: clear tokens so next call will re-login
+    cachedAccessToken = null;
+    cachedRefreshToken = null;
+    throw new Error(`GivingBlock refreshTokens failed ${res.status}`);
+  }
+
+  const body = (await res.json()) as any;
+  const newAccessToken = body.accessToken || body.access_token;
+  const newRefreshToken = body.refreshToken || body.refresh_token;
+
+  if (!newAccessToken || !newRefreshToken) {
+    throw new Error('GivingBlock refreshTokens response missing access/refresh tokens');
+  }
+
+  cachedAccessToken = newAccessToken;
+  cachedRefreshToken = newRefreshToken;
+  return newAccessToken;
+}
+
+async function getAccessToken(): Promise<string | null> {
+  // If legacy API key is configured, prefer that path (no token flow).
+  if (API_KEY) return null;
+
+  if (cachedAccessToken) return cachedAccessToken;
+  const { accessToken } = await loginAndGetTokens();
+  return accessToken;
+}
+
+async function authorizedGivingBlockFetch(path: string, init?: RequestInit): Promise<Response> {
+  const url = `${BASE_URL}${path}`;
+  const baseHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+
+  // Legacy behavior: static API key if provided.
+  if (API_KEY) {
+    return fetch(url, {
+      ...init,
+      headers: { ...baseHeaders, Authorization: `Bearer ${API_KEY}` },
+      cache: 'no-store',
+    });
+  }
+
+  // Token-based auth: login + refresh token flow.
+  let token = await getAccessToken();
+  if (!token) {
+    throw new Error('GivingBlock access token is not available');
+  }
+
+  let res = await fetch(url, {
+    ...init,
+    headers: { ...baseHeaders, Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+
+  if (res.ok) return res;
+
+  // If token expired, try refresh once based on error code.
+  try {
+    const cloned = res.clone();
+    const errBody = (await cloned.json().catch(() => null)) as any;
+    const code = errBody && (errBody.code || errBody.errorCode || errBody.error);
+    if (code === 'EXPIREDJWTTOKEN') {
+      token = await refreshTokens();
+      res = await fetch(url, {
+        ...init,
+        headers: { ...baseHeaders, Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+    }
+  } catch {
+    // ignore JSON parse errors and fall through
+  }
+
+  return res;
 }
 
 export function normalizeCharity(apiCharity: GivingBlockCharityApi): NormalizedCharity {

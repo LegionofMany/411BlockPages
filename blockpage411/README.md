@@ -159,6 +159,23 @@ npm run build
 npm run start
 ```
 
+### 7. One-Time Production Charity Seeding
+
+For production (for example on https://www.blockpages411.com) you can import the same curated starter charities that are used locally:
+
+1. **Set a strong `SEED_SECRET` in your hosting environment** (Vercel → Project → Environment Variables):
+
+   - Key: `SEED_SECRET`
+   - Value: a long random string (do not commit this to git)
+
+2. **Run the seed endpoint once against production** from your terminal or Postman, replacing `YOUR_SEED_SECRET`:
+
+   ```bash
+   curl -X POST "https://www.blockpages411.com/api/charities/seed-local?secret=YOUR_SEED_SECRET"
+   ```
+
+This will upsert the curated charities from `data/charities.json` into your production MongoDB. Subsequent runs are idempotent (existing charities are updated, not duplicated).
+
 ---
 
 ## 🛡️ Risk Scoring & Admin Overrides

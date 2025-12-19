@@ -1,50 +1,57 @@
 [
-  {
-    "name": "Sample Health Charity",
-    "mission": "Providing urgent medical care to those in need.",
-    "website": "https://example.org",
-    "logo": "/icons/charity-placeholder.svg",
-    "donationWidget": "",
-    "cryptoWalletAddress": "0x0000000000000000000000000000000000000000"
-  },
-  {
-    "name": "Sample Education Fund",
-    "mission": "Supporting education projects worldwide.",
-    "website": "https://example-edu.org",
-    "logo": "/icons/charity-placeholder.svg",
-    "donationWidget": "",
-    "cryptoWalletAddress": ""
-  }
-]
-[
+	{
+		"id": "local-sample-1",
+		"name": "Global Health Relief",
+		"mission": "Providing urgent medical care and life-saving supplies to conflict and disaster zones.",
+		"website": "https://health-relief.example.org",
+		"logo": "/icons/charity-placeholder.svg",
+		"donationWidget": "https://donate.thegivingblock.com/widget/sample-health",
+		"cryptoWalletAddress": "0x0000000000000000000000000000000000000000",
+		"tags": ["health", "emergency", "global"],
+		"categories": ["Health", "Emergency Aid"]
+	},
+	{
+		"id": "local-sample-2",
+		"name": "Education For Every Child",
+		"mission": "Funding digital classrooms, scholarships, and teacher training in underserved communities.",
+		"website": "https://education-everywhere.example.org",
+		"logo": "/icons/charity-placeholder.svg",
+		"donationWidget": "https://donate.thegivingblock.com/widget/sample-education",
+		"cryptoWalletAddress": "0x0000000000000000000000000000000000000002",
+		"tags": ["education", "children", "digital"],
+		"categories": ["Education"]
+	},
 	{
 		"id": "tgb-sample-1",
 		"name": "Neighborhood Relief Fund",
 		"mission": "Providing emergency relief and recovery support to local communities.",
 		"website": "https://example-relief.org",
-		"logoUrl": "https://via.placeholder.com/120x40.png?text=Relief",
+		"logo": "/icons/charity-placeholder.svg",
 		"cryptoWalletAddress": "0x0000000000000000000000000000000000000001",
 		"donationWidget": "https://donate.thegivingblock.com/widget/sample1",
-		"tags": ["disaster", "community"]
+		"tags": ["disaster", "community"],
+		"categories": ["Relief", "Community"]
 	},
 	{
 		"id": "tgb-sample-2",
 		"name": "Education For All",
 		"mission": "Supporting remote learning and educational resources for underserved children.",
 		"website": "https://example-edu.org",
-		"logoUrl": "https://via.placeholder.com/120x40.png?text=Edu",
+		"logo": "/icons/charity-placeholder.svg",
 		"cryptoWalletAddress": "0x0000000000000000000000000000000000000002",
 		"donationWidget": "https://donate.thegivingblock.com/widget/sample2",
-		"tags": ["education", "children"]
+		"tags": ["education", "children"],
+		"categories": ["Education", "Children"]
 	},
 	{
 		"id": "tgb-sample-3",
 		"name": "Conservation Trust",
 		"mission": "Protecting habitats and supporting biodiversity projects worldwide.",
 		"website": "https://example-conserve.org",
-		"logoUrl": "https://via.placeholder.com/120x40.png?text=Conserve",
+		"logo": "/icons/charity-placeholder.svg",
 		"cryptoWalletAddress": "0x0000000000000000000000000000000000000003",
 		"donationWidget": "https://donate.thegivingblock.com/widget/sample3",
-		"tags": ["environment", "wildlife"]
+		"tags": ["environment", "wildlife"],
+		"categories": ["Environment", "Wildlife"]
 	}
 ]

@@ -34,15 +34,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const c = raw as Record<string, unknown>;
       const name = String(c.name ?? '');
       const q = { name };
-      const update = { $set: {
+      const tags = (c as any).tags;
+      const categories = (c as any).categories;
+      const update: any = { $set: {
         givingBlockId: String(c.id ?? c.givingBlockId ?? ''),
         name,
         description: String(c.mission ?? c.description ?? ''),
         website: String(c.website ?? c.url ?? ''),
-        logo: String(c.logoUrl ?? c.logo ?? ''),
-        givingBlockEmbedUrl: String(c.donationWidget ?? c.embed ?? ''),
-        wallet: String(c.cryptoWalletAddress ?? c.wallet ?? '')
+        logo: String((c as any).logoUrl ?? (c as any).logo ?? ''),
+        givingBlockEmbedUrl: String((c as any).donationWidget ?? (c as any).embed ?? ''),
+        wallet: String((c as any).cryptoWalletAddress ?? (c as any).wallet ?? '')
       }};
+      if (Array.isArray(tags)) update.$set.tags = tags;
+      if (Array.isArray(categories)) update.$set.categories = categories;
       const opt = { upsert: true };
   const r = await Charity.updateOne(q, update, opt);
   const rObj = r as unknown as Record<string, unknown>;

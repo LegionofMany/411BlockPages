@@ -8,6 +8,7 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
   if (req.method === 'GET') {
     const q = String(req.query.q || '').trim();
+    const category = String(req.query.category || '').trim();
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
     const pageSizeRaw = parseInt(String(req.query.pageSize || '24'), 10) || 24;
     const pageSize = Math.min(Math.max(6, pageSizeRaw), 60);
@@ -17,7 +18,11 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
       filter.name = { $regex: q, $options: 'i' };
     }
 
-    const cacheKey = `charities:list:q=${encodeURIComponent(q)}:p=${page}:s=${pageSize}`;
+    if (category) {
+      filter.categories = { $in: [category] };
+    }
+
+    const cacheKey = `charities:list:q=${encodeURIComponent(q)}:cat=${encodeURIComponent(category)}:p=${page}:s=${pageSize}`;
 
     try {
       const cached = (await getCache(cacheKey)) as

@@ -13,6 +13,7 @@ export default function CharitiesPage() {
   const [total, setTotal] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
 
   const load = async () => {
     setErr(null);
@@ -20,6 +21,7 @@ export default function CharitiesPage() {
     try {
       const params = new URLSearchParams();
       if (q) params.set('q', q);
+      if (category) params.set('category', category);
       params.set('page', String(page));
       params.set('pageSize', String(pageSize));
       const res = await fetch(`/api/charities?${params.toString()}`);
@@ -40,10 +42,10 @@ export default function CharitiesPage() {
     }
   };
 
-  useEffect(() => { load(); }, [q, page]);
+  useEffect(() => { load(); }, [q, page, category]);
 
   async function seedLocal() {
-    if (!confirm('Seed sample charities into the local database? This action is intended for development.')) return;
+    if (!confirm('Import curated starter charities into the database? This is typically run once on a new environment.')) return;
     setSeeding(true);
     try {
       const r = await fetch('/api/charities/seed-local?allow=1', { method: 'POST' });
@@ -96,9 +98,47 @@ export default function CharitiesPage() {
           Refresh
         </button>
         {process.env.NODE_ENV !== 'production' ? (
-          <button className="btn btn-secondary" onClick={() => seedLocal()} disabled={seeding}>{seeding ? 'Seeding…' : 'Seed sample (dev)'}</button>
-        ) : null}
+    <button className="btn btn-secondary" onClick={() => seedLocal()} disabled={seeding}>{seeding ? 'Seeding…' : 'Import starter charities'}</button>
+  ) : null}
       </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] text-emerald-100/80">
+        <span className="mr-1 uppercase tracking-[0.16em] text-emerald-300/80">Filter:</span>
+        <button
+          type="button"
+          onClick={() => { setCategory(null); setPage(1); }}
+          className={`rounded-full border border-emerald-500/40 px-3 py-1 font-semibold uppercase tracking-[0.16em] transition-colors ${!category ? 'bg-emerald-400 text-black' : 'text-emerald-100/80 hover:bg-emerald-500/10'}`}
+        >
+          All
+        </button>
+        {['Health', 'Education', 'Environment'].map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => { setCategory(cat); setPage(1); }}
+            className={`rounded-full border border-emerald-500/40 px-3 py-1 font-semibold uppercase tracking-[0.16em] transition-colors ${category === cat ? 'bg-emerald-400 text-black' : 'text-emerald-100/80 hover:bg-emerald-500/10'}`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {(q || category) && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-emerald-100/80">
+          <div>
+            <span className="font-semibold text-emerald-300/90">Active filters:</span>{' '}
+            {q && <span className="mr-2">Search = "{q}"</span>}
+            {category && <span>Category = {category}</span>}
+          </div>
+          <button
+            type="button"
+            onClick={() => { setQ(''); setCategory(null); setPage(1); }}
+            className="rounded-full border border-emerald-500/40 px-3 py-1 font-semibold uppercase tracking-[0.16em] text-emerald-100/80 hover:bg-emerald-500/10"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
 
       {err ? (
         <div className="mt-4 rounded-xl border border-red-500/40 bg-red-900/40 p-4 text-sm text-red-100">
