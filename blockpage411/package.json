@@ -38,7 +38,7 @@
     "ioredis": "^5.8.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.1",
-    "next": "15.5.7",
+    "next": "15.5.9",
     "pino-pretty": "^10.1.0",
     "react-modal": "^3.16.3",
     "swr": "^2.3.6",
