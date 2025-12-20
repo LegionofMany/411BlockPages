@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../../components/admin/AdminLayout";
+import useAdminWallet from "../../hooks/useAdminWallet";
 
 type PledgeRow = {
   _id?: string;
@@ -19,6 +20,7 @@ type PledgeRow = {
 
 export default function AdminGivingBlockDonationsPage() {
   const pathname = usePathname() || "/admin/givingblock-donations";
+  const { adminWallet } = useAdminWallet();
   const [items, setItems] = useState<PledgeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export default function AdminGivingBlockDonationsPage() {
   }
 
   return (
-    <AdminLayout currentPath={pathname} adminWallet="">
+    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
       <section className="mb-6 max-w-6xl">
         <h2 className="text-xl md:text-2xl font-semibold text-emerald-100 mb-1">
           Incoming GivingBlock Donations

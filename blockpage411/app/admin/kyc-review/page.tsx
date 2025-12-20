@@ -2,12 +2,14 @@
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../../components/admin/AdminLayout";
+import useAdminWallet from "../../hooks/useAdminWallet";
 
 export default function KycReview() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pathname = usePathname() || "/admin/kyc-review";
+  const { adminWallet } = useAdminWallet();
 
   useEffect(() => {
     (async () => {
@@ -49,20 +51,20 @@ export default function KycReview() {
 
   if (loading)
     return (
-      <AdminLayout currentPath={pathname} adminWallet="">
+      <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
         <div className="text-sm text-slate-300">Loading pending social verifications…</div>
       </AdminLayout>
     );
 
   if (error)
     return (
-      <AdminLayout currentPath={pathname} adminWallet="">
+      <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
         <div className="text-sm text-red-400">{error}</div>
       </AdminLayout>
     );
 
   return (
-    <AdminLayout currentPath={pathname} adminWallet="">
+    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
       <section className="mb-6 max-w-5xl">
         <h2 className="text-xl md:text-2xl font-semibold text-emerald-100 mb-1">
           Pending Social Verifications

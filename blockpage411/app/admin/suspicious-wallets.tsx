@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../components/admin/AdminLayout";
+import useAdminWallet from "../hooks/useAdminWallet";
 
 type SuspiciousWallet = {
   address: string;
@@ -14,6 +15,7 @@ export default function SuspiciousWalletsDashboard() {
   const [wallets, setWallets] = useState<SuspiciousWallet[]>([]);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname() || "/admin/suspicious-wallets";
+  const { adminWallet } = useAdminWallet();
   useEffect(() => {
     async function fetchWallets() {
       setLoading(true);
@@ -25,7 +27,7 @@ export default function SuspiciousWalletsDashboard() {
     fetchWallets();
   }, []);
   return (
-    <AdminLayout currentPath={pathname} adminWallet="">
+    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
       <section className="mb-6 max-w-6xl">
         <h2 className="text-xl md:text-2xl font-semibold text-red-100 mb-1">Suspicious Wallet Monitoring</h2>
         <p className="text-sm text-slate-300/90">

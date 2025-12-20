@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../components/admin/AdminLayout";
+import useAdminWallet from "../hooks/useAdminWallet";
 
 type PopularWallet = {
   address: string;
@@ -14,6 +15,7 @@ export default function PopularWalletsDashboard() {
   const [wallets, setWallets] = useState<PopularWallet[]>([]);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname() || "/admin/popular-wallets";
+  const { adminWallet } = useAdminWallet();
   useEffect(() => {
     async function fetchWallets() {
       setLoading(true);
@@ -25,7 +27,7 @@ export default function PopularWalletsDashboard() {
     fetchWallets();
   }, []);
   return (
-    <AdminLayout currentPath={pathname} adminWallet="">
+    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
       <section className="mb-6 max-w-6xl">
         <h2 className="text-xl md:text-2xl font-semibold text-amber-100 mb-1">Trending & Popular Wallets</h2>
         <p className="text-sm text-slate-300/90">

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../../components/admin/AdminLayout";
+import useAdminWallet from "../../hooks/useAdminWallet";
 
 interface Fundraiser {
   id: string;
@@ -21,6 +22,7 @@ interface Fundraiser {
 
 export default function AdminFundraisersPage() {
   const pathname = usePathname() || "/admin/fundraisers";
+  const { adminWallet } = useAdminWallet();
   const [fundraisers, setFundraisers] = useState<Fundraiser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export default function AdminFundraisersPage() {
   };
 
   return (
-    <AdminLayout currentPath={pathname} adminWallet="">
+    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
       <section className="mb-6 max-w-6xl">
         <h2 className="text-xl md:text-2xl font-semibold text-emerald-100 mb-1">
           Fundraisers Admin

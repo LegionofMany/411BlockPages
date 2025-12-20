@@ -4,6 +4,7 @@
 import useSWR from "swr";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../components/admin/AdminLayout";
+import useAdminWallet from "../hooks/useAdminWallet";
 
 function fetcher(url: string) {
   return fetch(url).then((res) => res.json());
@@ -12,23 +13,24 @@ function fetcher(url: string) {
 export default function AdminDashboard() {
   const { data, error } = useSWR("/api/admin/summary", fetcher);
   const pathname = usePathname() || "/admin/dashboard";
+  const { adminWallet } = useAdminWallet();
 
   if (error)
     return (
-      <AdminLayout currentPath={pathname} adminWallet="">
+      <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
         <div className="text-sm text-red-400">Error loading dashboard.</div>
       </AdminLayout>
     );
 
   if (!data)
     return (
-      <AdminLayout currentPath={pathname} adminWallet="">
+      <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
         <div className="text-sm text-slate-300">Loading dashboard…</div>
       </AdminLayout>
     );
 
   return (
-    <AdminLayout currentPath={pathname} adminWallet="">
+    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
       <section className="mb-6 max-w-6xl">
         <h2 className="text-xl md:text-2xl font-semibold text-emerald-100 mb-1">
           Signals Overview

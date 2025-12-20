@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../../components/admin/AdminLayout";
+import useAdminWallet from "../../hooks/useAdminWallet";
 
 type CharityRow = {
   _id?: string;
@@ -19,6 +20,7 @@ type CharityRow = {
 
 export default function AdminCharitiesAppPage() {
   const pathname = usePathname() || "/admin/charities";
+  const { adminWallet } = useAdminWallet();
   const [items, setItems] = useState<CharityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,7 +161,7 @@ export default function AdminCharitiesAppPage() {
   }
 
   return (
-    <AdminLayout currentPath={pathname} adminWallet="">
+    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
       <section className="mb-6 max-w-6xl">
         <h2 className="text-xl md:text-2xl font-semibold text-amber-100 mb-1">
           Charity Directory Management

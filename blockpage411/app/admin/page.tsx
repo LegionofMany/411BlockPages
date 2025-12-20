@@ -1,6 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { getAddress } from 'ethers';
+import React from "react";
 import { usePathname } from "next/navigation";
 
 import AdminWalletsTable from "../components/admin/AdminWalletsTable";
@@ -12,107 +11,14 @@ import RecentTransactionsTable from "../components/admin/RecentTransactionsTable
 import SystemSettingsPanel from "../components/admin/SystemSettingsPanel";
 import AdminStatsCards from "../components/admin/AdminStatsCards";
 import AdminLayout from "../components/admin/AdminLayout";
-// local minimal Ethereum provider shape for typings
-type EthereumProvider = {
-  on?: (event: string, callback: (...args: unknown[]) => void) => void;
-  removeListener?: (event: string, callback: (...args: unknown[]) => void) => void;
-  request?: (...args: unknown[]) => Promise<unknown>;
-};
+import useAdminWallet from "../hooks/useAdminWallet";
 
 
 export default function AdminPage() {
-  const [adminWallet, setAdminWallet] = useState<string>("");
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [checked, setChecked] = useState(false);
+  const { adminWallet, isAdmin, checked } = useAdminWallet();
   const pathname = usePathname() || '/admin';
   // router not used here; admin auth is client+server checked
   // const router = useRouter();
-
-  useEffect(() => {
-    // central check function so we can re-run on events
-    function checkAdmin() {
-      if (typeof window === "undefined") return;
-      const raw = localStorage.getItem("wallet") || "";
-      let wallet = raw;
-      // normalize using ethers to ensure checksummed form; fall back to raw lowercase
-      try {
-        wallet = getAddress(raw || "");
-      } catch {
-        wallet = (raw || "").toLowerCase().trim();
-      }
-      setAdminWallet(wallet || "");
-
-      const adminWallets = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || "")
-        .split(",")
-        .map(a => {
-          try { return getAddress(a); } catch { return a.toLowerCase().trim(); }
-        });
-
-      if (wallet && adminWallets.map(a => (a || "").toLowerCase().trim()).includes((wallet || "").toLowerCase().trim())) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
-      setChecked(true);
-    }
-
-    checkAdmin();
-
-    // also verify server-side JWT session so client cannot spoof admin by writing localStorage
-    async function checkServerAdmin() {
-      try {
-        const res = await fetch('/api/admin/check');
-        if (res.ok) {
-          const body = await res.json();
-          if (body && body.isAdmin) {
-            setIsAdmin(true);
-          } else {
-            // only set false if server explicitly says not admin
-            setIsAdmin(false);
-          }
-          // if server responded we can trust its decision
-          setChecked(true);
-        } else {
-          // non-ok response; leave client-side result in place
-        }
-      } catch (err) {
-        // ignore network errors; fall back to client-side check
-      }
-    }
-    checkServerAdmin();
-
-    // react to localStorage changes (other tabs or code writing to localStorage)
-    function onStorage(e: StorageEvent) {
-      if (!e.key || e.key === 'wallet') checkAdmin();
-    }
-    window.addEventListener('storage', onStorage);
-
-  // react to injected provider account changes
-  const eth = (window as unknown as { ethereum?: EthereumProvider }).ethereum;
-    function onAccountsChanged(...args: unknown[]) {
-      // injected provider may call with (accounts) or other shapes; normalize safely
-      const maybe = args[0];
-      const accounts = Array.isArray(maybe) ? (maybe as string[]) : [];
-      // if accounts array empty, clear; else take first
-      if (!accounts || accounts.length === 0) {
-        localStorage.removeItem('wallet');
-      } else {
-        // store normalized address
-        try { localStorage.setItem('wallet', getAddress(accounts[0])); }
-        catch { localStorage.setItem('wallet', accounts[0].toLowerCase()); }
-      }
-      checkAdmin();
-    }
-
-    if (eth && eth.on) {
-      eth.on('accountsChanged', onAccountsChanged);
-    }
-
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      if (eth && eth.removeListener) eth.removeListener('accountsChanged', onAccountsChanged);
-    };
-  }, []);
 
   if (!checked) {
     return <div className="min-h-screen flex items-center justify-center bg-black text-cyan-200">Checking admin access...</div>;
