@@ -7,6 +7,10 @@ const WEBHOOK_SECRET = process.env.GIVINGBLOCK_WEBHOOK_SECRET || '';
 const ENCRYPTION_KEY = process.env.GIVINGBLOCK_ENCRYPTION_KEY || '';
 const ENCRYPTION_IV = process.env.GIVINGBLOCK_ENCRYPTION_IV || '';
 
+// NOTE: Outbound auth prefers either a static API key (Bearer)
+// or the Public API login + refresh token flow. Basic auth is
+// handled only in utils/givingblock.ts for the legacy orgs helper.
+
 // New token-based auth credentials (Public API user)
 const USERNAME = process.env.GIVINGBLOCK_USERNAME || '';
 const PASSWORD = process.env.GIVINGBLOCK_PASSWORD || '';
@@ -40,7 +44,14 @@ export async function fetchCharities(page = 1): Promise<{ charities: NormalizedC
   const res = await authorizedGivingBlockFetch(`/v1/charities?page=${page}`);
 
   if (!res.ok) {
-    throw new Error(`GivingBlock API error ${res.status}`);
+    let detail = '';
+    try {
+      const text = await res.text();
+      if (text) detail = `: ${text.slice(0, 300)}`;
+    } catch {
+      // ignore body parse errors
+    }
+    throw new Error(`GivingBlock API error ${res.status}${detail}`);
   }
 
   const data = (await res.json()) as { data: GivingBlockCharityApi[]; meta?: { current_page?: number; last_page?: number } };
