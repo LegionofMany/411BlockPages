@@ -41,7 +41,10 @@ export interface NormalizedCharity {
 }
 
 export async function fetchCharities(page = 1): Promise<{ charities: NormalizedCharity[]; hasMore: boolean }> {
-  const res = await authorizedGivingBlockFetch(`/v1/charities?page=${page}`);
+  // The Giving Block Public API exposes nonprofits via GET /v1/organizations/list.
+  // This endpoint currently returns the full list without supporting pagination
+  // parameters such as `page`, so we intentionally omit any query string.
+  const res = await authorizedGivingBlockFetch('/v1/organizations/list');
 
   if (!res.ok) {
     let detail = '';
@@ -54,11 +57,31 @@ export async function fetchCharities(page = 1): Promise<{ charities: NormalizedC
     throw new Error(`GivingBlock API error ${res.status}${detail}`);
   }
 
-  const data = (await res.json()) as { data: GivingBlockCharityApi[]; meta?: { current_page?: number; last_page?: number } };
-  const charities = data.data.map(normalizeCharity);
-  const current = data.meta?.current_page ?? page;
-  const last = data.meta?.last_page ?? current;
-  return { charities, hasMore: current < last };
+  const json = (await res.json()) as any;
+
+  // Public API may return an array at the root, or wrap it under
+  // `data`, `organizations`, or `data.organizations`. Handle the
+  // common shapes defensively instead of assuming one contract.
+  let rawList: unknown;
+  if (Array.isArray(json)) {
+    rawList = json;
+  } else if (Array.isArray(json?.data)) {
+    rawList = json.data;
+  } else if (Array.isArray(json?.organizations)) {
+    rawList = json.organizations;
+  } else if (Array.isArray(json?.data?.organizations)) {
+    rawList = json.data.organizations;
+  } else {
+    // eslint-disable-next-line no-console
+    console.error('[GivingBlock] Unexpected organizations/list response shape', json);
+    throw new Error('GivingBlock organizations/list response has unexpected shape');
+  }
+
+  const charities = (rawList as GivingBlockCharityApi[]).map(normalizeCharity);
+
+  // Organizations list endpoint currently returns the full list in one call.
+  // Expose a hasMore flag for the sync loop, but it will always be false.
+  return { charities, hasMore: false };
 }
 
 // --- Auth helpers for Public API user (login + refresh tokens) ---
@@ -72,6 +95,14 @@ async function loginAndGetTokens(): Promise<{ accessToken: string; refreshToken:
   }
 
   const loginUrl = `${BASE_URL}/v1/login`;
+  // Non-sensitive debug to verify env wiring
+  // eslint-disable-next-line no-console
+  console.log('[GivingBlock] login debug', {
+    baseUrl: BASE_URL,
+    username: USERNAME,
+    passwordLength: PASSWORD.length,
+  });
+
   const res = await fetch(loginUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -92,8 +123,10 @@ async function loginAndGetTokens(): Promise<{ accessToken: string; refreshToken:
   }
 
   const body = (await res.json()) as any;
-  const accessToken = body.accessToken || body.access_token;
-  const refreshToken = body.refreshToken || body.refresh_token;
+  // API may return tokens at top level or nested under `data`
+  const tokenSource = body?.data ?? body;
+  const accessToken = tokenSource.accessToken || tokenSource.access_token;
+  const refreshToken = tokenSource.refreshToken || tokenSource.refresh_token;
 
   if (!accessToken || !refreshToken) {
     throw new Error('GivingBlock login response missing access/refresh tokens');
@@ -126,8 +159,9 @@ async function refreshTokens(): Promise<string> {
   }
 
   const body = (await res.json()) as any;
-  const newAccessToken = body.accessToken || body.access_token;
-  const newRefreshToken = body.refreshToken || body.refresh_token;
+  const tokenSource = body?.data ?? body;
+  const newAccessToken = tokenSource.accessToken || tokenSource.access_token;
+  const newRefreshToken = tokenSource.refreshToken || tokenSource.refresh_token;
 
   if (!newAccessToken || !newRefreshToken) {
     throw new Error('GivingBlock refreshTokens response missing access/refresh tokens');

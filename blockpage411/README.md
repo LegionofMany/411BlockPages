@@ -1,247 +1,201 @@
+# Blockpage411
 
-✅ The **three-field wallet search page (wallet, exchange, receiving address)**
-✅ The **auto-prefilled dropdown** for top 100 exchanges (with “Other” option)
-✅ The **flag/report workflow**
-✅ The **user rating system (thumbs up/down + 5-star + comment)**
-✅ The **wallet privacy rules (hide assets until flagged)**
-✅ The **trust meter + transparency escalation**
-✅ The **vision for exchange collaboration once 100k users are reached**
+Real-time crypto donation transparency and wallet reputation for donors, nonprofits, and compliance teams.
 
----
+Live product: https://www.blockpages411.com
 
-# 🧠 Blockpage411 — Next-Gen Wallet Reputation & Exchange Collaboration Platform
-
-Blockpage411 is a multi-chain wallet intelligence platform designed to help users **search, flag, and rate** blockchain wallet addresses, while maintaining **user privacy** and building **trust-based relationships** with major cryptocurrency exchanges.
+Blockpage411 turns fragmented, opaque crypto donation flows into a single, transparent view. Donors can quickly verify where funds are going, nonprofits can prove impact, and compliance teams can monitor risk across wallets, campaigns, and chains.
 
 ---
 
-## 🚀 Key Features (New Vision)
+## 1. Product Overview (Investor-Friendly)
 
-### 🔍 Enhanced Search & Reporting Page (`/search`)
+### Problem
 
-The search page now includes **three fields**:
+Crypto donations are growing, but today they are:
 
-1. **Your Wallet Address** — the user’s personal address
-2. **Exchange (Prefilled Dropdown)** — select your wallet’s source exchange (e.g., Coinbase, Binance, Netcoins, Shakepay, etc.)
+- Hard to verify end-to-end (from donor wallet to nonprofit use).
+- Fragmented across chains, custodians, and donation platforms.
+- Opaque for compliance and risk teams who must justify decisions to regulators.
 
-   * Prefilled with **Top 100 Cryptocurrency Exchanges** (sourced from CoinMarketCap)
-   * Includes **“Other”** option where users can manually add missing exchanges or cold storages
-   * Future updates will promote frequently added “Other” entries to the default list once 100K requests are reached
-3. **Receiving Wallet Address** — the wallet you sent funds to, which can be flagged or reported
+### Solution
 
-**Actions on this page:**
+Blockpage411 is a real-time crypto donation intelligence layer that:
 
-* Search any wallet address
-* Flag or report a suspicious address
-* Automatically record user-exchange associations for analytical tracking
+- Aggregates Giving Block donation data, on-chain transactions, and internal risk signals.
+- Normalizes them into human-readable profiles for wallets, charities, fundraisers, and campaigns.
+- Exposes this as a web dashboard and API for:
+  - Donors and philanthropy teams.
+  - Nonprofits and campaign operators.
+  - Compliance, risk, and investigations.
 
----
+### What you can do with Blockpage411
 
-### 🧾 Exchange Integration & Growth Vision
+- Search any supported wallet and see donations, counterparties, and risk context in seconds.
+- Browse a curated directory of Giving Block charities and fundraisers with live on-chain activity.
+- Track live crypto donations and flows across multiple chains.
+- Use the admin console as an internal risk and operations cockpit.
 
-Once the user base reaches **100K verified reports per exchange**, the platform will:
+### At a glance
 
-* Initiate **collaborations with exchanges** for direct data integrations
-* Enable verified exchanges to interact directly with user reports and transparency requests
-* Use the **Top 100 exchange dataset** (stored in `data/exchanges.json`) for dropdown population and analytics
+- **Chains supported:** Ethereum, Polygon, BNB Chain, Solana, Tron.
+- **Primary integration:** The Giving Block (Public API + encrypted webhooks).
+- **Core user groups:** Donors, nonprofits, compliance/risk teams, investigators.
+- **Key use cases:** Due diligence on donation destinations, proving impact, monitoring suspicious flows, internal risk review.
+- **Data sources:** Giving Block events, on-chain transactions, internal risk heuristics.
+- **Delivery:** Cloud-hosted web app plus internal APIs.
 
----
+### Investor FAQ
 
-### 👤 User Profiles & Ratings
+**What is the business model?**  
+Blockpage411 is designed for B2B/B2G SaaS: paid seats for nonprofits, exchanges, and compliance teams, with potential tiered access to analytics and APIs.
 
-Each wallet profile now includes:
+**How is this different from generic blockchain explorers?**  
+Traditional explorers show raw transactions. Blockpage411 is donation- and nonprofit-centric, with curated Giving Block data, wallet-level risk, and operator workflows (admin console, reviews, alerts).
 
-* **Thumbs Up/Down** quick trust indicator
-* **5-Star Rating** with optional comment
-* **Flag/Report button** for fraudulent or suspicious activity
-* **Track Meter (Trust Index)** showing community reputation over time
+**Who is the first integration partner?**  
+The Giving Block: we ingest their encrypted webhooks and public API, enabling real-time visibility into crypto donations to vetted nonprofits.
 
-**Privacy Controls:**
+**How does this help with regulation and compliance?**  
+By centralizing donation flows, risk scores, and counterparties, compliance teams get an auditable view of wallets and campaigns that supports KYC/AML and reporting obligations.
 
-* Wallet **balances and assets remain hidden** by default
-* Assets become **visible only when the wallet is heavily flagged** (for investigation and transparency)
-* This prevents malicious actors from targeting high-value wallets (extortion protection)
-
----
-
-### 🧩 Reporting Workflow
-
-When a user reports a suspicious address:
-
-1. They must confirm ownership of their own wallet (“This account must be yours before you continue ⚠️”).
-2. The user signs the report using wallet signature (MetaMask, Coinbase, WalletConnect).
-3. The system associates their exchange and address to track network patterns.
-4. Multiple reports from verified users trigger transparency escalation:
-
-   * Yellow ⚠️ (moderate suspicion)
-   * Red 🔴 (confirmed scam, partial transparency)
-   * Black ⚫ (fully flagged — transparent history visible to all)
+**Can this extend beyond The Giving Block?**  
+Yes. The architecture is built to add more donation platforms, custodians, and data providers over time while keeping a unified wallet and campaign graph.
 
 ---
 
-## 🧠 System Architecture
+## 2. Key Product Features
 
-**Frontend:**
+- **Wallet search & profiles**  
+  Unified wallet page with chain activity, labels, and risk context. Designed to answer: “Who is this address and how do they behave?”
 
-* Next.js + React
-* TailwindCSS for styling
-* wagmi + ethers.js v6 for wallet connections
-* SWR for data fetching and caching
-* Dropdown components with **auto-prefill + “Other” option logic**
+- **Charity & fundraiser directory**  
+  Curated list of organizations synced from The Giving Block. View donation history, associated wallets, and campaign metadata.
 
-**Backend:**
+- **Real-time Giving Block donations**  
+  Encrypted webhooks from The Giving Block feed into a live activity stream. Donations are verified, decrypted, and normalized for display.
 
-* Next.js API Routes (Node/Express compatible)
-* MongoDB Atlas (collections: `users`, `wallets`, `reports`, `exchanges`)
-* Seeder script (`scripts/seed_exchanges.js`) for importing top 100 exchanges
-* JWT authentication (wallet signature verification)
-* Security Rules:
+- **Multi-chain transaction visibility**  
+  Ethereum, Polygon, BSC, Solana, and Tron support. Used for wallet details, fundraiser tracking, and anomaly detection.
 
-  * Max 5 flags per user/day
-  * 1 rating per user per wallet
-  * Hide assets until heavily flagged
+- **Risk scoring & admin console**  
+  Risk scores and categories per wallet, with an admin UI for overrides. Dashboards for suspicious wallets, popular wallets, and high-risk activity.
+
+- **Operations & compliance tooling**  
+  Admin-only pages for charities, fundraisers, Giving Block donations, and alerts. Wallet-based admin access (no passwords stored by the platform).
 
 ---
 
-## 🧰 Setup Instructions
+## 3. High-Level Architecture (For Contributors)
 
-### 1. Prerequisites
+- **Frontend**
+  - Next.js App Router (React + TypeScript).
+  - TailwindCSS for styling.
+  - wagmi + ethers v6 for EVM wallet connections.
+  - SWR and custom hooks for data fetching.
 
-* Node 18+
-* npm or yarn
-* MongoDB Atlas (set `MONGODB_URI` in `.env.local`)
+- **Backend / APIs**
+  - Next.js Route Handlers under `/api` for:
+    - Wallet lookups and risk scoring.
+    - Charity and fundraiser management.
+    - Giving Block charity sync.
+    - Giving Block webhooks and donation ingestion.
+    - Admin checks and dashboards.
+  - MongoDB (via Mongoose) for persistence:
+    - Wallets, charities, fundraisers, donations.
+    - Admin actions, reports, and internal alerts.
+  - Optional Redis for caching and rate limiting.
 
-### 2. Install Dependencies
+- **Giving Block Integration**
+  - Public API:
+    - `POST /v1/login` and `POST /v1/refresh-tokens` for auth.
+    - `GET /v1/charities` for charity sync.
+  - Webhooks:
+    - `/api/webhooks/givingblock` endpoint for encrypted donation events.
+    - HMAC SHA-256 verification using `GIVINGBLOCK_WEBHOOK_SECRET`.
+    - AES-256-CBC decryption using `GIVINGBLOCK_ENCRYPTION_KEY` and `GIVINGBLOCK_ENCRYPTION_IV`.
 
-```bash
-npm install
-```
+For environment variables and deployment details, see:
 
-### 3. Environment Configuration
-
-Copy `.env.example` → `.env.local`
-Add your environment variables:
-
-```
-MONGODB_URI=your_connection_string
-ADMIN_WALLETS=0x123,0x456,...
-NEXT_PUBLIC_CHAIN_APIS=...
-GIVINGBLOCK_API_KEY=...
-GIVINGBLOCK_BASE_URL=https://public-api.sandbox.thegivingblock.com
-GIVINGBLOCK_WEBHOOK_SECRET=...
-GIVINGBLOCK_ENCRYPTION_KEY=...
-GIVINGBLOCK_ENCRYPTION_IV=...
-NEXT_PUBLIC_ADMIN_WALLETS=0xAdminWallet1,0xAdminWallet2
-```
-
-### 4. Seed Exchange List
-
-A new script loads the **Top 100 Exchange Names** from `data/exchanges.json`:
-
-```bash
-npm run seed:exchanges
-```
-
-*(This populates the dropdown field on the search page.)*
-
-### 5. Run Locally
-
-```bash
-npm run dev
-```
-
-Visit [http://localhost:3000/search](http://localhost:3000/search)
-
-### 6. Production Build
-
-```bash
-npm run build
-npm run start
-```
-
-### 7. One-Time Production Charity Seeding
-
-For production (for example on https://www.blockpages411.com) you can import the same curated starter charities that are used locally:
-
-1. **Set a strong `SEED_SECRET` in your hosting environment** (Vercel → Project → Environment Variables):
-
-   - Key: `SEED_SECRET`
-   - Value: a long random string (do not commit this to git)
-
-2. **Run the seed endpoint once against production** from your terminal or Postman, replacing `YOUR_SEED_SECRET`:
-
-   ```bash
-   curl -X POST "https://www.blockpages411.com/api/charities/seed-local?secret=YOUR_SEED_SECRET"
-   ```
-
-This will upsert the curated charities from `data/charities.json` into your production MongoDB. Subsequent runs are idempotent (existing charities are updated, not duplicated).
+- docs/env-setup.md  
+- docs/webhooks.md  
+- docs/security.md  
 
 ---
 
-## 🛡️ Risk Scoring & Admin Overrides
+## 4. Public Surface & API Overview
 
-The app includes a wallet **risk scoring system** and a dedicated **admin risk page**:
+This repository is focused on the web app and internal APIs. The most important surface areas are:
 
-- `GET /api/wallet/risk` — returns a computed risk score and category for any wallet.
-- `GET /api/wallet/[chain]/[address]` — now includes `riskScore` and `riskCategory` fields in the payload.
-- `app/admin/risk` — admin-only UI listing high-risk wallets with inline override controls.
+### Web app
 
-To grant access to the risk admin page and other admin tools, configure:
+- `/` – landing page and high-level overview.
+- `/search` – wallet search and profiles.
+- `/fundraisers` and `/campaigns` – campaign and fundraiser views.
+- `/realtime-transactions` – live transaction and donation feeds.
 
-```bash
-NEXT_PUBLIC_ADMIN_WALLETS=0xAdmin1,0xAdmin2
-```
+### Admin web (wallet-gated)
 
-These addresses are matched (checksummed/normalized) in the client and also validated on the server via `/api/admin/check`. Only wallets in this list with a valid admin session will be able to load `/admin` and `/admin/risk`.
+- `/admin` – admin home.
+- `/admin/charities` – Giving Block charities.
+- `/admin/fundraisers` – fundraiser management.
+- `/admin/givingblock-donations` – decoded Giving Block donation events.
+- `/admin/suspicious-wallets`, `/admin/popular-wallets`, `/admin/kyc-review` – risk and review tools.
 
----
+### Key internal APIs (simplified)
 
-## 📈 Analytics Vision
+- `GET /api/wallet/[chain]/[address]` – wallet details and risk context.
+- `GET /api/wallet/risk` – computed risk score for a wallet.
+- `POST /api/charities/sync` – admin-only Giving Block charity sync.
+- `POST /api/webhooks/givingblock` – encrypted webhook receiver.
+- `GET /api/admin/check` – server-side admin verification.
 
-* Track **exchange usage statistics** to identify trends
-* Count how many users are linked to each exchange
-* Use aggregated data to negotiate **exchange partnerships**
-* Enable future **exchange API connections** for automated scam mitigation
-
----
-
-## 🧩 Example Search Flow
-
-1. User opens `/search`
-2. Selects **Netcoins** from exchange dropdown
-3. Enters **their wallet address**
-4. Enters **CFX receiving address**
-5. Clicks **Search or Flag/Report**
-6. System verifies ownership → stores relationship → updates trust meter
+These endpoints are primarily consumed by the Next.js app itself. If you want to build external integrations, start by reviewing docs/api-routes.md and the handlers under `/api` in the codebase.
 
 ---
 
-Note on naming: the project exposes both "fundraisers" and "campaigns" terminology. Web UI routes live under `/fundraisers` (for example `/fundraisers` and `/fundraisers/create`) and `/campaigns` is provided as a route alias that mirrors the same UI. Similarly, API routes under `/api/campaigns` are aliased to the existing `/api/fundraisers` handlers so both names work for integrations.
+## 5. For Contributors
 
+If you want to contribute to Blockpage411:
 
-## 🕵️ Security and Ethics
+### 5.1 Read the docs
 
-Blockpage411 is designed to **protect honest users** and **expose scammers** without revealing sensitive wallet data.
+- docs/env-setup.md – environment variables, MongoDB, Redis, and Vercel.
+- docs/api-routes.md – overview of API handlers and expected behavior.
+- docs/webhooks.md – Giving Block webhook flow and security.
+- docs/security.md – security posture and expectations.
 
-| Rule                | Description                                    |
-| ------------------- | ---------------------------------------------- |
-| 🕶️ Privacy         | Hide wallet funds until flagged multiple times |
-| ⚠️ Transparency     | Reveal wallet data gradually as flags increase |
-| 🔐 Authentication   | Wallet signature required for reports          |
-| 🚫 Abuse Prevention | Flag/rate limits per user/day                  |
-| 🤝 Collaboration    | Data-driven exchange engagement                |
+### 5.2 Focus areas where help is welcome
+
+- UX and accessibility improvements on the search, charity, and fundraiser flows.
+- Additional risk heuristics and on-chain intelligence.
+- Performance, caching, and observability.
+- Better public API shape for third-party integrators.
+
+### 5.3 Coding guidelines (high level)
+
+- Prefer TypeScript throughout.
+- Keep business logic in `lib/` or `services/`, not React components.
+- Do not log or expose secrets; use structured logging via the existing logger utilities.
+- Preserve existing public APIs unless there is a clear deprecation path.
 
 ---
 
-## 📊 Future Enhancements
+## 6. Security & Privacy Principles
 
-* Integration with **soft/cold storage lists**
-* **Geolocation tagging** (country auto-prefill)
-* **AI-powered scam pattern detection**
-* **Exchange dashboard** for real-time user analytics
+- **Donor and wallet privacy**  
+  Only surface the information necessary to understand flows of funds and risk. Do not store private keys or non-essential PII.
+
+- **Defense in depth**  
+  HMAC verification on all Giving Block webhooks. Encrypted payload handling with strict key/IV management. Rate limiting and caching (Redis) available where configured.
+
+- **Operational hygiene**  
+  Rotate any leaked or test secrets immediately. Use separate credentials for local, staging, and production.
+
+See docs/security.md for deeper guidance.
 
 ---
 
-## 📄 License
+## 7. License
 
-MIT — Open collaboration welcome.
+MIT – open collaboration welcome.

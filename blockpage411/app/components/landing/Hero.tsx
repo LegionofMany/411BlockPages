@@ -34,14 +34,14 @@ export default function Hero() {
             textShadow: "0 0 18px rgba(252, 211, 77, 0.55)",
           }}
         >
-          Blockpage411: Your On‑Chain Reputation Layer
+          Blockpage411: Real‑Time Crypto Donation Transparency
         </h1>
 
         <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-7 mb-12">
           <p className="text-sm sm:text-base md:text-lg font-medium text-[#FDE68A] leading-relaxed drop-shadow-[0_0_10px_rgba(250,250,210,0.35)]">
-            Discover verified wallet profiles and trust signals across multiple chains. Combine community reviews,
-            on-chain heuristics, and curated risk indicators to understand wallet history, flag suspicious activity,
-            and make safer decisions in Web3.
+            Blockpage411 lets donors, nonprofits, and compliance teams trace crypto donations on‑chain in seconds.
+            Search charity and fundraiser wallets, review real‑time Giving Block donation activity, and see multi‑chain
+            risk signals for any address – all in a single, transparent dashboard.
           </p>
         </div>
 
@@ -75,7 +75,7 @@ export default function Hero() {
 
         <div className="mt-2 flex items-center justify-center gap-2 text-xs font-mono text-amber-300/80">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]" />
-          <span>Live on-chain intelligence · Multi-chain coverage · Community powered</span>
+          <span>Live crypto donations · Charity & fundraiser search · Wallet risk insights</span>
         </div>
       </div>
     </section>
