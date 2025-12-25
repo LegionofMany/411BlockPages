@@ -4,8 +4,14 @@ import { Providers } from "./components/Providers";
 import Navbar from "./components/Navbar";
 
 export const metadata: Metadata = {
+  // Set the canonical site origin so Next.js can generate consistent absolute URLs
+  metadataBase: new URL("https://www.blockpages411.com"),
   title: "Blockpage411",
   description: "Blockchain-powered 411 directory for wallets",
+  // Declare the preferred canonical for the root path to help search engines
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default function RootLayout({
