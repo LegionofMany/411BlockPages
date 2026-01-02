@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import Link from "next/link";
+import adminFetch from "./adminFetch";
 
 const adminNav: Array<{ href: string; label: string }> = [
   { href: "/admin", label: "Dashboard" },
@@ -32,7 +33,7 @@ export default function AdminLayout({
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch('/api/admin/analytics');
+        const res = await adminFetch('/api/admin/analytics');
         if (!res.ok) return;
         const data = await res.json();
         if (mounted && typeof data.kycPending === 'number') setKycPending(data.kycPending);
