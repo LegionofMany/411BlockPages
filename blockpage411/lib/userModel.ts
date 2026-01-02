@@ -18,6 +18,8 @@ const UserSchema = new Schema({
   instagram: { type: String },
   linkedin: { type: String },
   phoneApps: [{ type: String }], // e.g. ['WhatsApp', 'Signal']
+  email: { type: String },
+  emailVerified: { type: Boolean, default: false },
   socialLinks: {
     twitter: { type: String },
     instagram: { type: String },

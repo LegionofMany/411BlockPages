@@ -16,7 +16,7 @@
 - **Key endpoints with limits** (examples only):
   - `/api/events/create`: protects event spam.
   - `/api/flag/add`: prevents mass-flagging a wallet.
-  - `/api/verify/social/request` and `/api/verify/social/confirm`: protects social verification steps.
+  - `/api/verify/social/request-simple`: request admin review for social verification.
 - **Implementation notes**:
   - Limits are configured per-route (window + max requests) and keyed by IP.
   - When the limit is exceeded, APIs return `429` with a JSON error.

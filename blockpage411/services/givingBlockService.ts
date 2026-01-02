@@ -36,7 +36,14 @@ export interface NormalizedCharity {
   name: string;
   description?: string;
   logo?: string;
+  // Optional public website for the organization (used for "Official Links").
+  website?: string;
+  // Optional direct donation address, when provided by the API.
   donationAddress?: string;
+  // Optional Giving Block donation widget/embed URL.
+  givingBlockEmbedUrl?: string;
+  // Optional primary wallet field (legacy/alternate naming).
+  wallet?: string;
   categories?: string[];
 }
 
@@ -232,12 +239,39 @@ async function authorizedGivingBlockFetch(path: string, init?: RequestInit): Pro
 }
 
 export function normalizeCharity(apiCharity: GivingBlockCharityApi): NormalizedCharity {
+  // The Public API and legacy endpoints use a variety of field names.
+  // Normalize the common variants without assuming a single contract.
+  const anyCharity = apiCharity as any;
+  const website: string | undefined =
+    anyCharity.website ||
+    anyCharity.url ||
+    anyCharity.websiteUrl ||
+    anyCharity.organizationUrl ||
+    anyCharity.organization_url ||
+    undefined;
+
+  const donationAddress: string | undefined =
+    anyCharity.walletAddress ||
+    anyCharity.cryptoWalletAddress ||
+    anyCharity.wallet ||
+    undefined;
+
+  const givingBlockEmbedUrl: string | undefined =
+    anyCharity.donationWidget ||
+    anyCharity.donation_widget ||
+    anyCharity.donationWidgetUrl ||
+    anyCharity.embed ||
+    undefined;
+
   return {
     charityId: apiCharity.id,
     name: apiCharity.name,
     description: apiCharity.description ?? undefined,
     logo: apiCharity.logo ?? undefined,
-    donationAddress: apiCharity.walletAddress ?? undefined,
+    website,
+    donationAddress,
+    givingBlockEmbedUrl,
+    wallet: donationAddress,
     categories: apiCharity.categories ?? undefined,
   };
 }

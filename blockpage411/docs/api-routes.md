@@ -58,8 +58,11 @@ This is a high-level overview of key API routes, grouped by feature area. For fu
 
 ### Social Verification
 
-- `/api/verify/social/request` – Start social verification (Twitter/Telegram, etc.).
-- `/api/verify/social/confirm` – Confirm that proof was posted.
+- `/api/verify/social/request-simple` – Request admin review for a social handle (admins will approve/reject).
+ - `/api/verify/social/request-simple` – Request admin review for a social handle (admins will approve/reject).
+ - `/api/verify/social/request-bulk` – Request admin review for multiple handles at once (used by profile UI "Request Verification").
+
+Note: The previous code-based verification endpoints were retired; requests now go through admin review.
 
 ### Admin & Metrics
 

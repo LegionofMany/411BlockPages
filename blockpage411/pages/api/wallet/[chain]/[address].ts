@@ -9,6 +9,8 @@ import { computeRiskScore, WalletLike } from 'lib/risk';
 import { Transaction } from 'lib/types';
 import { getCache, setCache } from 'lib/redisCache';
 import redisRateLimit from 'lib/redisRateLimit';
+import { computeWalletVisibility } from 'services/walletVisibilityService';
+import jwt from 'jsonwebtoken';
 
 // Types for Wallet document
 type WalletDoc = {
@@ -189,6 +191,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (wallet && wallet.blacklisted) {
     return res.status(403).json({ message: 'This wallet is blacklisted.' });
   }
+
+  // Determine viewer address from JWT cookie (if logged in)
+  let viewerAddress: string | null = null;
+  try {
+    const token = (req.cookies || {}).token;
+    const secret = process.env.JWT_SECRET;
+    if (token && secret) {
+      const decoded = jwt.verify(token, secret) as { address?: string } | string;
+      const addrFromToken = typeof decoded === 'object' && decoded && 'address' in decoded ? decoded.address : undefined;
+      if (addrFromToken && typeof addrFromToken === 'string') {
+        viewerAddress = addrFromToken.toLowerCase();
+      }
+    }
+  } catch {
+    // ignore auth errors; treat as anonymous viewer
+  }
   const now = new Date();
   let txs: Transaction[] = [];
   let shouldUpdate = false;
@@ -273,6 +291,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ? (wallet as any).flagsCount >= threshold
     : flagsCount >= threshold;
 
+  // Compute a simple visibility object (owner/public/limited view semantics)
+  const visibility = computeWalletVisibility(
+    {
+      address: wallet?.address || addr,
+      flagsCount,
+      isPublic: (wallet as any)?.isPublic ?? false,
+      unlockLevel: (wallet as any)?.unlockLevel ?? 0,
+    },
+    viewerAddress,
+  );
+
   // If balances should be hidden, hide the txs and nft count
   const returnedTxs = showBalance ? txs : [];
   const returnedNftCount = showBalance ? (wallet?.nftCount || 0) : 0;
@@ -307,6 +336,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     nftCount: returnedNftCount,
     lastRefreshed: wallet?.lastRefreshed || null,
     statusTags: getStatusTags(wallet),
+    visibility: {
+      canSeeBalance: visibility.canSeeBalance,
+      isOwner: visibility.isOwner,
+      heavilyFlagged: visibility.heavilyFlagged,
+      isPublic: visibility.isPublic,
+      unlockLevel: visibility.unlockLevel,
+    },
     // pagination meta
     pagination: { total: totalTxs, page, pageSize, hasMore },
   };

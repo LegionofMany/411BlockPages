@@ -24,19 +24,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       lines.push(`# TYPE blockpage_poller_runs counter`);
       lines.push(`blockpage_poller_runs ${poller}`);
       res.setHeader('Content-Type', 'text/plain; version=0.0.4');
-      return res.status(200).send(lines.join('\n'));
+      res.status(200).send(lines.join('\n'));
+      return;
     } catch {
-      return res.status(500).send('error');
+      res.status(500).send('error');
+      return;
     }
   }
 
   // POST increments counters (used internally)
   if (req.method === 'POST') {
-    const metric = req.body?.metric;
+    const metric = String(req.body?.metric || '');
     if (metric === 'verify') await incr('metrics:verify_calls');
     if (metric === 'poller') await incr('metrics:poller_runs');
-    return res.status(204).end();
+
+    if (metric === 'charity_view' || metric === 'charity_donate_click') {
+      const charityId = String(req.body?.charityId || '').trim();
+      if (charityId) {
+        await incr(`metrics:${metric}:${charityId}`);
+      }
+    }
+    res.status(204).end();
+    return;
   }
 
-  return res.status(405).json({ message: 'Method not allowed' });
+  res.status(405).json({ message: 'Method not allowed' });
 }

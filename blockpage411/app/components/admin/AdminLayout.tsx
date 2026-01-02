@@ -7,6 +7,7 @@ const adminNav: Array<{ href: string; label: string }> = [
   { href: "/admin/charities", label: "Charities" },
   { href: "/admin/fundraisers", label: "Fundraisers" },
   { href: "/admin/givingblock-donations", label: "GivingBlock Donations" },
+  { href: "/admin/kyc-review", label: "KYC Review" },
   { href: "/admin/risk", label: "Wallet Risk Scores" },
   { href: "/admin/alerts", label: "Flags / Reports" },
   { href: "/admin/popular-wallets", label: "Trending Wallets" },
@@ -25,6 +26,22 @@ export default function AdminLayout({
   adminWallet: string;
 }) {
   const [collapsed, setCollapsed] = React.useState(false);
+  const [kycPending, setKycPending] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/analytics');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (mounted && typeof data.kycPending === 'number') setKycPending(data.kycPending);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-black via-slate-950 to-black text-amber-50">
@@ -66,6 +83,9 @@ export default function AdminLayout({
                     }`}
                   >
                     <span className="truncate">{item.label}</span>
+                    {item.href === '/admin/kyc-review' && kycPending > 0 ? (
+                      <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-500 text-slate-900">{kycPending}</span>
+                    ) : null}
                   </Link>
                 </li>
               );

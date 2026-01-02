@@ -1,21 +1,28 @@
 "use client";
-import { WagmiProvider, createConfig } from 'wagmi';
-import { mainnet } from 'viem/chains';
-import { http } from 'viem';
+import React from 'react';
+import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const config = createConfig({
-  chains: [mainnet],
-  transports: {
-    [mainnet.id]: http(),
-  },
-});
+import { getWagmiConfig } from './wagmiConfig';
 
 const queryClient = new QueryClient();
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  React.useEffect(() => {
+    function onUnhandled(e: PromiseRejectionEvent) {
+      try {
+        const msg = (e.reason && (e.reason.message || (e.reason.toString && e.reason.toString()))) || String(e.reason || '');
+        if (typeof msg === 'string' && msg.toLowerCase().includes('metamask')) {
+          console.warn('MetaMask not available or connection failed — wallet features disabled.', msg);
+          try { e.preventDefault(); } catch {}
+        }
+      } catch (_) {}
+    }
+    window.addEventListener('unhandledrejection', onUnhandled);
+    return () => window.removeEventListener('unhandledrejection', onUnhandled);
+  }, []);
+
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={getWagmiConfig()}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   );

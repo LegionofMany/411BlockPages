@@ -3,6 +3,7 @@ import dbConnect from 'lib/db';
 import User from 'lib/userModel';
 import Charity from 'models/Charity';
 import Event from 'models/Event';
+import Wallet from 'lib/walletModel';
 import { profileUpdateSchema } from 'lib/validation/schemas';
 import jwt from 'jsonwebtoken';
 
@@ -14,6 +15,9 @@ const JWT_SECRET = process.env.JWT_SECRET as string;
 
 // PATCH/PUT endpoint to update user profile fields
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  type UserProfile = import('../../lib/types').UserProfile;
+  type ProfilePatchBody = Partial<UserProfile> & { email?: string | null };
+
   if (req.method !== 'PATCH' && req.method !== 'PUT') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -37,9 +41,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(404).json({ message: 'User not found' });
   }
   // Only allow updating certain fields
-  const alwaysAllowed: (keyof import('../../lib/types').UserProfile)[] = ['displayName', 'avatarUrl', 'bio', 'donationRequests', 'featuredCharityId', 'activeEventId', 'donationLink', 'donationWidgetEmbed', 'nftAvatarUrl'];
-  const kycGated: (keyof import('../../lib/types').UserProfile)[] = ['telegram', 'twitter', 'discord', 'website', 'phoneApps'];
-  const updatedFields: (keyof import('../../lib/types').UserProfile)[] = [];
+  const alwaysAllowed: (keyof UserProfile)[] = ['displayName', 'avatarUrl', 'bio', 'donationRequests', 'featuredCharityId', 'activeEventId', 'donationLink', 'donationWidgetEmbed', 'nftAvatarUrl'];
+  // allow email updates (will also persist to associated Wallet.kycDetails.email)
+  // `email` is not strictly part of UserProfile type but we accept it here
+  const extendedAlwaysAllowed: Array<keyof UserProfile | 'email'> = [...alwaysAllowed, 'email'];
+  const kycGated: (keyof UserProfile)[] = ['telegram', 'twitter', 'discord', 'website', 'phoneApps'];
+  const updatedFields: Array<keyof UserProfile | 'email'> = [];
 
   // Rate limit: max 5 profile updates per day
   const now = new Date();
@@ -51,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Always-allowed fields
-  let body = req.body as Partial<import('../../lib/types').UserProfile>;
+  let body: ProfilePatchBody = req.body as ProfilePatchBody;
   try {
     const parsed = profileUpdateSchema.partial().parse(req.body || {});
     // Normalize phoneApps to array of strings if provided as comma separated string
@@ -61,11 +68,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .map((s) => s.trim())
         .filter(Boolean);
     }
-    body = parsed as any;
+    body = parsed as ProfilePatchBody;
   } catch (err: any) {
     return res.status(400).json({ message: 'Invalid payload', details: err?.errors ?? String(err) });
   }
-  for (const field of alwaysAllowed) {
+  for (const field of extendedAlwaysAllowed) {
     if (body[field] !== undefined) {
       // special validation for charity presets
       if (field === 'featuredCharityId') {
@@ -122,6 +129,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             charityId: cfg.charityId || undefined,
           } as any;
         }
+      } else if (field === 'email') {
+        user.email = body.email as any;
+        // mark as unverified until user confirms via token endpoint
+        user.emailVerified = false as any;
       } else {
         user[field] = body[field] as any;
       }
@@ -143,5 +154,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   user.updatedAt = now;
   user.profileUpdateHistory.push(now);
   await user.save();
+
+  // If email was updated, also persist to wallet kycDetails (and mark unverified)
+  try {
+    if ((body as any).email) {
+      await Wallet.findOneAndUpdate({ address: userAddress }, { $set: { 'kycDetails.email': (body as any).email, 'kycDetails.emailVerified': false } }).exec();
+    }
+  } catch (err) {
+    // ignore wallet update errors here; profile update already saved
+  }
   res.status(200).json({ success: true, updated: updatedFields });
 }

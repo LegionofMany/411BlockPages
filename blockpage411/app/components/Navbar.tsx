@@ -20,6 +20,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
   const [btnPressed, setBtnPressed] = useState(false);
   const [nftAvatarUrl, setNftAvatarUrl] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   // call hook unconditionally to satisfy rules-of-hooks
   const pathname = usePathname() || '';
 
@@ -37,7 +38,6 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     { href: '/admin', label: 'Admin', Icon: IconAdmin, show: isAdmin },
     // legacy/utility pages
     { href: '/admin-actions', label: 'Admin Actions', Icon: IconActions, show: isAdmin },
-    { href: '/login', label: 'Sign in', Icon: IconSignIn },
   ];
 
   const isActive = (href: string) => {
@@ -114,8 +114,21 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     let cancelled = false;
     async function loadMe() {
       try {
+        const statusRes = await fetch('/api/auth/status', { credentials: 'include' });
+        const status = await statusRes.json().catch(() => ({} as any));
+        if (!status?.authenticated) {
+          if (!cancelled) {
+            setIsAdmin(false);
+            setIsAuthenticated(false);
+          }
+          return;
+        }
+
         const res = await fetch('/api/me', { credentials: 'include' });
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!cancelled) setIsAuthenticated(false);
+          return;
+        }
         const data = await res.json();
         if (cancelled) return;
         if (data?.nftAvatarUrl) setNftAvatarUrl(data.nftAvatarUrl);
@@ -130,8 +143,10 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
         const isAddressAdmin = !!(address && envAdmins.length && envAdmins.includes(address.toLowerCase()));
 
         setIsAdmin(Boolean(hasAdminFlag || isAddressAdmin));
+        setIsAuthenticated(true);
       } catch {
         // ignore
+        setIsAuthenticated(false);
       }
     }
     loadMe();
@@ -144,8 +159,8 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     <>
       <nav role="navigation" aria-label="Main" className="site-nav w-full flex items-center justify-between px-4 md:px-8 py-3">
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-3 focus:outline-none" aria-label="Go to homepage">
-            <Image src="/block411-logo.svg" alt="Blockpage411 Logo" width={36} height={36} />
+            <Link href="/" className="flex items-center gap-3 focus:outline-none" aria-label="Go to homepage">
+            <Image src="/block411-logo.svg" alt="Blockpage411 Logo" width={36} height={36} priority />
             <span className="text-lg md:text-xl font-semibold" style={{ color: "#ffffff" }}>Blockpage411</span>
           </Link>
         </div>
@@ -163,6 +178,24 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
               );
             })}
           </ul>
+          {/* Sign in / Sign out */}
+          <div>
+            {isAuthenticated ? (
+              <button
+                onClick={async () => {
+                  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+                  window.location.href = '/';
+                }}
+                className="nav-link inline-flex items-center gap-2 px-2 py-1 rounded transition ml-4"
+                aria-label="Sign out"
+              >
+                <IconSignIn />
+                <span className="text-sm md:text-base font-medium">Sign out</span>
+              </button>
+            ) : (
+              <NavLinkItem href="/login" label="Sign in" Icon={IconSignIn} />
+            )}
+          </div>
           {isAdmin && (
             <Link
               href="/admin"
@@ -310,6 +343,13 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                         </li>
                       )
                     ))}
+                    <li>
+                      {isAuthenticated ? (
+                        <button onClick={async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {} window.location.href = '/'; }} className="w-full text-left nav-link-mobile">Sign out</button>
+                      ) : (
+                        <NavLinkItem href="/login" label="Sign in" Icon={IconSignIn} onClick={() => setOpen(false)} mobile />
+                      )}
+                    </li>
                   </ul>
                 </nav>
               </div>

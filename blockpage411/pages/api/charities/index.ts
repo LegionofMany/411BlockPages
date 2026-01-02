@@ -9,6 +9,8 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     const q = String(req.query.q || '').trim();
     const category = String(req.query.category || '').trim();
+    const includeHiddenRaw = String(req.query.includeHidden || '').trim().toLowerCase();
+    const includeHidden = includeHiddenRaw === '1' || includeHiddenRaw === 'true' || includeHiddenRaw === 'yes';
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
     const pageSizeRaw = parseInt(String(req.query.pageSize || '24'), 10) || 24;
     const pageSize = Math.min(Math.max(6, pageSizeRaw), 60);
@@ -22,7 +24,11 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
       filter.categories = { $in: [category] };
     }
 
-    const cacheKey = `charities:list:q=${encodeURIComponent(q)}:cat=${encodeURIComponent(category)}:p=${page}:s=${pageSize}`;
+    if (!includeHidden) {
+      filter.hidden = { $ne: true };
+    }
+
+    const cacheKey = `charities:list:q=${encodeURIComponent(q)}:cat=${encodeURIComponent(category)}:hidden=${includeHidden ? 'all' : 'public'}:p=${page}:s=${pageSize}`;
 
     try {
       const cached = (await getCache(cacheKey)) as
@@ -54,7 +60,7 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method === 'POST' || req.method === 'PATCH') {
     try {
-      const { id, name, website, description, logo, givingBlockId, charityId, tags, categories } = req.body as {
+      const { id, name, website, description, logo, givingBlockId, charityId, tags, categories, givingBlockEmbedUrl, donationAddress } = req.body as {
         id?: string;
         name?: string;
         website?: string;
@@ -64,6 +70,8 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
         charityId?: string;
         tags?: string[];
         categories?: string[];
+        givingBlockEmbedUrl?: string;
+        donationAddress?: string;
       };
 
       if (!name || typeof name !== 'string') {
@@ -78,6 +86,8 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
           logo,
           givingBlockId,
           charityId,
+          donationAddress,
+          givingBlockEmbedUrl,
           tags: Array.isArray(tags) ? tags : undefined,
           categories: Array.isArray(categories) ? categories : undefined,
         });
@@ -97,6 +107,8 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
       };
       if (Array.isArray(tags)) update.tags = tags;
       if (Array.isArray(categories)) update.categories = categories;
+      if (typeof givingBlockEmbedUrl === 'string') update.givingBlockEmbedUrl = givingBlockEmbedUrl;
+      if (typeof donationAddress === 'string') update.donationAddress = donationAddress;
 
       const updated = await Charity.findByIdAndUpdate(
         id,

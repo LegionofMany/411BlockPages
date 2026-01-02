@@ -1,5 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
+
 import { Button } from "app/components/ui/Button";
 import { Card, CardBody } from "app/components/ui/Card";
 import { ChainPill } from "app/components/ui/ChainPill";
@@ -15,6 +17,13 @@ type SearchResult = {
   chain?: string;
   network?: string;
   tags?: string[];
+  blacklisted?: boolean;
+  blacklistReason?: string;
+  flagsCount?: number;
+  flagsSummary?: string[];
+  kycStatus?: string;
+  socials?: { displayName?: string; avatarUrl?: string };
+  trustScore?: number;
 };
 
 export default function LandingSearchDemo() {
@@ -23,6 +32,7 @@ export default function LandingSearchDemo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const router = useRouter();
 
   // core search function used by submit + debounce
   const runSearch = useCallback(
@@ -158,12 +168,20 @@ export default function LandingSearchDemo() {
                 const subtitle = r.summary || r.description || "No summary available.";
                 const badge = typeof r.riskScore === "number" ? `${r.riskScore.toFixed(0)} risk score` : null;
                 const tags = r.tags || [];
-
+                const flagsCount = r.flagsCount || 0;
+                const isBlacklisted = !!r.blacklisted;
+                const displayName = r.socials?.displayName;
+                const avatar = r.socials?.avatarUrl;
+                const trustScore = typeof r.trustScore === 'number' ? r.trustScore : undefined;
                 return (
                   <li
                     key={i}
                     className="rounded-xl bg-[var(--color-bg-dark)]/70 p-3.5 sm:p-4 flex flex-col gap-1.5 cursor-pointer transition hover:scale-[1.01] hover:bg-[var(--color-bg-mid)]/85"
                     onClick={() => {
+                      if (r.address && r.chain) {
+                        router.push(`/wallet/${r.chain}/${encodeURIComponent(r.address)}`);
+                        return;
+                      }
                       const nextQuery = title;
                       setQ(nextQuery);
                       runSearch(nextQuery);
@@ -173,6 +191,10 @@ export default function LandingSearchDemo() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
+                        if (r.address && r.chain) {
+                          router.push(`/wallet/${r.chain}/${encodeURIComponent(r.address)}`);
+                          return;
+                        }
                         const nextQuery = title;
                         setQ(nextQuery);
                         runSearch(nextQuery);
@@ -180,23 +202,59 @@ export default function LandingSearchDemo() {
                     }}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <div className="text-xs sm:text-sm font-mono text-slate-100 break-all">
-                          {title}
+                      <div className="flex items-center gap-3 min-w-0">
+                        {avatar ? (
+                          <img src={avatar} alt={displayName || title} className="h-8 w-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-[rgba(255,255,255,0.03)] flex items-center justify-center text-xs text-slate-200 font-semibold">W</div>
+                        )}
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="text-xs sm:text-sm font-semibold text-slate-100 truncate">
+                            {displayName ? `${displayName} — ${title}` : title}
+                          </div>
+                          {(r.chain || r.network) && (
+                            <ChainPill chain={r.chain || "Unknown chain"} network={r.network} />
+                          )}
                         </div>
-                        {(r.chain || r.network) && (
-                          <ChainPill chain={r.chain || "Unknown chain"} network={r.network} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {trustScore !== undefined && (
+                          <span className="inline-flex items-center rounded-full bg-[var(--color-bg-light)]/90 px-2 py-0.5 text-[11px] font-semibold text-slate-100">
+                            Trust {Math.round(trustScore)}
+                          </span>
+                        )}
+                        {badge && (
+                          <span className="ml-2 inline-flex items-center rounded-full bg-[var(--color-bg-light)]/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-warning)]">
+                            {badge}
+                          </span>
                         )}
                       </div>
-                      {badge && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-[var(--color-bg-light)]/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-warning)]">
-                          {badge}
-                        </span>
-                      )}
                     </div>
                     <div className="text-[11px] sm:text-xs text-[var(--muted-text)]">{subtitle}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      {r.kycStatus && (
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${r.kycStatus === 'verified' ? 'bg-emerald-700 text-white' : 'bg-yellow-700 text-white'}`}>
+                          {r.kycStatus}
+                        </span>
+                      )}
+                      {isBlacklisted && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-700 text-white">Blacklisted</span>
+                      )}
+                      {flagsCount > 0 && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-bg-mid)]/80 text-slate-200">{flagsCount} flags</span>
+                      )}
+                    </div>
                     {typeof r.riskScore === "number" && (
                       <RiskGauge score={r.riskScore} />
+                    )}
+                    {r.flagsSummary && r.flagsSummary.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {r.flagsSummary.map((f, idx) => (
+                          <span key={idx} className="inline-flex items-center rounded-full bg-red-800/60 px-2 py-[2px] text-[10px] font-medium text-white">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
                     )}
                     {tags.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1.5">

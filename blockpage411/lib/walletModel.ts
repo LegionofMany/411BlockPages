@@ -47,6 +47,8 @@ const WalletSchema = new Schema({
   lastFlagger: { type: String },
   kycDetails: {
     fullName: { type: String },
+    email: { type: String },
+    emailVerified: { type: Boolean, default: false },
     dob: { type: String },
     country: { type: String },
     idType: { type: String },
@@ -72,6 +74,8 @@ const WalletSchema = new Schema({
     createdAt: { type: Date, default: Date.now }
   }],
   socials: {
+    displayName: String,
+    avatarUrl: String,
     twitter: String,
     telegram: String,
     whatsapp: String,

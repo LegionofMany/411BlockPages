@@ -8,16 +8,23 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { address, platform, handle } = req.body as { address?: string; platform?: string; handle?: string };
   if (!address || !platform || !handle) return res.status(400).json({ message: 'Missing fields' });
   await dbConnect();
-  const user = await User.findOne({ address });
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  // apply social field
-  if (platform.toLowerCase() === 'twitter') user.twitter = handle;
-  if (platform.toLowerCase() === 'telegram') user.telegram = handle;
-  // remove pending entries for this platform/handle
-  user.pendingSocialVerifications = (user.pendingSocialVerifications || []).filter((p: any) => !(p.platform === platform && p.handle === handle));
-  user.updatedAt = new Date();
-  await user.save();
-  return res.status(200).json({ ok: true });
+  // perform an atomic update to avoid VersionError from concurrent modifications
+  const update: any = {
+    $pull: { pendingSocialVerifications: { platform, handle } },
+    $set: { updatedAt: new Date() },
+  };
+  const pf = platform.toLowerCase();
+  if (pf === 'twitter') update.$set.twitter = handle;
+  if (pf === 'telegram') update.$set.telegram = handle;
+
+  try {
+    const updated = await User.findOneAndUpdate({ address }, update, { new: true });
+    if (!updated) return res.status(404).json({ message: 'User not found' });
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error('[admin/approve-social] update error', e);
+    return res.status(500).json({ message: 'Update failed' });
+  }
 }
 
 export default withAdminAuth(handler);

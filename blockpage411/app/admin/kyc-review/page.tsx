@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../../components/admin/AdminLayout";
 import useAdminWallet from "../../hooks/useAdminWallet";
+import adminFetch from '../../components/admin/adminFetch';
 
 export default function KycReview() {
   const [items, setItems] = useState<any[]>([]);
@@ -14,17 +15,15 @@ export default function KycReview() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/admin/pending-socials", {
-          credentials: "include",
-        });
+        const res = await adminFetch('/api/admin/pending-socials');
         if (!res.ok) {
-          setError("Failed to load pending verifications");
+          setError('Failed to load pending verifications');
           return;
         }
         const data = await res.json();
         setItems(data.users || []);
       } catch (e) {
-        setError("Network error");
+        setError('Network error');
       }
       setLoading(false);
     })();
@@ -32,20 +31,67 @@ export default function KycReview() {
 
   async function approve(address: string, platform: string, handle: string) {
     try {
-      const res = await fetch("/api/admin/approve-social", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+      const res = await adminFetch('/api/admin/approve-social', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, platform, handle }),
       });
-      if (!res.ok) {
-        alert("Approve failed");
+      if (res.status === 403) {
+        setError('Not authorized — connect admin wallet or set localStorage.wallet');
         return;
       }
-      alert("Approved");
-      setItems((prev) => prev.filter((i) => i.address !== address));
-    } catch {
-      alert("Network error");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.message || 'Approve failed');
+        return;
+      }
+      // Remove the approved handle from the matching user in state
+      setItems((prev) =>
+        prev
+          .map((u) => {
+            if (u.address !== address) return u;
+            const remaining = (u.pendingSocialVerifications || []).filter(
+              (p: any) => !(p.platform === platform && p.handle === handle)
+            );
+            return { ...u, pendingSocialVerifications: remaining };
+          })
+          .filter((u) => (u.pendingSocialVerifications || []).length > 0)
+      );
+    } catch (err) {
+      setError('Network error');
+    }
+  }
+
+  async function reject(address: string, platform: string, handle: string) {
+    try {
+      const res = await adminFetch('/api/admin/reject-social', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, platform, handle }),
+      });
+      if (res.status === 403) {
+        setError('Not authorized — connect admin wallet or set localStorage.wallet');
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.message || 'Reject failed');
+        return;
+      }
+      // Remove the rejected handle from the matching user in state
+      setItems((prev) =>
+        prev
+          .map((u) => {
+            if (u.address !== address) return u;
+            const remaining = (u.pendingSocialVerifications || []).filter(
+              (p: any) => !(p.platform === platform && p.handle === handle)
+            );
+            return { ...u, pendingSocialVerifications: remaining };
+          })
+          .filter((u) => (u.pendingSocialVerifications || []).length > 0)
+      );
+    } catch (err) {
+      setError('Network error');
     }
   }
 
@@ -69,11 +115,21 @@ export default function KycReview() {
         <h2 className="text-xl md:text-2xl font-semibold text-emerald-100 mb-1">
           Pending Social Verifications
         </h2>
-        <p className="text-sm text-slate-300/90">
-          Review user-submitted proofs for social handles linked to wallets.
-          Approve only when you&apos;re confident the handle truly belongs to the
-          address owner.
-        </p>
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-slate-300/90 max-w-prose">
+            Review user-submitted proofs for social handles linked to wallets.
+            Approve only when you&apos;re confident the handle belongs to the
+            address owner.
+          </p>
+          <div className="ml-auto flex gap-3">
+            <div className="rounded-full bg-emerald-600/20 px-3 py-1 text-sm text-emerald-200">
+              Users: {items.length}
+            </div>
+            <div className="rounded-full bg-yellow-600/10 px-3 py-1 text-sm text-yellow-200">
+              Handles: {items.reduce((acc, u) => acc + ((u.pendingSocialVerifications || []).length || 0), 0)}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="max-w-5xl">
@@ -104,9 +160,13 @@ export default function KycReview() {
                             {p.platform}
                           </span>
                           : <span className="font-mono">{p.handle}</span>
-                          <span className="text-slate-400"> · code: {p.code}</span>
+                          {p.adminRequested ? (
+                            <span className="ml-2 inline-block rounded-full bg-yellow-500/90 text-black px-2 text-[11px] font-medium">New</span>
+                          ) : null}
+                          {p.code ? <span className="text-slate-400"> · code: {p.code}</span> : null}
                         </div>
                         <div className="flex justify-end">
+                          <div className="flex gap-2">
                           <button
                             className="inline-flex items-center rounded-full bg-emerald-500/90 px-3 py-1 text-[11px] font-medium text-black hover:bg-emerald-400 transition-colors"
                             onClick={() =>
@@ -115,6 +175,13 @@ export default function KycReview() {
                           >
                             Approve
                           </button>
+                          <button
+                            className="inline-flex items-center rounded-full bg-red-600/90 px-3 py-1 text-[11px] font-medium text-white hover:bg-red-500 transition-colors"
+                            onClick={() => reject(u.address, p.platform, p.handle)}
+                          >
+                            Reject
+                          </button>
+                          </div>
                         </div>
                       </div>
                     )

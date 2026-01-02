@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../../components/admin/AdminLayout";
 import useAdminWallet from "../../hooks/useAdminWallet";
+import adminFetch from "../../components/admin/adminFetch";
 
 type CharityRow = {
   _id?: string;
@@ -13,9 +14,11 @@ type CharityRow = {
   description?: string;
   website?: string;
   logo?: string;
+  donationAddress?: string;
   hidden?: boolean;
   tags?: string[];
   categories?: string[];
+  givingBlockEmbedUrl?: string;
 };
 
 export default function AdminCharitiesAppPage() {
@@ -31,8 +34,10 @@ export default function AdminCharitiesAppPage() {
     website: "",
     description: "",
     logo: "",
+    donationAddress: "",
     tags: [],
     categories: [],
+    givingBlockEmbedUrl: "",
   });
 
   useEffect(() => {
@@ -43,7 +48,7 @@ export default function AdminCharitiesAppPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/charities", { credentials: "include" });
+      const res = await fetch("/api/charities?includeHidden=1", { credentials: "include" });
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const js = await res.json();
       const list = (js && js.results) || js || [];
@@ -63,10 +68,12 @@ export default function AdminCharitiesAppPage() {
       website: "",
       description: "",
       logo: "",
+      donationAddress: "",
       givingBlockId: "",
       charityId: "",
       tags: [],
       categories: [],
+      givingBlockEmbedUrl: "",
     });
   }
 
@@ -80,9 +87,11 @@ export default function AdminCharitiesAppPage() {
       website: c.website || "",
       description: c.description || "",
       logo: c.logo || "",
+      donationAddress: c.donationAddress || "",
       hidden: c.hidden,
       tags: c.tags || [],
       categories: c.categories || [],
+      givingBlockEmbedUrl: c.givingBlockEmbedUrl || "",
     });
   }
 
@@ -93,14 +102,16 @@ export default function AdminCharitiesAppPage() {
       website: form.website,
       description: form.description,
       logo: form.logo,
+      donationAddress: form.donationAddress,
       givingBlockId: form.givingBlockId,
       charityId: form.charityId,
       tags: form.tags,
       categories: form.categories,
+       givingBlockEmbedUrl: form.givingBlockEmbedUrl,
     };
     try {
       const method = editing && editing._id ? "PATCH" : "POST";
-      const res = await fetch("/api/charities", {
+      const res = await adminFetch("/api/charities", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...payload, id: editing?._id }),
@@ -113,10 +124,12 @@ export default function AdminCharitiesAppPage() {
         website: "",
         description: "",
         logo: "",
+        donationAddress: "",
         givingBlockId: "",
         charityId: "",
         tags: [],
         categories: [],
+        givingBlockEmbedUrl: "",
       });
     } catch (e: any) {
       alert(e?.message || "Failed to save charity");
@@ -126,7 +139,7 @@ export default function AdminCharitiesAppPage() {
   async function toggleHidden(item: CharityRow) {
     if (!item._id) return;
     try {
-      const res = await fetch("/api/admin/charities", {
+      const res = await adminFetch("/api/admin/charities", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item._id, hidden: !item.hidden }),
@@ -149,7 +162,7 @@ export default function AdminCharitiesAppPage() {
     if (!confirm("Run charity sync from The Giving Block now?")) return;
     setSyncing(true);
     try {
-      const res = await fetch("/api/charities/sync", { method: "POST" });
+      const res = await adminFetch("/api/charities/sync", { method: "POST" });
       if (!res.ok) throw new Error(`Sync failed: ${res.status}`);
       await load();
       alert("Sync complete");
@@ -252,6 +265,28 @@ export default function AdminCharitiesAppPage() {
                     }
                   />
                 </label>
+                <label className="flex flex-col md:col-span-2">
+                  Donation wallet address
+                  <input
+                    className="mt-1 rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-sm text-amber-50"
+                    placeholder="0x... or other on-chain address"
+                    value={form.donationAddress || ""}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, donationAddress: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="flex flex-col md:col-span-2">
+                  Giving Block embed URL
+                  <input
+                    className="mt-1 rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-sm text-amber-50"
+                    placeholder="https://...thegivingblock.com/embed/..."
+                    value={form.givingBlockEmbedUrl || ""}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, givingBlockEmbedUrl: e.target.value }))
+                    }
+                  />
+                </label>
                 <label className="flex flex-col">
                   Giving Block ID
                   <input
@@ -321,6 +356,7 @@ export default function AdminCharitiesAppPage() {
                         website: "",
                         description: "",
                         logo: "",
+                        donationAddress: "",
                         givingBlockId: "",
                         charityId: "",
                         tags: [],

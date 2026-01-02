@@ -19,12 +19,20 @@ const AuditLogTable: React.FC<{ adminWallet: string }> = ({ adminWallet }) => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/admin-actions", {
+    fetch(`/api/admin/audit-logs?page=${page}&pageSize=${pageSize}` , {
       headers: { "x-admin-address": adminWallet }
     })
       .then(res => res.json())
       .then(data => {
-        setAuditLog(data.actions || []);
+        // map server AuditLog to UI shape
+        const items = (data.logs || []).map((l: any) => ({
+          admin: l.actor || '',
+          action: l.action || l.type || '',
+          target: l.target || '',
+          reason: l.meta?.reason || l.meta?.kycStatus || '',
+          timestamp: l.createdAt || l.createdAt,
+        }));
+        setAuditLog(items);
         setLoading(false);
       })
       .catch(() => {
@@ -55,7 +63,7 @@ const AuditLogTable: React.FC<{ adminWallet: string }> = ({ adminWallet }) => {
               </tr>
             </thead>
             <tbody>
-              {auditLog.slice((page-1)*pageSize, page*pageSize).map((a, i) => (
+              {auditLog.map((a, i) => (
                 <tr key={i} className="border-b border-indigo-800 hover:bg-indigo-950">
                   <td className="py-2 px-4 font-mono text-indigo-300">{a.admin}</td>
                   <td className="py-2 px-4 text-indigo-200">{a.action}</td>
@@ -68,8 +76,8 @@ const AuditLogTable: React.FC<{ adminWallet: string }> = ({ adminWallet }) => {
           </table>
           <div className="flex gap-2 items-center justify-end mt-2">
             <button className="px-2 py-1 rounded bg-indigo-800 text-indigo-200 disabled:opacity-50" disabled={page === 1} onClick={() => setPage(Math.max(1, page-1))}>Prev</button>
-            <span className="text-indigo-200">Page {page} / {Math.ceil(auditLog.length/pageSize)}</span>
-            <button className="px-2 py-1 rounded bg-indigo-800 text-indigo-200 disabled:opacity-50" disabled={page * pageSize >= auditLog.length} onClick={() => setPage(page+1)}>Next</button>
+            <span className="text-indigo-200">Page {page}</span>
+            <button className="px-2 py-1 rounded bg-indigo-800 text-indigo-200 disabled:opacity-50" onClick={() => setPage(page+1)}>Next</button>
           </div>
         </div>
       )}

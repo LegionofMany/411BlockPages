@@ -1,10 +1,12 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import Skeleton from '../components/ui/Skeleton';
 import Toast from '../components/ui/Toast';
 import RiskBadge from '../../components/RiskBadge';
+import UserProfile from '../components/UserProfile';
 import { fetchUserNFTs, UnifiedNftItem } from '../../services/nfts';
 
 interface EventItem {
@@ -67,6 +69,7 @@ export default function ProfilePage() {
   const [nftsError, setNftsError] = useState<string | null>(null);
   const [riskScore, setRiskScore] = useState<number | null>(null);
   const [riskCategory, setRiskCategory] = useState<'green' | 'yellow' | 'red' | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     let mounted = true;
@@ -152,20 +155,26 @@ export default function ProfilePage() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (!me?._id) return;
+  async function loadProfileEvents() {
+    setError(null);
     setLoadingEvents(true);
-    (async () => {
-      try {
-        const res = await fetch(`/api/events/byUser/${me._id}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const combined: EventItem[] = [...(data.active || []), ...(data.completed || [])];
-        setEvents(combined);
-      } finally {
-        setLoadingEvents(false);
+    try {
+      const res = await fetch('/api/events/byUser', { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setEvents([]);
+        setError((data as any)?.error || (data as any)?.message || 'Failed to load events');
+        return;
       }
-    })();
+      const combined: EventItem[] = [...((data as any).active || []), ...((data as any).completed || [])];
+      setEvents(combined);
+    } finally {
+      setLoadingEvents(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadProfileEvents();
   }, [me?._id]);
 
   async function submitEvent(e: React.FormEvent) {
@@ -173,10 +182,18 @@ export default function ProfilePage() {
     setError(null);
     setCreating(true);
     try {
+      const rawGoal = String(form.goalAmount || '').trim();
+      const cleanedGoal = rawGoal.replace(/[^0-9.]/g, ''); // strip $, commas, spaces, etc.
+      const numericGoal = Number(cleanedGoal);
+      if (!Number.isFinite(numericGoal) || numericGoal <= 0) {
+        setError('Goal amount must be a positive number');
+        setCreating(false);
+        return;
+      }
       const payload = {
         title: form.title,
         description: form.description,
-        goalAmount: Number(form.goalAmount),
+        goalAmount: numericGoal,
         deadline: form.deadline,
         recipientWallet: form.recipientWallet,
         givingBlockCharityId: form.givingBlockCharityId || undefined,
@@ -230,8 +247,15 @@ export default function ProfilePage() {
     if (typeof window === 'undefined') return;
     const eth = (window as any).ethereum;
     if (!eth) {
-      setNftError('MetaMask not detected. Please install the extension.');
-      return;
+      // On mobile or when injected provider is absent, route to the login page
+      // which uses WalletConnect. This preserves existing desktop injected flow.
+      try {
+        router.push('/login');
+        return;
+      } catch {
+        setNftError('MetaMask not detected. Please install the extension or use WalletConnect on mobile.');
+        return;
+      }
     }
     try {
       setConnectingWallet(true);
@@ -282,11 +306,11 @@ export default function ProfilePage() {
     setNftImageUrl(item.image);
     setNftInput(item.image);
     setNftSource(item.source);
-    fetch('/api/me.patch', {
-      method: 'PATCH',
+    fetch('/api/profile/update', {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ nftAvatarUrl: item.image }),
+      body: JSON.stringify({ walletAddress: me?.address || walletAddress, nftAvatarUrl: item.image }),
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -315,11 +339,11 @@ export default function ProfilePage() {
     setNftImageUrl(url);
     setNftSource('custom');
     // Persist to profile
-    fetch('/api/me.patch', {
-      method: 'PATCH',
+    fetch('/api/profile/update', {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ nftAvatarUrl: url }),
+      body: JSON.stringify({ walletAddress: me?.address || walletAddress, nftAvatarUrl: url }),
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -369,6 +393,11 @@ export default function ProfilePage() {
             <h1 className="text-2xl font-semibold leading-tight" style={{ color: '#fefce8' }}>Profile</h1>
             <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>Your on-chain identity, charity presets, and live events.</p>
           </div>
+          {me?.address ? (
+            <div className="hidden sm:flex items-center">
+              <UserProfile walletAddress={me.address} />
+            </div>
+          ) : null}
           <Link
             href="/profile/edit"
             className="hidden sm:inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-lime-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-[0_10px_30px_rgba(34,197,94,0.45)] hover:from-emerald-400 hover:to-lime-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
@@ -422,6 +451,9 @@ export default function ProfilePage() {
                   <p className="text-[11px] font-semibold tracking-[0.18em] uppercase mb-1.5" style={{ color: '#facc15' }}>
                     On-chain identity
                   </p>
+                  <div className="mb-2">
+                    <KYCRequestButton />
+                  </div>
                   <h2 className="text-xl md:text-2xl font-semibold mb-2 leading-tight" style={{ color: '#fefce8' }}>
                     Link your NFT as your profile photo
                   </h2>
@@ -793,11 +825,9 @@ export default function ProfilePage() {
                   <div>
                     <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Goal amount</label>
                     <input
-                      type="number"
+                      type="text"
                       className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                      placeholder="Goal amount"
-                      min="0"
-                      step="0.00000001"
+                      placeholder="Goal amount (e.g. 100 or $100)"
                       value={form.goalAmount}
                       onChange={(e) => setForm({ ...form, goalAmount: e.target.value })}
                       required
@@ -853,6 +883,16 @@ export default function ProfilePage() {
               <p className="text-xs" style={{ color: '#9ca3af' }}>
                 Track live and completed campaigns linked to your profile.
               </p>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={loadProfileEvents}
+                  disabled={loadingEvents}
+                  className="inline-flex items-center rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-slate-950 shadow-sm hover:bg-emerald-400 disabled:opacity-60"
+                >
+                  {loadingEvents ? 'Loading events…' : 'Show events'}
+                </button>
+              </div>
               {loadingEvents ? (
                 <div className="text-sm" style={{ color: '#e5e7eb' }}>Loading events...</div>
               ) : events.length === 0 ? (
@@ -892,8 +932,11 @@ export default function ProfilePage() {
                           <span className="truncate max-w-[55%]">Recipient: {ev.recipientWallet}</span>
                         </div>
                         <div className="mt-2 flex justify-between items-center text-[11px]">
-                          <Link href={`/events/${ev._id}`} className="text-emerald-300 hover:text-emerald-200">
-                            Open event page
+                          <Link
+                            href={`/events/${ev._id}`}
+                            className="inline-flex items-center rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400"
+                          >
+                            Show event
                           </Link>
                           <button
                             type="button"
@@ -916,3 +959,36 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    function KYCRequestButton() {
+      const [loading, setLoading] = React.useState(false);
+      const [error, setError] = React.useState<string | null>(null);
+      return (
+        <span className="inline-block">
+          <button
+            className="ml-4 px-3 py-1 rounded bg-cyan-700 text-white font-bold disabled:opacity-60"
+            disabled={loading}
+            onClick={async () => {
+              setLoading(true);
+              setError(null);
+              try {
+                const res = await fetch('/api/kyc-request', { method: 'POST', credentials: 'include' });
+                const result = await res.json().catch(() => ({}));
+                if ((result as any).kycUrl) {
+                  window.open((result as any).kycUrl, '_blank');
+                } else {
+                  setError((result as any).message || 'KYC request failed');
+                }
+              } catch {
+                setError('Network error');
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            {loading ? 'Requesting...' : 'Request KYC'}
+          </button>
+          {error && <span className="ml-2 text-red-400 text-xs">{error}</span>}
+        </span>
+      );
+    }

@@ -60,15 +60,19 @@ const AdminWalletsTable: React.FC = () => {
     if (!window.confirm("Are you sure you want to delete this account?")) return;
     setDeleting(address);
     try {
-      const res = await fetch("/api/admin/delete-wallet", {
+      const res = await adminFetch("/api/admin/delete-wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, chain })
       });
+      let body: any = null
+      try { body = await res.json() } catch (_) { body = await res.text() }
       if (res.ok) {
         setWallets(wallets => wallets.filter(w => !(w.address === address && w.chain === chain)));
+      } else if (res.status === 403) {
+        alert('Not authorized — sign in as an admin or set an admin wallet in localStorage')
       } else {
-        alert("Failed to delete account");
+        alert(body?.message || 'Failed to delete account')
       }
     } finally {
       setDeleting(null);
@@ -78,15 +82,19 @@ const AdminWalletsTable: React.FC = () => {
   const handleBlacklist = async (address: string, chain: string, blacklisted: boolean) => {
     setBlacklisting(address);
     try {
-      const res = await fetch("/api/admin/blacklist-wallet", {
+      const res = await adminFetch("/api/admin/blacklist-wallet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, chain, blacklisted: !blacklisted })
       });
+      let body: any = null
+      try { body = await res.json() } catch (_) { body = await res.text() }
       if (res.ok) {
         setWallets(wallets => wallets.map(w => w.address === address && w.chain === chain ? { ...w, blacklisted: !blacklisted } : w));
+      } else if (res.status === 403) {
+        alert('Not authorized — sign in as an admin or set an admin wallet in localStorage')
       } else {
-        alert("Failed to update blacklist status");
+        alert(body?.message || 'Failed to update blacklist status')
       }
     } finally {
       setBlacklisting(null);

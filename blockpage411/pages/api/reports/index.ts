@@ -10,23 +10,39 @@ const JWT_SECRET = process.env.JWT_SECRET as string;
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
   const token = req.cookies.token;
+  console.log('[/api/reports] incoming POST');
+  console.log('[/api/reports] cookies:', Object.keys(req.cookies));
   if (!token) return res.status(401).json({ message: 'Not authenticated' });
   let payload: unknown;
   try { payload = jwt.verify(token, JWT_SECRET); } catch { return res.status(401).json({ message: 'Invalid token' }); }
+  console.log('[/api/reports] jwt payload:', payload);
   const reporterUserId = (payload && typeof payload === 'object' && 'address' in payload) ? (payload as { address?: string }).address : undefined;
+  console.log('[/api/reports] reporterUserId:', reporterUserId);
   if (!reporterUserId) return res.status(401).json({ message: 'Invalid token payload' });
   const { reporterWalletId, providerId, suspectAddress, chain, evidence } = req.body;
-  if (!suspectAddress || !chain) return res.status(400).json({ message: 'suspectAddress and chain required' });
+  console.log('[/api/reports] body:', { reporterWalletId, providerId, suspectAddress, chain, evidenceLength: Array.isArray(evidence) ? evidence.length : undefined });
+  if (!suspectAddress || !chain) {
+    console.log('[/api/reports] missing suspectAddress or chain');
+    return res.status(400).json({ message: 'suspectAddress and chain required' });
+  }
   await dbConnect();
   // optionally ensure wallet belongs to user
   if (reporterWalletId) {
+    console.log('[/api/reports] validating reporterWalletId:', reporterWalletId);
     const w = await Wallet.findById(reporterWalletId);
-    if (!w) return res.status(400).json({ message: 'reporter wallet not found' });
+    if (!w) {
+      console.log('[/api/reports] reporter wallet not found:', reporterWalletId);
+      return res.status(400).json({ message: 'reporter wallet not found' });
+    }
   }
   // if providerId is provided but doesn't exist, reject
   if (providerId) {
+    console.log('[/api/reports] validating providerId:', providerId);
     const p = await Provider.findById(providerId);
-    if (!p) return res.status(400).json({ message: 'provider not found' });
+    if (!p) {
+      console.log('[/api/reports] provider not found:', providerId);
+      return res.status(400).json({ message: 'provider not found' });
+    }
   }
   const report = await Report.create({ reporterUserId, reporterWalletId, providerId, suspectAddress, chain, evidence: evidence || [] });
   // mirror to Wallet.flags if the suspect wallet exists

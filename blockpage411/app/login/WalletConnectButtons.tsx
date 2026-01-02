@@ -1,69 +1,134 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useConnect, type Connector } from 'wagmi';
+import React, { useState, useEffect } from 'react';
+import { useConnect } from 'wagmi';
+import { useRouter } from 'next/navigation';
+import { mainnet } from 'viem/chains';
+
+const chains = [mainnet];
 
 export default function WalletConnectButtons({ onError }: { onError?: (e: unknown) => void }) {
-  const { connect } = useConnect();
-  const [loading, setLoading] = useState<string | null>(null);
+  const { connect, connectors, isPending } = useConnect();
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const router = useRouter();
+  const [connectorsReady, setConnectorsReady] = useState(false);
 
-  async function handleInjected() {
-    setLoading('injected');
+  const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/.test(navigator.userAgent);
+
+  function getConnectorById(id: string) {
+    const needle = id.toLowerCase();
+    return connectors.find((c) => c.id === id || (c.name && c.name.toLowerCase().includes(needle)));
+  }
+
+  useEffect(() => {
+    setConnectorsReady(Array.isArray(connectors) && connectors.length > 0);
+  }, [connectors]);
+
+  function normalizeWalletError(err: unknown) {
+    const msg =
+      typeof err === 'string'
+        ? err
+        : (err as any)?.message || (err as any)?.toString?.() || '';
+    const lower = String(msg).toLowerCase();
+
+    // WalletConnect v2 relay failures often surface as WebSocket connection errors.
+    if (lower.includes('websocket') || lower.includes('relay.walletconnect.org') || lower.includes('walletconnect')) {
+      return new Error(
+        'WalletConnect could not open a connection to its relay. This is usually caused by an ad-blocker, VPN/corporate firewall, antivirus web filtering, or DNS filtering. Try disabling extensions for localhost, turning off VPN, or switching networks (e.g. mobile hotspot), then retry.'
+      );
+    }
+
+    return err instanceof Error ? err : new Error(String(msg || 'Wallet connection failed'));
+  }
+
+  async function handleConnect(connectorId: string) {
+    setLoadingId(connectorId);
     try {
-      // import at runtime only in client; use connectors index to avoid subpath export issues
-  const mod = await import('wagmi/connectors');
-  // connector default export is a class/function; some wagmi versions export factories
-  const m = mod as unknown as Record<string, unknown>;
-  const connectorFactory = m['injected'] ?? m['default'] ?? m['InjectedConnector'];
-  // attempt to call as factory if present
-  const connector = typeof connectorFactory === 'function' ? (connectorFactory as (...args: unknown[]) => unknown)() : connectorFactory;
-  await connect({ connector: connector as unknown as Connector });
+      const connector = getConnectorById(connectorId);
+
+      if (!connector) {
+        // If injected provider is present, perform a direct MetaMask flow (eth_requestAccounts + personal_sign)
+        if (connectorId === 'injected' && typeof window !== 'undefined' && (window as any).ethereum) {
+          const eth = (window as any).ethereum;
+          try {
+            const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' });
+            const address = Array.isArray(accounts) && accounts.length ? accounts[0] : undefined;
+            if (!address) throw new Error('No accounts returned from injected provider');
+
+            // Request nonce from server
+            const nonceRes = await fetch('/api/auth/nonce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address }) });
+            if (!nonceRes.ok) throw new Error('Failed to fetch nonce');
+            const nonceData = await nonceRes.json();
+            const message = `Login nonce: ${nonceData.nonce}`;
+
+            // Use personal_sign to sign the message
+            const signature: string = await eth.request({ method: 'personal_sign', params: [message, address] });
+
+            // Send verify request (include credentials so cookie is set)
+            const verifyRes = await fetch('/api/auth/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ address, signature }) });
+            if (!verifyRes.ok) {
+              const err = await verifyRes.json().catch(() => ({}));
+              throw new Error(err?.message || 'Verification failed');
+            }
+            // success — navigate to search or refresh
+            router.push('/search');
+            return;
+          } catch (err) {
+            onError?.(err);
+            return;
+          }
+        }
+
+        // For WalletConnect / Coinbase, surface an error instead of routing to /login (no-op on this page)
+        onError?.(new Error(`Wallet connector not available yet (${connectorId}). Try refreshing /login.`));
+        return;
+      }
+
+      await connect({ connector });
     } catch (e) {
-      console.warn('Injected connect failed', e);
-      onError?.(e);
+      console.warn('Connect failed', e);
+      onError?.(normalizeWalletError(e));
     } finally {
-      setLoading(null);
+      setLoadingId(null);
     }
   }
 
-  async function handleWalletConnect() {
-    setLoading('walletconnect');
-    try {
-  const mod = await import('wagmi/connectors');
-  const m = mod as unknown as Record<string, unknown>;
-  const factory = m['walletConnect'] ?? m['default'] ?? m['WalletConnectConnector'];
-  const connector = typeof factory === 'function' ? (factory as (...args: unknown[]) => unknown)({ projectId: 'demo' } as unknown) : factory;
-  await connect({ connector: connector as unknown as Connector });
-    } catch (e) {
-      console.warn('WalletConnect failed', e);
-      onError?.(e);
-    } finally {
-      setLoading(null);
-    }
-  }
+  // Convenience: if user is on mobile and no injected provider, open login page which shows WalletConnect
+  if (isMobile && typeof window !== 'undefined' && !(window as any).ethereum) {
+    return (
+      <div className="space-y-4">
+        <div className="text-sm text-slate-300">Detected mobile device — use WalletConnect or your wallet app.</div>
+        <button
+          className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-sky-500"
+          onClick={() => handleConnect('walletConnect')}
+          disabled={!!loadingId || isPending}
+        >
+          <span className="text-2xl">🔗</span>
+          <span className="font-bold">WalletConnect</span>
+        </button>
 
-  async function handleCoinbase() {
-    setLoading('coinbase');
-    try {
-  const mod = await import('wagmi/connectors');
-  const m = mod as unknown as Record<string, unknown>;
-  const factory = m['coinbaseWallet'] ?? m['default'] ?? m['CoinbaseWalletConnector'];
-  const connector = typeof factory === 'function' ? (factory as (...args: unknown[]) => unknown)() : factory;
-  await connect({ connector: connector as unknown as Connector });
-    } catch (e) {
-      console.warn('Coinbase connect failed', e);
-      onError?.(e);
-    } finally {
-      setLoading(null);
-    }
+        <button
+          className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-500"
+          onClick={() => handleConnect('coinbaseWallet')}
+          disabled={!!loadingId || isPending}
+        >
+          <span className="text-2xl">💼</span>
+          <span className="font-bold">Coinbase Wallet</span>
+        </button>
+
+        {!connectorsReady && (
+          <div className="text-xs text-slate-400">Loading wallet connectors… if this stays stuck, refresh the page.</div>
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
       <button
         className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-yellow-500"
-        onClick={handleInjected}
-        disabled={!!loading}
+        onClick={() => handleConnect('injected')}
+        disabled={!!loadingId || isPending}
       >
         <span className="text-2xl">🦊</span>
         <span className="font-bold">MetaMask</span>
@@ -71,8 +136,8 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
 
       <button
         className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-sky-500"
-        onClick={handleWalletConnect}
-        disabled={!!loading}
+        onClick={() => handleConnect('walletConnect')}
+        disabled={!!loadingId || isPending}
       >
         <span className="text-2xl">🔗</span>
         <span className="font-bold">WalletConnect</span>
@@ -80,12 +145,16 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
 
       <button
         className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-500"
-        onClick={handleCoinbase}
-        disabled={!!loading}
+        onClick={() => handleConnect('coinbaseWallet')}
+        disabled={!!loadingId || isPending}
       >
         <span className="text-2xl">💼</span>
         <span className="font-bold">Coinbase Wallet</span>
       </button>
+
+      {!connectorsReady && (
+        <div className="text-xs text-slate-400">Loading wallet connectors… if this stays stuck, refresh the page.</div>
+      )}
     </div>
   );
 }

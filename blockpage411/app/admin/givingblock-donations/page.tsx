@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminLayout from "../../components/admin/AdminLayout";
 import useAdminWallet from "../../hooks/useAdminWallet";
+import adminFetch from "../../components/admin/adminFetch";
 
 type PledgeRow = {
   _id?: string;
@@ -33,7 +34,7 @@ export default function AdminGivingBlockDonationsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/fundraisers/admin/pledges", {
+      const res = await adminFetch("/api/fundraisers/admin/pledges", {
         credentials: "include",
       });
       if (!res.ok) throw new Error(`Status ${res.status}`);

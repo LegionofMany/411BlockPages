@@ -13,17 +13,16 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
-    // Check if user is already authenticated
-    axios.get("/api/me", { withCredentials: true })
-      .then(() => {
-        router.replace("/search");
+    // Check if user is already authenticated.
+    // The session token cookie is HttpOnly, so we can't reliably read it from JS.
+    // Use a cheap server-side status endpoint that always returns 200.
+    axios
+      .get('/api/auth/status', { withCredentials: true })
+      .then((res) => {
+        if (res?.data?.authenticated) router.replace('/search');
       })
-      .catch((err) => {
-        if (err.response && err.response.status !== 401) {
-          // Only log unexpected errors
-          console.warn("Unexpected /api/me error:", err);
-        }
-        // Do not redirect or show warning for 401 (not logged in yet)
+      .catch(() => {
+        // ignore
       });
   }, [router]);
   const { address, isConnected } = useAccount();
@@ -36,19 +35,24 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
+      console.log('LOGIN: starting handleLogin', { address });
       // 1. Get nonce
       const { data } = await axios.post("/api/auth/nonce", { address });
+      console.log('LOGIN: received nonce', data);
       const message = `Login nonce: ${data.nonce}`;
       // 2. Sign nonce — include the account field required by wagmi's typing
       const signature = await signMessageAsync({ account: address as any, message });
+      console.log('LOGIN: obtained signature', { signature });
       // 3. Verify signature
-      await axios.post("/api/auth/verify", { address, signature }, { withCredentials: true });
+      const verifyRes = await axios.post("/api/auth/verify", { address, signature }, { withCredentials: true });
+      console.log('LOGIN: verify response', verifyRes.status, verifyRes.data);
       // Save wallet address for admin panel access
   window.localStorage.setItem("wallet", address || "");
       // On success, redirect or update UI as needed
       router.push("/search");
     } catch {
-      setError("Login failed. Please try again.");
+      console.error('LOGIN: sign-in flow failed', arguments);
+      setError("Login failed. Please try again. Check console/network for details.");
     } finally {
       setLoading(false);
     }

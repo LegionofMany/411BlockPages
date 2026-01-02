@@ -12,14 +12,19 @@ type WalletDoc = {
   avgRating?: number;
   nftCount?: number;
   blacklisted?: boolean;
+  blacklistReason?: string;
   flags?: { reason: string; user: string; date: string }[];
+  flagsCount?: number;
   kycStatus?: string;
+  socials?: { displayName?: string; avatarUrl?: string };
+  trustScore?: number;
+  riskScore?: number;
 };
 // Helper to get status tags for a wallet
 function getStatusTags(wallet: WalletDoc) {
   const tags: string[] = [];
   if (wallet?.blacklisted) tags.push('Blacklisted');
-  if (wallet?.flags && wallet.flags.length > 0) tags.push(`Flagged (${wallet.flags.length})`);
+  if (wallet?.flagsCount && wallet.flagsCount > 0) tags.push(`Flagged (${wallet.flagsCount})`);
   if (wallet?.kycStatus === 'verified') tags.push('Verified');
   return tags;
 }
@@ -86,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const query: Record<string, unknown> = { };
   if (input) query.address = { $regex: input, $options: 'i' };
   if (chain) query.chain = chain;
-  query.blacklisted = { $ne: true };
+  // Do not filter out blacklisted here — return a safe public summary including blacklist flag.
   console.log('SEARCH API: query', query);
   const results = await Wallet.find(query).limit(20);
   console.log('SEARCH API: found', results.length, 'results');
@@ -96,6 +101,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ens: w.ens || resolvedDomain,
     avgRating: w.avgRating,
     nftCount: w.nftCount,
+    // public safety signals (non-PII)
+    blacklisted: !!w.blacklisted,
+    blacklistReason: w.blacklistReason ? String(w.blacklistReason).slice(0, 160) : undefined,
+    flagsCount: w.flagsCount || (w.flags ? w.flags.length : 0),
+    flagsSummary: (w.flags || []).slice(0, 3).map((f) => (f && f.reason ? String(f.reason).slice(0, 80) : 'flag')),
+    kycStatus: w.kycStatus,
+    socials: w.socials || undefined,
+    trustScore: w.trustScore,
+    riskScore: w.riskScore,
     statusTags: getStatusTags(w),
   }));
   // If no results, return a default profile for the searched address/chain
@@ -106,6 +120,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ens: resolvedDomain,
       avgRating: undefined,
       nftCount: undefined,
+      blacklisted: false,
+      blacklistReason: undefined,
+      flagsCount: 0,
+      flagsSummary: [],
+      kycStatus: 'unverified',
+      socials: undefined,
+      trustScore: 0,
+      riskScore: 0,
       statusTags: [],
     }];
   }

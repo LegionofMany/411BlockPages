@@ -11,12 +11,15 @@ export default function useProfile() {
     async function fetchProfile() {
       try {
         setLoading(true);
-        const res = await fetch("/api/me", { credentials: "include" });
-        if (res.status === 401) {
-          // Not authenticated — return null profile without spamming console
+
+        const statusRes = await fetch('/api/auth/status', { credentials: 'include' });
+        const status = await statusRes.json().catch(() => ({} as any));
+        if (!status?.authenticated) {
           setProfile(null);
           return;
         }
+
+        const res = await fetch("/api/me", { credentials: "include" });
         if (!res.ok) {
           console.warn('useProfile: /api/me returned', res.status);
           setProfile(null);

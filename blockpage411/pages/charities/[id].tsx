@@ -14,6 +14,7 @@ export default function CharityDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [related, setRelated] = useState<CharityDetail[]>([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
+  const [loggedView, setLoggedView] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -41,6 +42,29 @@ export default function CharityDetailPage() {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!charity || loggedView) return;
+    const charityKey = String(charity.givingBlockId || charity.charityId || charity._id || '');
+    if (!charityKey) return;
+    let cancelled = false;
+    async function logView() {
+      try {
+        await fetch('/api/metrics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ metric: 'charity_view', charityId: charityKey }),
+        });
+        if (!cancelled) setLoggedView(true);
+      } catch {
+        // ignore metrics errors
+      }
+    }
+    void logView();
+    return () => {
+      cancelled = true;
+    };
+  }, [charity, loggedView]);
 
   useEffect(() => {
     if (!charity || !charity.categories || charity.categories.length === 0) return;

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { explorerUrlFor } from "../../lib/explorer";
 
 export interface CharityWallet {
   chain: string;
@@ -80,15 +81,30 @@ export default function DonateModal({ open, onClose, charityName, wallets }: Pro
             <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
               Donation wallet address
             </label>
-            <div className="mt-1 flex items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 text-xs text-emerald-100 border border-emerald-500/40">
-              <span className="flex-1 break-all font-mono text-[11px]">{activeWallet.address}</span>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(activeWallet.address)}
-                className="rounded-full bg-emerald-500/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-black hover:bg-emerald-400"
-              >
-                Copy
-              </button>
+            <div className="mt-1 flex flex-col gap-1">
+              <div className="flex items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 text-xs text-emerald-100 border border-emerald-500/40">
+                <span className="flex-1 break-all font-mono text-[11px]">{activeWallet.address}</span>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(activeWallet.address)}
+                  className="rounded-full bg-emerald-500/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-black hover:bg-emerald-400"
+                >
+                  Copy
+                </button>
+              </div>
+              {(() => {
+                const explorer = explorerUrlFor(activeWallet.address, activeWallet.chain);
+                return explorer ? (
+                  <a
+                    href={explorer}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="self-start text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300/90 underline-offset-2 hover:text-emerald-100 hover:underline"
+                  >
+                    View on explorer
+                  </a>
+                ) : null;
+              })()}
             </div>
           </div>
         )}
@@ -132,6 +148,8 @@ export default function DonateModal({ open, onClose, charityName, wallets }: Pro
           )}
           <p className="text-[11px] text-emerald-100/75 text-center">
             Send your donation from your own wallet app using the address or QR above.
+            <br />
+            Donations go directly to the charity&apos;s wallet. Blockpage411 does not custody funds or provide refunds.
           </p>
         </div>
       </div>

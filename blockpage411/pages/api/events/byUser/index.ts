@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '../../../../lib/db';
 import Event from '../../../../models/Event';
+import User from '../../../../lib/userModel';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -52,15 +53,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const now = new Date();
 
+  // Find the user so we can query by creatorUserId (canonical field)
+  const user = await User.findOne({ address }).lean();
+  if (!user) {
+    return res.status(200).json({ active: [], completed: [] });
+  }
+
+  // Support both legacy creatorAddress and new creatorUserId fields
+  const userId = String((user as any)._id);
+
   const [active, completed] = await Promise.all([
-    Event.find({ creatorAddress: address, deadline: { $gt: now } }).sort({ deadline: 1 }).lean(),
-    Event.find({ creatorAddress: address, deadline: { $lte: now } }).sort({ deadline: -1 }).lean(),
+    Event.find({
+      $or: [
+        { creatorUserId: userId, deadline: { $gt: now } },
+        // @ts-ignore legacy field may exist on some documents
+        { creatorAddress: address, deadline: { $gt: now } },
+      ],
+    })
+      .sort({ deadline: 1 })
+      .lean(),
+    Event.find({
+      $or: [
+        { creatorUserId: userId, deadline: { $lte: now } },
+        // @ts-ignore legacy field may exist on some documents
+        { creatorAddress: address, deadline: { $lte: now } },
+      ],
+    })
+      .sort({ deadline: -1 })
+      .lean(),
   ]);
 
-  const mapMinimal = (items: any[]) => items.map((ev) => ({ _id: ev._id, title: ev.title }));
-
+  // Return full event documents so callers (profile, settings) can render
+  // descriptions, deadlines, goals, etc.
   res.status(200).json({
-    active: mapMinimal(active),
-    completed: mapMinimal(completed),
+    active,
+    completed,
   });
 }

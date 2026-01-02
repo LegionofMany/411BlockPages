@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import adminFetch from "./adminFetch";
 
 interface KYCAdminControlsProps {
   address: string;
@@ -22,23 +23,26 @@ const KYCAdminControls: React.FC<KYCAdminControlsProps> = ({ address, chain, cur
             setLoading(true);
             setError(null);
             try {
-              const adminWallet = localStorage.getItem("wallet") || "";
-              const res = await fetch("/api/admin/kyc-status", {
+              const res = await adminFetch("/api/admin/kyc-status", {
                 method: "PATCH",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-admin-address": adminWallet
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ address, chain, kycStatus: status })
               });
-              const result = await res.json();
+              let result: any = null;
+              try {
+                result = await res.json();
+              } catch (_) {
+                result = { message: await res.text() };
+              }
               if (res.ok && result.kycStatus) {
                 onUpdate(result.kycStatus);
+              } else if (res.status === 403) {
+                setError('Not authorized — sign in as an admin or set an admin wallet in localStorage');
               } else {
                 setError(result.message || "Failed to update KYC");
               }
-            } catch {
-              setError("Network error");
+            } catch (err: any) {
+              setError(err?.message || "Network error");
             } finally {
               setLoading(false);
             }

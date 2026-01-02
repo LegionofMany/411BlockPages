@@ -14,6 +14,7 @@ export const eventCreateSchema = z.object({
 });
 
 export const profileUpdateSchema = z.object({
+  email: z.string().email().optional(),
   displayName: z.string().max(80).optional(),
   avatarUrl: z.string().url().optional(),
   bio: z.string().max(500).optional(),
@@ -52,4 +53,5 @@ export const ratingCreateSchema = z.object({
 export const socialVerifyRequestSchema = z.object({
   platform: z.string().min(1).max(50),
   handle: z.string().min(1).max(100),
+  proofUrl: z.string().url().optional(),
 });

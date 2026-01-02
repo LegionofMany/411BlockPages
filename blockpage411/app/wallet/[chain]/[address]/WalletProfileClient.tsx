@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import dynamic from 'next/dynamic';
-import ProfileInfo from "./ProfileInfo";
+import UserProfile from '../../../components/UserProfile';
 import RiskMeter from "../../../components/RiskMeter";
 import RiskBadge from "../../../../components/RiskBadge";
 import StatusBadges from "./StatusBadges";
@@ -40,18 +40,37 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   const riskScore: number | null = typeof data?.riskScore === 'number' ? data.riskScore : null;
   const riskCategory = (data?.riskCategory || null) as 'green' | 'yellow' | 'red' | null;
 
+  const visibilityLabel = (() => {
+    const vis = data?.visibility as
+      | { canSeeBalance?: boolean; isOwner?: boolean; heavilyFlagged?: boolean; isPublic?: boolean; unlockLevel?: number }
+      | undefined;
+    if (!vis) return null;
+    if (vis.isOwner) return 'Owner view (you are viewing your own wallet)';
+    if (vis.canSeeBalance) return 'Public view (balances visible to anyone)';
+    return 'Limited view (balances hidden for most viewers)';
+  })();
+
   return (
     <div className="min-h-screen flex flex-col items-center">
       <main className="flex-1 w-full max-w-3xl px-4 py-8 mt-16" style={{ width: '100%', maxWidth: '920px' }}>
         <div className="rounded-xl shadow-md p-6" style={{ background: 'linear-gradient(180deg, #061026 0%, #071630 100%)', border: '1px solid rgba(99,102,241,0.06)', boxShadow: '0 6px 18px rgba(2,6,23,0.6)' }}>
           <V5UpgradeInfo />
-          <ProfileInfo displayName={data?.displayName} avatarUrl={avatarUrl} address={address} chain={chain} />
+          <div className="mb-4">
+            <UserProfile walletAddress={address} chain={chain} />
+            <div className="text-sm text-slate-400 mt-2">Chain: {chain}</div>
+          </div>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <RiskMeter score={riskScore ?? undefined} category={riskCategory ?? undefined} />
             <div className="mt-2">
               <RiskBadge score={riskScore} category={riskCategory || undefined} />
             </div>
           </div>
+          {visibilityLabel && (
+            <div className="mt-2 text-[11px] text-slate-300">
+              View mode:{' '}
+              <span className="font-semibold text-cyan-200">{visibilityLabel}</span>
+            </div>
+          )}
           <StatusBadges suspicious={data?.suspicious} popular={data?.popular} blacklisted={data?.blacklisted} flagsCount={data?.flags?.length} kycStatus={data?.kycStatus} verificationBadge={data?.verificationBadge} />
           <div className="my-6 border-t border-blue-800"></div>
 
@@ -126,16 +145,34 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
           )}
 
           <div className="my-6 border-t border-blue-800"></div>
-          {data?.assetsHidden ? (
+          {data?.showBalance === false ? (
             <div className="p-3 bg-yellow-900/20 border border-yellow-700 rounded-md">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-yellow-200">Assets hidden</h3>
-                  <div className="text-yellow-200 text-sm">Flags: <span className="font-mono">{data?.flagsCount || 0}</span> / <span className="font-mono">{data?.flagsRequired || 3}</span></div>
+                  <div className="text-yellow-200 text-sm">
+                    Flags:
+                    <span className="font-mono">{data?.flagsCount || 0}</span>
+                    {" "}/
+                    <span className="font-mono">{data?.flagThreshold || data?.flagsRequired || 3}</span>
+                  </div>
+                  <p className="text-yellow-200 text-xs mt-1">
+                    For privacy, transaction history and balances stay hidden until this wallet reaches the required community flags.
+                  </p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="px-3 py-1 rounded bg-yellow-700 text-white text-sm" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Flag</button>
-                  <button className="px-3 py-1 rounded bg-transparent border border-yellow-700 text-yellow-200 text-sm" onClick={() => mutate()}>Refresh</button>
+                  <button
+                    className="px-3 py-1 rounded bg-yellow-700 text-white text-sm"
+                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                  >
+                    Flag
+                  </button>
+                  <button
+                    className="px-3 py-1 rounded bg-transparent border border-yellow-700 text-yellow-200 text-sm"
+                    onClick={() => mutate()}
+                  >
+                    Refresh
+                  </button>
                 </div>
               </div>
             </div>

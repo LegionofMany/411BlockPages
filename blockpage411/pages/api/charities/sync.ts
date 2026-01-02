@@ -39,22 +39,30 @@ async function runSync() {
     }
 
     const batch = charities.slice(i, i + BULK_BATCH_SIZE);
-    const ops = batch.map((c) => ({
-      updateOne: {
-        filter: { charityId: c.charityId },
-        update: {
-          $set: {
-            charityId: c.charityId,
-            name: c.name,
-            description: c.description,
-            logo: c.logo,
-            donationAddress: c.donationAddress,
-            categories: c.categories,
-          },
+    const ops = batch.map((c) => {
+      const updateDoc: Record<string, unknown> = {
+        charityId: c.charityId,
+        name: c.name,
+        description: c.description,
+        logo: c.logo,
+        donationAddress: c.donationAddress,
+        categories: c.categories,
+      };
+
+      // Only set optional fields when present so we don't
+      // overwrite existing curated data with undefined.
+      if (c.website) updateDoc.website = c.website;
+      if (c.givingBlockEmbedUrl) updateDoc.givingBlockEmbedUrl = c.givingBlockEmbedUrl;
+      if (c.wallet) updateDoc.wallet = c.wallet;
+
+      return {
+        updateOne: {
+          filter: { charityId: c.charityId },
+          update: { $set: updateDoc },
+          upsert: true,
         },
-        upsert: true,
-      },
-    }));
+      };
+    });
 
     const res = await Charity.bulkWrite(ops, { ordered: false });
 

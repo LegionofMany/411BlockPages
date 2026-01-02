@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import DonateModal, { CharityWallet } from "./DonateModal";
+import { isTrustedGivingBlockEmbed } from "../../utils/embed";
+import { explorerUrlFor } from "../../lib/explorer";
 
 export interface CharityDetail {
   _id?: string;
@@ -15,6 +17,7 @@ export interface CharityDetail {
   donationAddress?: string;
   tags?: string[];
   categories?: string[];
+  givingBlockEmbedUrl?: string;
   socials?: {
     twitter?: string;
     facebook?: string;
@@ -41,6 +44,9 @@ export default function CharityProfile({ charity }: Props) {
       ? [{ chain: "ethereum", address: charity.wallet, label: "Main" }]
       : []);
 
+  const hasDirectWallet = wallets.length > 0;
+  const hasGivingBlockEmbed = typeof charity.givingBlockEmbedUrl === "string" && charity.givingBlockEmbedUrl.length > 0;
+
   useEffect(() => {
     if (!charity.givingBlockId && !charity.charityId) return;
     let cancelled = false;
@@ -48,7 +54,7 @@ export default function CharityProfile({ charity }: Props) {
       setEventsLoading(true);
       try {
         const id = encodeURIComponent(String(charity.givingBlockId || charity.charityId));
-        const res = await fetch(`/api/events/list?charityId=${id}&activeOnly=true&limit=5`);
+        const res = await fetch(`/api/events/list?charityId=${id}&limit=5`);
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const js = await res.json();
         const arr = (js && js.results) || [];
@@ -91,14 +97,42 @@ export default function CharityProfile({ charity }: Props) {
             </p>
           )}
         </div>
-        {wallets.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowDonate(true)}
-            className="mt-2 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black shadow hover:from-emerald-300 hover:to-emerald-500"
-          >
-            Donate
-          </button>
+        {(hasDirectWallet || hasGivingBlockEmbed) && (
+          <div className="flex flex-col gap-2 sm:items-end">
+            {hasDirectWallet && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const charityKey = String(charity.givingBlockId || charity.charityId || charity._id || '');
+                  if (charityKey) {
+                    try {
+                      await fetch('/api/metrics', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ metric: 'charity_donate_click', charityId: charityKey }),
+                      });
+                    } catch {
+                      // ignore metrics errors
+                    }
+                  }
+                  setShowDonate(true);
+                }}
+                className="mt-2 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black shadow hover:from-emerald-300 hover:to-emerald-500"
+              >
+                Donate
+              </button>
+            )}
+            {hasGivingBlockEmbed && (
+              <a
+                href={charity.givingBlockEmbedUrl as string}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex items-center justify-center rounded-full border border-emerald-400/70 bg-emerald-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100 hover:bg-emerald-500/20"
+              >
+                Donate via The Giving Block
+              </a>
+            )}
+          </div>
         )}
       </div>
 
@@ -164,6 +198,18 @@ export default function CharityProfile({ charity }: Props) {
                 </a>
               </li>
             )}
+            {charity.givingBlockEmbedUrl && (
+              <li>
+                <a
+                  href={charity.givingBlockEmbedUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-200 hover:text-emerald-100"
+                >
+                  Donate via The Giving Block
+                </a>
+              </li>
+            )}
           </ul>
         </div>
 
@@ -171,16 +217,37 @@ export default function CharityProfile({ charity }: Props) {
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Donation wallets</h2>
             <ul className="mt-2 space-y-1 text-[11px] text-emerald-100/80">
-              {wallets.map((w) => (
-                <li key={`${w.chain}:${w.address}`} className="break-all">
-                  <span className="font-semibold uppercase tracking-[0.16em] text-emerald-300">{w.chain}:</span>{" "}
-                  <span className="font-mono">{w.address}</span>
-                </li>
-              ))}
+              {wallets.map((w) => {
+                const explorer = explorerUrlFor(w.address, w.chain);
+                return (
+                  <li key={`${w.chain}:${w.address}`} className="break-all">
+                    <span className="font-semibold uppercase tracking-[0.16em] text-emerald-300">{w.chain}:</span>{" "}
+                    <span className="font-mono">{w.address}</span>
+                    {explorer && (
+                      <a
+                        href={explorer}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300/90 underline-offset-2 hover:text-emerald-100 hover:underline"
+                      >
+                        View on explorer
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
       </div>
+
+      {(hasDirectWallet || hasGivingBlockEmbed) && (
+        <p className="mt-4 text-[11px] text-emerald-100/75">
+          Donations go directly to the charity&apos;s wallet.
+          <br />
+          Blockpage411 does not custody funds or provide refunds.
+        </p>
+      )}
 
       <div className="mt-6 border-t border-emerald-500/20 pt-4">
         <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
@@ -211,7 +278,45 @@ export default function CharityProfile({ charity }: Props) {
         )}
       </div>
 
-      {showDonate && wallets.length > 0 && (
+      {hasGivingBlockEmbed && (
+        <div className="mt-6 border-t border-emerald-500/20 pt-4">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+            Donate via The Giving Block
+          </h2>
+          <p className="mt-2 text-[11px] text-emerald-100/80">
+            Use the official Giving Block donation widget below or open it in a new tab.
+          </p>
+          {isTrustedGivingBlockEmbed(charity.givingBlockEmbedUrl as string) ? (
+            <div className="mt-3 overflow-hidden rounded-2xl border border-emerald-500/30 bg-black/70">
+              <iframe
+                title={`givingblock-donate-${charity.givingBlockEmbedUrl}`}
+                src={charity.givingBlockEmbedUrl}
+                style={{ width: "100%", height: 420, border: "none" }}
+                sandbox="allow-forms allow-scripts allow-popups"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          ) : (
+            <div className="mt-3 rounded-2xl border border-emerald-500/30 bg-black/60 p-3 text-[11px] text-emerald-100/80">
+              <p>
+                The donation widget is hosted on an unverified domain and cannot be embedded here, but you can open it in a
+                new tab:
+              </p>
+              <a
+                href={charity.givingBlockEmbedUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-black hover:bg-emerald-400"
+              >
+                Open Giving Block widget
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showDonate && hasDirectWallet && (
         <DonateModal open={showDonate} onClose={() => setShowDonate(false)} charityName={charity.name} wallets={wallets} />
       )}
     </div>
