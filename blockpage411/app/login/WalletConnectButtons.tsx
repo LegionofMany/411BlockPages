@@ -44,6 +44,18 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
   async function handleConnect(connectorId: string) {
     setLoadingId(connectorId);
     try {
+      // Special-case injected / MetaMask: if there's no injected provider at all,
+      // fail fast with a clear message instead of letting wagmi/inpage.js throw.
+      if (connectorId === 'injected' && typeof window !== 'undefined') {
+        const eth = (window as any).ethereum;
+        const hasInjected = !!eth;
+        const hasMetaMask = !!(eth && (eth.isMetaMask || (Array.isArray(eth.providers) && eth.providers.some((p: any) => p.isMetaMask))));
+        if (!hasInjected || !hasMetaMask) {
+          onError?.(new Error('MetaMask extension not found. Please install MetaMask in your browser or use WalletConnect / Coinbase Wallet instead.'));
+          return;
+        }
+      }
+
       const connector = getConnectorById(connectorId);
 
       if (!connector) {
