@@ -95,13 +95,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  await dbConnect();
+  try {
+    await dbConnect();
+  } catch (err: unknown) {
+    // eslint-disable-next-line no-console
+    console.error('[CharitiesSync] dbConnect error', err);
+    const msg = process.env.NODE_ENV === 'development' ? String(err) : 'Database connection failed';
+    res.status(500).json({ error: 'db_connect_failed', message: msg });
+    return;
+  }
 
   if (!isAdminRequest(req)) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
-  const summary = await runSync();
-  res.status(200).json(summary);
+  try {
+    const summary = await runSync();
+    res.status(200).json(summary);
+  } catch (err: any) {
+    // eslint-disable-next-line no-console
+    console.error('[CharitiesSync] sync error', err);
+    const rawMessage = err?.message || String(err);
+    const safeMessage = process.env.NODE_ENV === 'development'
+      ? rawMessage
+      : rawMessage.slice(0, 300) || 'Sync failed';
+    res.status(500).json({ error: 'sync_failed', message: safeMessage });
+  }
 }
