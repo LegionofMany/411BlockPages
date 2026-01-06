@@ -8,61 +8,28 @@ import TransactionItem from './TransactionItem';
 
 const NETWORKS: SupportedNetwork[] = ['ethereum', 'bsc', 'polygon'];
 
-const WS_RPC_ENDPOINTS: Partial<Record<SupportedNetwork, string>> = {
-  ethereum: process.env.NEXT_PUBLIC_ETH_MAINNET_WSS,
-  bsc: process.env.NEXT_PUBLIC_BSC_MAINNET_WSS,
-  polygon: process.env.NEXT_PUBLIC_POLYGON_MAINNET_WSS,
-};
+// Derive production-grade WebSocket endpoints. For Ethereum and Polygon, we
+// use Alchemy's WSS URLs keyed off NEXT_PUBLIC_ALCHEMY_KEY. BSC can be
+// configured via a dedicated public WSS endpoint.
+const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_KEY;
 
-const MOCK_TXS: NormalizedTransaction[] = [
-  {
-    id: 'mock-1',
-    hash: '0xmockhash001',
-    from: '0x1111111111111111111111111111111111111111',
-    to: '0x2222222222222222222222222222222222222222',
-    valueNative: 12.3,
-    valueUsd: 42000,
-    symbol: 'ETH',
-    network: 'ethereum',
-    timestamp: Date.now(),
-    kind: 'large-transfer',
-    isIncoming: true,
-    isNft: false,
-    label: '🔥 Whale Transfer Detected',
-  },
-  {
-    id: 'mock-2',
-    hash: '0xmockhash002',
-    from: '0x3333333333333333333333333333333333333333',
-    to: '0x4444444444444444444444444444444444444444',
-    valueNative: 3.4,
-    valueUsd: 9000,
-    symbol: 'BNB',
-    network: 'bsc',
-    timestamp: Date.now(),
-    kind: 'contract',
-    isIncoming: false,
-    isNft: false,
-  },
-  {
-    id: 'mock-3',
-    hash: '0xmockhash003',
-    from: '0x5555555555555555555555555555555555555555',
-    to: '0x6666666666666666666666666666666666666666',
-    valueNative: 1,
-    valueUsd: 2500,
-    symbol: 'MATIC',
-    network: 'polygon',
-    timestamp: Date.now(),
-    kind: 'nft',
-    isIncoming: true,
-    isNft: true,
-  },
-];
+const WS_RPC_ENDPOINTS: Partial<Record<SupportedNetwork, string>> = {
+  ethereum: ALCHEMY_KEY ? `wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : undefined,
+  polygon: ALCHEMY_KEY ? `wss://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : undefined,
+  // For BNB Chain, configure a WSS endpoint from your infrastructure
+  // provider (e.g. QuickNode, Chainstack) in NEXT_PUBLIC_BSC_MAINNET_WSS.
+  bsc: process.env.NEXT_PUBLIC_BSC_MAINNET_WSS,
+};
 
 export default function LiveFeed() {
   const [txs, setTxs] = useState<NormalizedTransaction[]>([]);
   const [connected, setConnected] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState<Record<SupportedNetwork, 'up' | 'down' | 'connecting'>>({
+    ethereum: 'connecting',
+    bsc: 'connecting',
+    polygon: 'connecting',
+  });
+  const [whalesOnly, setWhalesOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastScrollHeightRef = useRef<number>(0);
@@ -70,6 +37,11 @@ export default function LiveFeed() {
     ethereum: null,
     bsc: null,
     polygon: null,
+  });
+  const retryCountsRef = useRef<Record<SupportedNetwork, number>>({
+    ethereum: 0,
+    bsc: 0,
+    polygon: 0,
   });
 
   useEffect(() => {
@@ -102,17 +74,38 @@ export default function LiveFeed() {
     const activeProviders: WebSocketProvider[] = [];
 
     try {
-      NETWORKS.forEach((network) => {
+      const connectNetwork = (network: SupportedNetwork) => {
         const url = WS_RPC_ENDPOINTS[network];
         if (!url) {
+          setNetworkStatus((prev) => ({ ...prev, [network]: 'down' }));
           return;
         }
+
+        setNetworkStatus((prev) => ({ ...prev, [network]: 'connecting' }));
 
         const provider = new WebSocketProvider(url);
         providersRef.current[network] = provider;
         activeProviders.push(provider);
 
         const meta = getNativeTokenMetadata(network);
+
+        const handleError = (err: unknown) => {
+          if (!mounted) return;
+          setNetworkStatus((prev) => ({ ...prev, [network]: 'down' }));
+          setError((err as Error)?.message || 'Live feed connection error');
+
+          const retries = retryCountsRef.current[network] ?? 0;
+          const maxRetries = 5;
+          if (retries >= maxRetries) return;
+
+          retryCountsRef.current[network] = retries + 1;
+          const delayMs = Math.min(30000, 1000 * 2 ** retries);
+
+          setTimeout(() => {
+            if (!mounted) return;
+            connectNetwork(network);
+          }, delayMs);
+        };
 
         provider.on('pending', async (txHash: string) => {
           if (!mounted) return;
@@ -138,20 +131,28 @@ export default function LiveFeed() {
               largeThresholdUsd: 10_000,
             });
 
+            // If whale-only filter is on, drop non-whale transactions
+            if (whalesOnly && normalized.label !== '🔥 Whale Transfer Detected') {
+              return;
+            }
+
             buffered.push(normalized);
             if (!flushTimeout) {
               flushTimeout = setTimeout(flush, 350);
             }
+            setNetworkStatus((prev) => ({ ...prev, [network]: 'up' }));
           } catch (e) {
-            if (!mounted) return;
-            setError((e as Error).message || 'Live feed connection error');
+            handleError(e);
           }
         });
-      });
+
+        provider.on('error', handleError);
+      };
+
+      NETWORKS.forEach((network) => connectNetwork(network));
 
       if (activeProviders.length === 0) {
-        setError('Live feed RPC endpoints not configured – showing demo data.');
-        setTxs(MOCK_TXS);
+        setError('Live feed RPC endpoints not configured. Set NEXT_PUBLIC_ALCHEMY_KEY (and optionally NEXT_PUBLIC_BSC_MAINNET_WSS) to enable live data.');
       } else {
         setConnected(true);
       }
@@ -169,6 +170,7 @@ export default function LiveFeed() {
         }
       });
       providersRef.current = { ethereum: null, bsc: null, polygon: null };
+      retryCountsRef.current = { ethereum: 0, bsc: 0, polygon: 0 };
       if (flushTimeout) clearTimeout(flushTimeout);
     };
   }, []);
@@ -182,7 +184,7 @@ export default function LiveFeed() {
         boxShadow: '0 30px 90px rgba(0,0,0,0.95)',
       }}
     >
-      <header className="flex items-center justify-between px-5 py-3 border-b border-emerald-500/30 bg-black/40">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-5 py-3 border-b border-emerald-500/30 bg-black/40">
         <div>
           <h2 className="text-sm sm:text-base font-semibold" style={{ color: '#fefce8' }}>
             Live Whale Watch Feed
@@ -191,11 +193,43 @@ export default function LiveFeed() {
             Large and notable transactions across Ethereum, BNB Chain, and Polygon.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[11px]">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-200 border border-emerald-400/40">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>{connected ? 'Streaming' : 'Connecting'}</span>
-          </span>
+        <div className="flex flex-col items-end gap-2 text-[11px]">
+          <div className="flex items-center gap-2">
+            {NETWORKS.map((n) => {
+              const status = networkStatus[n];
+              const color =
+                status === 'up'
+                  ? 'bg-emerald-500'
+                  : status === 'connecting'
+                  ? 'bg-amber-400'
+                  : 'bg-red-500';
+              const label = n === 'bsc' ? 'BNB' : n === 'ethereum' ? 'ETH' : 'Polygon';
+              return (
+                <span
+                  key={n}
+                  className="inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2 py-0.5 text-slate-200 border border-slate-600/60"
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${color} ${status === 'up' ? 'animate-pulse' : ''}`} />
+                  <span>{label}</span>
+                </span>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="inline-flex items-center gap-1 text-[11px] text-slate-200">
+              <input
+                type="checkbox"
+                className="h-3 w-3 rounded border-slate-500 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
+                checked={whalesOnly}
+                onChange={(e) => setWhalesOnly(e.target.checked)}
+              />
+              <span>Whale transfers only (≥ $10k)</span>
+            </label>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-200 border border-emerald-400/40">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{connected ? 'Streaming' : 'Connecting'}</span>
+            </span>
+          </div>
         </div>
       </header>
       <div
