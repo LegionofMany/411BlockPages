@@ -24,9 +24,10 @@ export const config = {
 
 const writeFile = promisify(fs.writeFile);
 
-// Professional limits: accept up to 3 MB; resize to 256x256 and return a public URL under /uploads/avatars
-const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
+// Professional limits: accept up to 2 MB raw upload; resize to 256x256 and return a public URL
+const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB raw upload limit
 const AVATAR_SIZE = 256; // square
+const TARGET_AVATAR_BYTES = 150 * 1024; // try to compress to ~150 KB
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -48,21 +49,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const file = files.file || files.avatar;
     if (!file) return res.status(400).json({ message: 'No file uploaded' });
 
-    const mimetype = file.mimetype || file.type || '';
-    if (!mimetype.startsWith('image/')) return res.status(400).json({ message: 'Invalid file type' });
+    const mimetype = (file.mimetype || file.type || '').toLowerCase();
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowed.includes(mimetype)) return res.status(400).json({ message: 'Invalid file type. Allowed: jpg, png, webp' });
 
     // Read the uploaded temporary file
     const tmpPath = file.filepath || file.path || file.tempFilePath;
     if (!tmpPath || !fs.existsSync(tmpPath)) return res.status(400).json({ message: 'Upload failed' });
 
-    // Use sharp to normalize/resize and convert to webp for smaller size
-    const buffer = await sharp(tmpPath)
+    // Use sharp to normalize/resize and convert to webp for smaller size.
+    // Attempt progressive compression to hit TARGET_AVATAR_BYTES while keeping a safety floor.
+    const minQuality = 30;
+    let quality = 80;
+    let buffer = await sharp(tmpPath)
       .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: 'cover' })
-      .webp({ quality: 80 })
+      .webp({ quality })
       .toBuffer();
 
+    while (buffer.length > TARGET_AVATAR_BYTES && quality >= minQuality) {
+      quality = Math.max(minQuality, quality - 10);
+      buffer = await sharp(tmpPath)
+        .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: 'cover' })
+        .webp({ quality })
+        .toBuffer();
+      if (quality === minQuality) break;
+    }
+
+    // If the processed image is still huge beyond the raw limit, reject
     if (buffer.length > MAX_FILE_BYTES) {
-      // if the processed image still exceeds limit, reject
       return res.status(400).json({ message: 'Processed image exceeds maximum allowed size' });
     }
 
@@ -91,6 +105,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const filename = `${uuidv4()}.webp`;
     const outPath = path.join(uploadDir, filename);
     await writeFile(outPath, buffer);
+    try {
+      // attempt to remove the tmp uploaded file when present
+      if (tmpPath && fs.existsSync(tmpPath)) {
+        fs.unlinkSync(tmpPath);
+      }
+    } catch (e) {
+      // non-fatal
+    }
 
     // Return a served API URL so we can attach caching headers and control access
     const publicUrl = `/api/avatar/${encodeURIComponent(filename)}`;

@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { memo } from 'react';
 import type { NormalizedTransaction } from '../../services/liveFeed/normalizeTransaction';
 
 interface Props {
@@ -32,7 +32,7 @@ function valueColor(tx: NormalizedTransaction): string {
   return 'text-red-300';
 }
 
-export default function TransactionItem({ tx }: Props) {
+function TransactionItem({ tx }: Props) {
   const explorerBase =
     tx.network === 'ethereum'
       ? 'https://etherscan.io/tx/'
@@ -100,3 +100,5 @@ export default function TransactionItem({ tx }: Props) {
     </div>
   );
 }
+
+export default memo(TransactionItem);

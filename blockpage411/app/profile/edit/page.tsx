@@ -13,7 +13,7 @@ interface CharityOption {
   name: string;
 }
 
-const MAX_CLIENT_FILE_BYTES = 3 * 1024 * 1024; // legacy 3MB limit for very large images
+const MAX_CLIENT_FILE_BYTES = 2 * 1024 * 1024; // 2 MB raw upload limit (match server)
 const TARGET_AVATAR_MAX_BYTES = 150 * 1024; // we aim for ~150 KB final avatar for fast loads
 
 export default function EditProfilePage() {
@@ -238,14 +238,15 @@ export default function EditProfilePage() {
                   <input
                     id="avatarFile"
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={async (e) => {
                       setUploadError(null);
                       const f = e.target.files && e.target.files[0];
                       if (!f) return;
-                      const MAX_BYTES = 6 * 1024 * 1024;
-                      if (!f.type.startsWith('image/')) { setUploadError('Please upload an image file'); return; }
-                      if (f.size > MAX_BYTES) { setUploadError('File is too large (max 6 MB)'); return; }
+                      const MAX_BYTES = MAX_CLIENT_FILE_BYTES; // 2 MB
+                      const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                      if (!allowed.includes((f.type || '').toLowerCase())) { setUploadError('Invalid file type. Allowed: jpg, png, webp'); return; }
+                      if (f.size > MAX_BYTES) { setUploadError('File is too large (max 2 MB)'); return; }
                       try {
                         const origUrl = URL.createObjectURL(f);
                         const img = await createImage(origUrl);

@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useRef, useState } from 'react';
-import { WebSocketProvider } from 'ethers';
 import type { NormalizedTransaction, SupportedNetwork, RawWsTransaction } from '../../services/liveFeed/normalizeTransaction';
 import { normalizeTransaction } from '../../services/liveFeed/normalizeTransaction';
 import { getNativeTokenMetadata } from '../../services/liveFeed/parseTokenMetadata';
@@ -33,7 +32,7 @@ export default function LiveFeed() {
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastScrollHeightRef = useRef<number>(0);
-  const providersRef = useRef<Record<SupportedNetwork, WebSocketProvider | null>>({
+  const providersRef = useRef<Record<SupportedNetwork, any | null>>({
     ethereum: null,
     bsc: null,
     polygon: null,
@@ -71,19 +70,29 @@ export default function LiveFeed() {
       flushTimeout = null;
     };
 
-    const activeProviders: WebSocketProvider[] = [];
+    const activeProviders: any[] = [];
 
     try {
-      const connectNetwork = (network: SupportedNetwork) => {
+      const connectNetwork = async (network: SupportedNetwork) => {
         const url = WS_RPC_ENDPOINTS[network];
         if (!url) {
           setNetworkStatus((prev) => ({ ...prev, [network]: 'down' }));
           return;
         }
-
         setNetworkStatus((prev) => ({ ...prev, [network]: 'connecting' }));
 
-        const provider = new WebSocketProvider(url);
+        // Lazy-load ethers to reduce initial bundle size
+        let provider: any = null;
+        try {
+          const ethers = await import('ethers');
+          const WebSocketProvider = (ethers as any).WebSocketProvider || (ethers as any).providers?.WebSocketProvider || (ethers as any).providers?.WebSocketProvider;
+          provider = new WebSocketProvider(url);
+        } catch (err) {
+          setNetworkStatus((prev) => ({ ...prev, [network]: 'down' }));
+          setError('Failed to initialize live feed provider');
+          return;
+        }
+
         providersRef.current[network] = provider;
         activeProviders.push(provider);
 
@@ -107,8 +116,16 @@ export default function LiveFeed() {
           }, delayMs);
         };
 
-        provider.on('pending', async (txHash: string) => {
+        // Concurrency-limited processing of pending tx hashes
+        const CONCURRENCY = 4;
+        let inFlight = 0;
+        const queue: string[] = [];
+
+        const processQueue = async () => {
           if (!mounted) return;
+          if (inFlight >= CONCURRENCY || queue.length === 0) return;
+          const txHash = queue.shift()!;
+          inFlight++;
           try {
             const tx = await provider.getTransaction(txHash);
             if (!tx) return;
@@ -131,19 +148,27 @@ export default function LiveFeed() {
               largeThresholdUsd: 10_000,
             });
 
-            // If whale-only filter is on, drop non-whale transactions
             if (whalesOnly && normalized.label !== '🔥 Whale Transfer Detected') {
               return;
             }
 
             buffered.push(normalized);
             if (!flushTimeout) {
-              flushTimeout = setTimeout(flush, 350);
+              flushTimeout = setTimeout(flush, 500);
             }
             setNetworkStatus((prev) => ({ ...prev, [network]: 'up' }));
           } catch (e) {
             handleError(e);
+          } finally {
+            inFlight--;
+            processQueue();
           }
+        };
+
+        provider.on('pending', (txHash: string) => {
+          if (!mounted) return;
+          queue.push(txHash);
+          processQueue();
         });
 
         provider.on('error', handleError);
