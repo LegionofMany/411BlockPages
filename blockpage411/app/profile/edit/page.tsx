@@ -177,7 +177,7 @@ export default function EditProfilePage() {
 
   return (
     <div className="min-h-screen">
-      <main className="max-w-3xl mx-auto p-6 pt-6">
+      <main className="max-w-3xl mx-auto p-4 sm:p-6 pt-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <button onClick={() => router.back()} className="text-sm text-white hover:underline">← Back</button>
           <span className="text-[11px] uppercase tracking-[0.16em]" style={{ color: '#22c55e' }}>
@@ -203,22 +203,21 @@ export default function EditProfilePage() {
         ) : (
           <form
             onSubmit={save}
-            className="space-y-6 rounded-[1.5rem] p-6"
+            className="space-y-6 rounded-[1.5rem] p-6 w-full"
             style={{
               background:
                 'radial-gradient(circle at 0% 0%, rgba(34,197,94,0.1), transparent 55%), radial-gradient(circle at 100% 120%, rgba(56,189,248,0.12), transparent 60%), rgba(0,0,0,0.9)',
               boxShadow: '0 22px 64px rgba(0,0,0,0.95)',
               border: '1px solid rgba(15,23,42,0.9)',
-              maxWidth: '38rem',
+              maxWidth: '100%',
               width: '100%',
-              margin: '0 auto',
             }}
           >
             <div>
               <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">
                 Profile photo & display name
               </label>
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex flex-col sm:flex-row items-center gap-3 mb-3">
                 <div
                   className="relative flex-shrink-0 h-16 w-16 rounded-full overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center"
                 >
@@ -228,10 +227,10 @@ export default function EditProfilePage() {
                     <span className="text-slate-400 text-xs">No avatar</span>
                   )}
                 </div>
-                <div className="flex-1 flex flex-col gap-1.5 text-xs">
+                <div className="flex-1 flex flex-col gap-1.5 text-xs w-full">
                   <label
                     htmlFor="avatarFile"
-                    className="inline-flex w-max cursor-pointer items-center rounded-full border border-emerald-400/50 bg-emerald-500/10 px-3 py-1 font-medium text-emerald-200 hover:bg-emerald-500/20"
+                    className="inline-flex w-full sm:w-max justify-center sm:justify-start cursor-pointer items-center rounded-full border border-emerald-400/50 bg-emerald-500/10 px-3 py-2 font-medium text-emerald-200 hover:bg-emerald-500/20"
                   >
                     Change photo
                   </label>
@@ -281,7 +280,7 @@ export default function EditProfilePage() {
                     }}
                     className="hidden"
                   />
-                  <div className="text-xs text-slate-400">Recommended: square image. Max 3 MB. We resize to 256×256.</div>
+                  <div className="text-xs text-slate-400">Recommended: square image. Max 2 MB. We resize to 256×256.</div>
                   {uploadError && <div className="text-[11px] text-red-400">{uploadError}</div>}
                 </div>
               </div>
@@ -458,24 +457,24 @@ export default function EditProfilePage() {
               </div>
             </div>
             {error && <div className="text-red-400">{error}</div>}
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 disabled={saving}
-                className="px-5 py-2.5 bg-emerald-500 text-slate-950 rounded-full text-sm font-semibold shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-500 text-slate-950 rounded-full text-sm font-semibold shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               >
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
               <button
                 type="button"
                 onClick={()=>router.push('/')}
-                className="px-4 py-2.5 bg-slate-800 text-slate-100 rounded-full text-sm hover:bg-slate-700"
+                className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 text-slate-100 rounded-full text-sm hover:bg-slate-700"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={async () => { await requestAllVerifications(values, setValues); }}
-                className="px-4 py-2.5 bg-indigo-600 text-white rounded-full text-sm hover:bg-indigo-500"
+                className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-full text-sm hover:bg-indigo-500"
               >
                 Request Verification
               </button>
@@ -499,8 +498,8 @@ export default function EditProfilePage() {
             }
           }}
         >
-          <div className="bg-slate-900 p-4 rounded max-w-3xl w-full" role="dialog" aria-modal="true" aria-label="Crop avatar">
-            <div className="relative h-[420px] bg-black">
+          <div className="bg-slate-900 p-4 rounded sm:rounded max-w-3xl w-full h-full sm:h-auto sm:my-auto" role="dialog" aria-modal="true" aria-label="Crop avatar">
+            <div className="relative h-[60vh] sm:h-[420px] bg-black">
               <Cropper
                 image={avatarPreview || ''}
                 crop={crop}

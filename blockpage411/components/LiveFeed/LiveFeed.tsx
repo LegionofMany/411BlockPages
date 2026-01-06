@@ -41,7 +41,7 @@ export default function LiveFeed() {
     ethereum: 0,
     bsc: 0,
     polygon: 0,
-  });
+  });       
 
   useEffect(() => {
     // Auto-scroll when new items arrive

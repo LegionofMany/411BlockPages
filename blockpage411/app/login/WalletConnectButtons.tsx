@@ -17,7 +17,19 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
 
   function getConnectorById(id: string) {
     const needle = id.toLowerCase();
-    return connectors.find((c) => c.id === id || (c.name && c.name.toLowerCase().includes(needle)));
+    // direct id match
+    let found = connectors.find((c) => c.id === id);
+    if (found) return found;
+    // name-based match (coinbase, walletconnect, injected)
+    found = connectors.find((c) => c.name && c.name.toLowerCase().includes(needle));
+    if (found) return found;
+    // relaxed match: look for common aliases
+    if (needle.includes('coinbase')) {
+      found = connectors.find((c) => c.name && /coinbase|cbw/.test(c.name.toLowerCase()));
+    } else if (needle.includes('walletconnect') || needle.includes('walletconnect')) {
+      found = connectors.find((c) => c.name && c.name.toLowerCase().includes('walletconnect'));
+    }
+    return found;
   }
 
   useEffect(() => {
@@ -59,6 +71,23 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
       const connector = getConnectorById(connectorId);
 
       if (!connector) {
+        // If connectors are still initializing, wait briefly (up to 3s) for them to populate
+        const waitForConnector = async (timeoutMs = 3000) => {
+          const started = Date.now();
+          while (Date.now() - started < timeoutMs) {
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((r) => setTimeout(r, 200));
+            const c = getConnectorById(connectorId);
+            if (c) return c;
+          }
+          return null;
+        };
+
+        const late = await waitForConnector(3000);
+        if (late) {
+          await connect({ connector: late });
+          return;
+        }
         // If injected provider is present, perform a direct MetaMask flow (eth_requestAccounts + personal_sign)
         if (connectorId === 'injected' && typeof window !== 'undefined' && (window as any).ethereum) {
           const eth = (window as any).ethereum;
@@ -91,8 +120,9 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
           }
         }
 
-        // For WalletConnect / Coinbase, surface an error instead of routing to /login (no-op on this page)
-        onError?.(new Error(`Wallet connector not available yet (${connectorId}). Try refreshing /login.`));
+        // For WalletConnect / Coinbase, surface an error listing available connectors
+        const available = (connectors || []).map((c) => c.name || c.id).filter(Boolean).join(', ') || 'none';
+        onError?.(new Error(`Wallet connector not available yet (${connectorId}). Available: ${available}. Try refreshing /login.`));
         return;
       }
 
