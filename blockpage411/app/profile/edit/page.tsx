@@ -99,6 +99,7 @@ export default function EditProfilePage() {
           featuredEventId: me.featuredEventId || '',
           donationLink: me.donationLink || '',
           donationWidgetCode: me.donationWidgetCode || '',
+          walletAddress: me.address || undefined,
         });
 
         setAvatarPreview(me.avatarUrl || null);
@@ -124,8 +125,8 @@ export default function EditProfilePage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/me/update', {
-        method: 'POST',
+      const res = await fetch('/api/profile/update', {
+        method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),

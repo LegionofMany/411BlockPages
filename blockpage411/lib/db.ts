@@ -40,11 +40,26 @@ async function dbConnect() {
     return cached.conn;
   }
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI!, {
-      bufferCommands: false,
-    }).then((mongoose) => {
-      return mongoose;
-    });
+    // Wrap connect in try/catch so we can log helpful guidance for Atlas failures
+    cached.promise = (async () => {
+      try {
+        const m = await mongoose.connect(MONGODB_URI!, {
+          bufferCommands: false,
+        });
+        return m;
+      } catch (err) {
+        // Mask credentials when printing the URI
+        try {
+          const masked = String(MONGODB_URI).replace(/:[^:@]+@/, ':*****@');
+          console.error('Failed to connect to MongoDB at', masked);
+        } catch (_) {
+          console.error('Failed to connect to MongoDB (unable to mask URI)');
+        }
+        console.error('Mongoose connect error (full):', err);
+        console.error('Common causes: incorrect credentials, network/VPC restrictions, or missing Atlas IP allowlist. See https://www.mongodb.com/docs/atlas/security-whitelist/');
+        throw err;
+      }
+    })();
   }
   cached.conn = await cached.promise;
   return cached.conn;
