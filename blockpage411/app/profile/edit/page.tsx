@@ -1,9 +1,8 @@
 "use client";
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Cropper from 'react-easy-crop';
 import Slider from 'rc-slider';
-import 'rc-slider/assets/index.css';
-import { useRouter } from 'next/navigation';
 import { showToast } from '../../components/simpleToast';
 import Skeleton from '../../components/ui/Skeleton';
 
@@ -14,6 +13,9 @@ interface CharityOption {
   name: string;
 }
 
+const MAX_CLIENT_FILE_BYTES = 3 * 1024 * 1024; // legacy 3MB limit for very large images
+const TARGET_AVATAR_MAX_BYTES = 150 * 1024; // we aim for ~150 KB final avatar for fast loads
+
 export default function EditProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -22,151 +24,162 @@ export default function EditProfilePage() {
   const [values, setValues] = useState<ProfileState>({});
   const [charities, setCharities] = useState<CharityOption[]>([]);
   const [events, setEvents] = useState<any[]>([]);
+
+  // Avatar + crop state
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
   const [rawFile, setRawFile] = useState<File | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-  const modalRef = React.useRef<HTMLDivElement | null>(null);
-  const [outputSize, setOutputSize] = useState<number>(256);
-  // client-side controls for processed output
-  const [quality, setQuality] = useState<number>(0.9);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any | null>(null);
+  const [outputSize, setOutputSize] = useState(256);
+  const [quality, setQuality] = useState(0.9);
   const [previewSize, setPreviewSize] = useState<number | null>(null);
-  const MAX_CLIENT_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
-    // Cloudinary unsigned upload config
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || (typeof window !== 'undefined' ? (window as any).NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME : undefined);
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || (typeof window !== 'undefined' ? (window as any).NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET : undefined);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+
+  // Cloudinary env (optional)
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UNSIGNED_PRESET;
 
   useEffect(() => {
     let mounted = true;
-    async function computePreview() {
-      try {
-        if (!cropModalOpen || !croppedAreaPixels) { setPreviewSize(null); return; }
-        const blob = await getCroppedImg(avatarPreview || '', croppedAreaPixels, outputSize, quality);
-        if (!mounted) return;
-        setPreviewSize(blob ? blob.size : null);
-      } catch (e) {
-        if (!mounted) return;
-        setPreviewSize(null);
-      }
-    }
+
     (async () => {
+      setLoading(true);
       try {
         const [meRes, charitiesRes, eventsRes] = await Promise.all([
           fetch('/api/me', { credentials: 'include' }),
           fetch('/api/charities'),
           fetch('/api/events/byUser/me'),
         ]);
-        if (meRes.ok && mounted) {
-          const me = await meRes.json();
-          setValues({
-            walletAddress: me.address,
-            displayName: me.displayName || '',
-              avatarUrl: me.avatarUrl || '',
-            bio: me.bio || '',
-            email: me.email || '',
-            emailVerified: me.emailVerified || false,
-            telegram: me.telegram || '',
-            twitter: me.twitter || '',
-            discord: me.discord || '',
-            website: me.website || '',
-            phoneApps: (me.phoneApps || []).join(', '),
-            featuredCharityId: me.featuredCharityId || '',
-            activeEventId: me.activeEventId || '',
-            donationLink: me.donationLink || '',
-            donationWidgetEnabled: !!me.donationWidgetEnabled,
-          });
-          setAvatarPreview(me.avatarUrl || null);
+
+        if (!mounted) return;
+
+        if (!meRes.ok) {
+          setError('Failed to load profile');
+          return;
         }
-        if (charitiesRes.ok && mounted) {
-          const data = await charitiesRes.json();
-          // API returns { results: [...] } — normalize to an array
-          const list = Array.isArray(data) ? data : (Array.isArray((data as any)?.results) ? (data as any).results : []);
-          setCharities(list);
+
+        const me = await meRes.json();
+
+        let charitiesData: any[] = [];
+        if (charitiesRes.ok) {
+          const c = await charitiesRes.json();
+          if (Array.isArray(c)) {
+            charitiesData = c;
+          } else if (Array.isArray((c as any)?.results)) {
+            charitiesData = (c as any).results;
+          }
         }
-        if (eventsRes.ok && mounted) {
-          const data = await eventsRes.json();
-          setEvents(data?.active || []);
+
+        let eventsData: any[] = [];
+        if (eventsRes.ok) {
+          const ev = await eventsRes.json();
+          if (Array.isArray(ev)) {
+            eventsData = ev;
+          } else if (Array.isArray((ev as any)?.results)) {
+            eventsData = (ev as any).results;
+          }
         }
-        // compute preview size when modal opens
-        computePreview();
-      } catch (e) {
-        // ignore
+
+        setValues({
+          displayName: me.displayName || '',
+          avatarUrl: me.avatarUrl || '',
+          bio: me.bio || '',
+          telegram: me.telegram || '',
+          twitter: me.twitter || '',
+          discord: me.discord || '',
+          website: me.website || '',
+          email: me.email || '',
+          facebook: me.facebook || '',
+          instagram: me.instagram || '',
+          featuredCharityId: me.featuredCharityId || '',
+          featuredEventId: me.featuredEventId || '',
+          donationLink: me.donationLink || '',
+          donationWidgetCode: me.donationWidgetCode || '',
+        });
+
+        setAvatarPreview(me.avatarUrl || null);
+        setCharities(charitiesData as any);
+        setEvents(eventsData);
+        setError(null);
+      } catch (err) {
+        if (!mounted) return;
+        setError('Failed to load profile');
       } finally {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-    // Recompute preview size whenever crop, outputSize or quality change
-    useEffect(() => {
-      let mounted = true;
-      async function computePreview() {
-        try {
-          if (!cropModalOpen || !croppedAreaPixels) { if (mounted) setPreviewSize(null); return; }
-          const blob = await getCroppedImg(avatarPreview || '', croppedAreaPixels, outputSize, quality);
-          if (!mounted) return;
-          setPreviewSize(blob ? blob.size : null);
-        } catch (e) {
-          if (!mounted) return;
-          setPreviewSize(null);
-        }
-      }
-      computePreview();
-      return () => { mounted = false; };
-    }, [cropModalOpen, croppedAreaPixels, outputSize, quality, avatarPreview]);
-
-  async function save(e?: React.FormEvent) {
-    e?.preventDefault();
-    setError(null);
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (saving) return;
     setSaving(true);
+    setError(null);
     try {
-      // Normalize values so we don't send invalid empty strings for URL fields
-      const payload: ProfileState = { ...values };
-      for (const key of ['avatarUrl', 'website', 'donationLink', 'nftAvatarUrl']) {
-        const v = (payload as any)[key];
-        if (typeof v === 'string' && v.trim() === '') {
-          delete (payload as any)[key];
-        }
-      }
-
-      // send update to wallet-linked profile endpoint
-      const res = await fetch('/api/profile/update', {
-        method: 'PUT',
+      const res = await fetch('/api/me/update', {
+        method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: payload.walletAddress || payload.address, ...payload }),
+        body: JSON.stringify(values),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.message || 'Failed to save');
-        showToast(data?.message || 'Failed to save', 3000);
+        setError(data?.message || 'Failed to save profile');
+        showToast(data?.message || 'Failed to save profile', 4000);
         return;
       }
-      showToast('Profile saved', 2000);
-      router.push('/profile');
+      showToast('Profile updated', 3000);
+      router.refresh?.();
     } catch (err) {
-      setError((err as Error).message || 'Network error');
+      setError('Network error while saving');
+      showToast('Network error while saving', 4000);
     } finally {
       setSaving(false);
     }
   }
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!avatarPreview || !croppedAreaPixels) {
+        if (mounted) setPreviewSize(null);
+        return;
+      }
+      try {
+        const b = await getCroppedImg(avatarPreview, croppedAreaPixels, outputSize, quality);
+        if (!mounted) return;
+        setPreviewSize(b ? b.size : null);
+      } catch (err) {
+        if (mounted) setPreviewSize(null);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [avatarPreview, croppedAreaPixels, outputSize, quality]);
+
+  // Revoke object URL previews when they change/unmount to avoid leaks
+  useEffect(() => {
+    return () => {
+      try {
+        if (avatarPreview && avatarPreview.startsWith && avatarPreview.startsWith('blob:')) {
+          URL.revokeObjectURL(avatarPreview);
+        }
+      } catch (_) {}
+    };
+  }, [avatarPreview]);
+
   return (
     <div className="min-h-screen">
-      <main className="max-w-4xl mx-auto p-6 pt-6">
+      <main className="max-w-3xl mx-auto p-6 pt-6">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-black/40 px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-500/10"
-          >
-            <span className="text-[12px]"></span>
-            Back
-          </button>
+          <button onClick={() => router.back()} className="text-sm text-white hover:underline">← Back</button>
           <span className="text-[11px] uppercase tracking-[0.16em]" style={{ color: '#22c55e' }}>
             Profile settings
           </span>
@@ -202,16 +215,26 @@ export default function EditProfilePage() {
             }}
           >
             <div>
-              <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Display name</label>
+              <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">
+                Profile photo & display name
+              </label>
               <div className="flex items-center gap-3 mb-3">
-                <div className="relative">
+                <div
+                  className="relative flex-shrink-0 h-16 w-16 rounded-full overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center"
+                >
                   {avatarPreview ? (
-                    <img src={avatarPreview} alt="avatar" className="h-16 w-16 rounded-full object-cover border border-slate-700" />
+                    <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="h-16 w-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">No avatar</div>
+                    <span className="text-slate-400 text-xs">No avatar</span>
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex-1 flex flex-col gap-1.5 text-xs">
+                  <label
+                    htmlFor="avatarFile"
+                    className="inline-flex w-max cursor-pointer items-center rounded-full border border-emerald-400/50 bg-emerald-500/10 px-3 py-1 font-medium text-emerald-200 hover:bg-emerald-500/20"
+                  >
+                    Change photo
+                  </label>
                   <input
                     id="avatarFile"
                     type="file"
@@ -220,15 +243,13 @@ export default function EditProfilePage() {
                       setUploadError(null);
                       const f = e.target.files && e.target.files[0];
                       if (!f) return;
-                      const MAX_BYTES = 6 * 1024 * 1024; // allow slightly larger raw because we'll crop/compress
+                      const MAX_BYTES = 6 * 1024 * 1024;
                       if (!f.type.startsWith('image/')) { setUploadError('Please upload an image file'); return; }
                       if (f.size > MAX_BYTES) { setUploadError('File is too large (max 6 MB)'); return; }
-                      // Some images are extremely large (very tall panoramas). Downscale client-side
-                      // to avoid browser/canvas memory limits before passing to the cropper.
                       try {
                         const origUrl = URL.createObjectURL(f);
                         const img = await createImage(origUrl);
-                        const MAX_SIDE = 4096; // max width/height to display for cropping
+                        const MAX_SIDE = 4096;
                         let fileToUse: File = f;
                         let previewUrl = origUrl;
                         if (img.naturalWidth > MAX_SIDE || img.naturalHeight > MAX_SIDE) {
@@ -246,6 +267,10 @@ export default function EditProfilePage() {
                             URL.revokeObjectURL(origUrl);
                           }
                         }
+                        // Reset crop state for a fresh, controllable experience
+                        setCrop({ x: 0, y: 0 });
+                        setZoom(1);
+                        setCroppedAreaPixels(null);
                         setRawFile(fileToUse);
                         setAvatarPreview(previewUrl);
                         setCropModalOpen(true);
@@ -253,176 +278,12 @@ export default function EditProfilePage() {
                         setUploadError('Failed to process image for cropping');
                       }
                     }}
-                    className="text-sm"
+                    className="hidden"
                   />
                   <div className="text-xs text-slate-400">Recommended: square image. Max 3 MB. We resize to 256×256.</div>
+                  {uploadError && <div className="text-[11px] text-red-400">{uploadError}</div>}
                 </div>
               </div>
-              {cropModalOpen && rawFile && (
-                <div
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-                  onKeyDown={(e) => {
-                    // keyboard shortcuts when modal is open
-                    if (e.key === 'Escape') {
-                      setCropModalOpen(false);
-                      setRawFile(null);
-                    }
-                    if (e.key === 'Enter') {
-                      // trigger apply
-                      const applyBtn = document.getElementById('crop-apply-btn') as HTMLButtonElement | null;
-                      applyBtn?.click();
-                    }
-                    // arrow keys to nudge crop
-                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                      e.preventDefault();
-                      const delta = 5; // pixels
-                      setCrop((c) => {
-                        const next = { ...c } as any;
-                        if (e.key === 'ArrowUp') next.y = (next.y || 0) - delta;
-                        if (e.key === 'ArrowDown') next.y = (next.y || 0) + delta;
-                        if (e.key === 'ArrowLeft') next.x = (next.x || 0) - delta;
-                        if (e.key === 'ArrowRight') next.x = (next.x || 0) + delta;
-                        return next;
-                      });
-                    }
-                    // +/- to control zoom (match slider bounds)
-                    if (e.key === '+' || e.key === '=') setZoom((z) => Math.min(4, z + 0.05));
-                    if (e.key === '-' || e.key === '_') setZoom((z) => Math.max(0.5, z - 0.05));
-                  }}
-                  tabIndex={-1}
-                  ref={modalRef}
-                >
-                  <div className="bg-slate-900 p-4 rounded max-w-3xl w-full" role="dialog" aria-modal="true" aria-label="Crop avatar">
-                    <div className="relative h-[420px] bg-black">
-                      <Cropper
-                        image={avatarPreview || ''}
-                        crop={crop}
-                        zoom={zoom}
-                        aspect={1}
-                        onCropChange={setCrop}
-                        onZoomChange={setZoom}
-                        onCropComplete={(_c, croppedPixels) => setCroppedAreaPixels(croppedPixels)}
-                      />
-                    </div>
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-300 mr-2">Zoom</label>
-                        <Slider ariaLabelForHandle="Zoom" min={0.5} max={4} step={0.01} value={zoom} onChange={(v) => setZoom(Number(v))} />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <label className="text-xs text-slate-300 mr-2">Output</label>
-                          <div className="flex gap-1">
-                            {[128, 256, 512].map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => setOutputSize(s)}
-                                className={`px-2 py-1 text-xs rounded ${outputSize === s ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-200'}`}
-                              >
-                                {s}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <label className="text-xs text-slate-300 mr-2">Quality</label>
-                          <div className="flex items-center gap-2">
-                            <Slider ariaLabelForHandle="Quality" min={0.5} max={0.95} step={0.01} value={quality} onChange={(v) => setQuality(Number(v))} />
-                            <div className="text-xs text-slate-300 w-12 text-right">{Math.round(quality * 100)}%</div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <div className="text-xs text-slate-300">Estimated size:</div>
-                          <div className="text-sm text-slate-200">{previewSize === null ? '—' : (previewSize > 1024 ? `${Math.round(previewSize/1024)} KB` : `${previewSize} B`)}</div>
-                          {previewSize !== null && previewSize > MAX_CLIENT_FILE_BYTES ? (
-                            <div className="text-xs text-red-400 mt-1">Processed image too large. Reduce size or quality.</div>
-                          ) : null}
-                          {previewSize !== null && previewSize > MAX_CLIENT_FILE_BYTES ? (
-                            (() => {
-                              const suggested = Math.max(0.5, Math.round((quality * (MAX_CLIENT_FILE_BYTES / previewSize)) * 100) / 100);
-                              return (
-                                <div className="text-xs text-slate-300 mt-1">Try quality ~{Math.round(suggested * 100)}% or click Apply to auto-reduce.</div>
-                              );
-                            })()
-                          ) : null}
-                        </div>
-                        <div className="flex gap-2">
-                          <button type="button" onClick={() => { setCropModalOpen(false); setRawFile(null); }} className="px-3 py-1 rounded bg-slate-700">Cancel</button>
-                          {!croppedAreaPixels ? (
-                            <div className="text-xs text-slate-400 mr-2 self-center">Adjust crop area and zoom to enable Apply</div>
-                          ) : null}
-                          <button id="crop-apply-btn" aria-disabled={!croppedAreaPixels || uploading} disabled={!croppedAreaPixels || uploading} type="button" onClick={async () => {
-                            // get cropped blob and auto-reduce quality if needed (try to fit within MAX_CLIENT_FILE_BYTES)
-                            try {
-                              setUploading(true);
-                              let attemptQuality = quality;
-                              let blob: Blob | null = null;
-                              const minQuality = 0.5;
-                              const step = 0.05;
-                              // attempt reductions up to reasonable number of steps
-                              for (let i = 0; i < 12; i++) {
-                                blob = await getCroppedImg(avatarPreview || '', croppedAreaPixels, outputSize, attemptQuality);
-                                if (!blob) break;
-                                if (blob.size <= MAX_CLIENT_FILE_BYTES) break;
-                                const next = Math.max(minQuality, Math.round((attemptQuality - step) * 100) / 100);
-                                if (next === attemptQuality) break;
-                                attemptQuality = next;
-                              }
-                              if (!blob) throw new Error('Crop failed');
-                              if (blob.size > MAX_CLIENT_FILE_BYTES) {
-                                setUploadError('Processed image still too large. Please choose a smaller crop or lower quality.');
-                                setUploading(false);
-                                return;
-                              }
-                              // update quality state to reflect any auto-reduction
-                              if (attemptQuality !== quality) setQuality(attemptQuality);
-                              const f = new File([blob], 'avatar.webp', { type: 'image/webp' });
-                              let url: string | undefined;
-                              // Try unsigned Cloudinary upload first
-                              if (cloudName && uploadPreset) {
-                                const fd = new FormData();
-                                fd.append('file', f);
-                                fd.append('upload_preset', uploadPreset);
-                                const cloudUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-                                const res = await fetch(cloudUrl, { method: 'POST', body: fd });
-                                const json = await res.json();
-                                if (res.ok && json.secure_url) {
-                                  url = json.secure_url;
-                                } else {
-                                  setUploadError(json?.error?.message || 'Cloudinary upload failed');
-                                }
-                              }
-                              // Fallback to server upload if Cloudinary fails or not configured
-                              if (!url) {
-                                const fd = new FormData();
-                                fd.append('file', f);
-                                const upRes = await fetch('/api/avatar/upload', { method: 'POST', body: fd });
-                                const upJson = await upRes.json();
-                                if (upRes.ok && upJson.url) {
-                                  url = upJson.url;
-                                } else {
-                                  setUploadError(upJson?.message || 'Upload failed');
-                                }
-                              }
-                              if (url) {
-                                setValues((prev: ProfileState) => ({ ...prev, avatarUrl: url }));
-                                setAvatarPreview(url);
-                                setCropModalOpen(false);
-                                setRawFile(null);
-                              }
-                              setUploading(false);
-                            } catch (err) {
-                              setUploadError((err as Error).message || 'Crop/upload failed');
-                              setUploading(false);
-                            }
-                          }} className={`px-3 py-1 rounded font-semibold ${(!croppedAreaPixels || uploading) ? 'bg-slate-600 text-slate-300 cursor-not-allowed' : 'bg-emerald-500 text-black'}`}>Apply</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
               <input
                 value={String(values.displayName ?? '')}
                 onChange={e=>setValues({...values, displayName: e.target.value})}
@@ -545,7 +406,7 @@ export default function EditProfilePage() {
                     className="w-full px-3 py-2 bg-black/40 rounded-full text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="">None</option>
-                    {charities.map((c, idx) => (
+                    {(Array.isArray(charities) ? charities : []).map((c, idx) => (
                       <option key={c.charityId ?? (c as any)._id ?? idx} value={c.charityId ?? (c as any)._id}>{c.name}</option>
                     ))}
                   </select>
@@ -621,10 +482,218 @@ export default function EditProfilePage() {
           </form>
         )}
       </main>
+      {cropModalOpen && rawFile && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          tabIndex={-1}
+          ref={modalRef}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setCropModalOpen(false);
+              setRawFile(null);
+            }
+            if (e.key === 'Enter') {
+              const applyBtn = document.getElementById('crop-apply-btn') as HTMLButtonElement | null;
+              applyBtn?.click();
+            }
+          }}
+        >
+          <div className="bg-slate-900 p-4 rounded max-w-3xl w-full" role="dialog" aria-modal="true" aria-label="Crop avatar">
+            <div className="relative h-[420px] bg-black">
+              <Cropper
+                image={avatarPreview || ''}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                objectFit="contain"
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_c, croppedPixels) => setCroppedAreaPixels(croppedPixels)}
+              />
+            </div>
+            <div className="mt-3 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-slate-300 mr-2">Zoom</label>
+                  <Slider ariaLabelForHandle="Zoom" min={0.3} max={4} step={0.01} value={zoom} onChange={(v) => setZoom(Number(v))} />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-slate-300 mr-2">Output</label>
+                  <div className="flex gap-1">
+                    {[128, 256, 512].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setOutputSize(s)}
+                        className={`px-2 py-1 text-xs rounded ${outputSize === s ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-200'}`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-slate-300 mr-2">Quality</label>
+                  <div className="flex items-center gap-2">
+                    <Slider ariaLabelForHandle="Quality" min={0.5} max={0.95} step={0.01} value={quality} onChange={(v) => setQuality(Number(v))} />
+                    <div className="text-xs text-slate-300 w-12 text-right">{Math.round(quality * 100)}%</div>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    If the processed image is too large, we'll ask you to reduce size or quality.
+                  </p>
+                </div>
+                <div className="flex flex-col items-end text-right">
+                  <div className="text-xs text-slate-300">Estimated size:</div>
+                  <div className="text-sm text-slate-200">{previewSize === null ? '—' : (previewSize > 1024 ? `${Math.round(previewSize/1024)} KB` : `${previewSize} B`)}</div>
+                  {previewSize !== null && previewSize > TARGET_AVATAR_MAX_BYTES && (
+                    <div className="text-xs text-red-400 mt-1">Processed image exceeds target (≤150 KB). We'll attempt further optimization on Apply.</div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <div className="text-[11px] text-slate-400">
+                  Drag to reposition; use zoom to fine-tune your circular avatar. We will try to optimize the final avatar to be ≤150 KB for faster page loads.
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs text-slate-400 mr-3">Optimizing to ≤150 KB</div>
+                  {!croppedAreaPixels && (
+                    <div className="text-xs text-slate-400 mr-2">Adjust crop and zoom to enable Apply</div>
+                  )}
+                  <button
+                    id="crop-apply-btn"
+                    type="button"
+                    disabled={!croppedAreaPixels || uploading}
+                    aria-disabled={!croppedAreaPixels || uploading}
+                    className={`px-3 py-1 rounded font-semibold ${(!croppedAreaPixels || uploading) ? 'bg-slate-600 text-slate-300 cursor-not-allowed' : 'bg-emerald-500 text-black'}`}
+                    onClick={async () => {
+                      try {
+                        setUploading(true);
+                        setUploadError(null);
+
+                        // Try multiple output sizes (starting with the chosen outputSize then smaller)
+                        const trySizes = [outputSize, 256, 192, 128].filter((v, i, a) => a.indexOf(v) === i);
+                        const minQuality = 0.3; // allow slightly lower quality to hit size target
+                        const qualityStep = 0.05;
+
+                        let finalBlob: Blob | null = null;
+                        let finalQuality = quality;
+                        let usedSize = outputSize;
+
+                        for (const size of trySizes) {
+                          let attemptQuality = quality;
+                          // try reducing quality until under limit or minimum
+                          for (let i = 0; i < 12; i++) {
+                            const b = await getCroppedImg(avatarPreview || '', croppedAreaPixels, size, attemptQuality);
+                            if (!b) break;
+                            if (b.size <= TARGET_AVATAR_MAX_BYTES) {
+                              finalBlob = b;
+                              finalQuality = attemptQuality;
+                              usedSize = size;
+                              break;
+                            }
+                            const next = Math.max(minQuality, Math.round((attemptQuality - qualityStep) * 100) / 100);
+                            if (next === attemptQuality) break;
+                            attemptQuality = next;
+                          }
+                          if (finalBlob) break;
+                        }
+
+                        if (!finalBlob) {
+                          setUploadError('Processed image still too large. Try a smaller crop or reduce output size.');
+                          setUploading(false);
+                          return;
+                        }
+
+                        // Update preview size & quality state
+                        setPreviewSize(finalBlob.size);
+                        if (finalQuality !== quality) setQuality(finalQuality);
+                        if (usedSize !== outputSize) setOutputSize(usedSize);
+
+                        // If final blob still larger than our target, inform and offer to force a tighter reduction
+                        if (finalBlob.size > TARGET_AVATAR_MAX_BYTES) {
+                          // best-effort: attempt one last pass to force 128px and lower quality
+                          try {
+                            const forced = await getCroppedImg(avatarPreview || '', croppedAreaPixels, 128, Math.max(minQuality, finalQuality - 0.05));
+                            if (forced && forced.size <= TARGET_AVATAR_MAX_BYTES) {
+                              finalBlob = forced;
+                              setPreviewSize(finalBlob.size);
+                              setOutputSize(128);
+                              setQuality(Math.max(minQuality, finalQuality - 0.05));
+                            } else {
+                              setUploadError('Could not compress avatar to target size; consider cropping a smaller area.');
+                            }
+                          } catch (_) {
+                            setUploadError('Could not compress avatar to target size; consider cropping a smaller area.');
+                          }
+
+                          if (finalBlob.size > TARGET_AVATAR_MAX_BYTES) {
+                            setUploading(false);
+                            return;
+                          }
+                        }
+
+                        const f = new File([finalBlob], 'avatar.webp', { type: 'image/webp' });
+                        let url: string | undefined;
+
+                        if (cloudName && uploadPreset) {
+                          const fd = new FormData();
+                          fd.append('file', f);
+                          fd.append('upload_preset', uploadPreset);
+                          const cloudUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+                          const res = await fetch(cloudUrl, { method: 'POST', body: fd });
+                          const json = await res.json();
+                          if (res.ok && json.secure_url) {
+                            url = json.secure_url;
+                          } else {
+                            setUploadError(json?.error?.message || 'Cloudinary upload failed');
+                          }
+                        }
+
+                        if (!url) {
+                          const fd = new FormData();
+                          fd.append('file', f);
+                          const upRes = await fetch('/api/avatar/upload', { method: 'POST', body: fd });
+                          const upJson = await upRes.json();
+                          if (upRes.ok && upJson.url) {
+                            url = upJson.url;
+                          } else {
+                            setUploadError(upJson?.message || 'Upload failed');
+                          }
+                        }
+
+                        if (url) {
+                          setValues((prev: ProfileState) => ({ ...prev, avatarUrl: url }));
+                          setAvatarPreview(url);
+                          setCropModalOpen(false);
+                          setRawFile(null);
+                        }
+
+                        setUploading(false);
+                      } catch (err) {
+                        const msg = (err as Error).message || '';
+                        if (/security|taint|cross-origin|CORS/i.test(msg)) {
+                          setUploadError('Crop failed: image host may block cross-origin canvas operations. Try re-uploading the file or use a different image.');
+                        } else {
+                          setUploadError(msg || 'Crop/upload failed');
+                        }
+                        setUploading(false);
+                      }
+                    }}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 
 async function requestEmailVerify(email: string) {
   if (!email) { showToast('Please enter an email first', 3000); return; }

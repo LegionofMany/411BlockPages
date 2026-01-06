@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import NavLinkItem from './NavLinkItem';
+import { ConnectWalletButton } from './ConnectWalletButton';
 import {
   IconHome, IconSearch, IconFund, IconDonate, IconTrending,
   IconAdmin, IconActions, IconSignIn, IconMenuSpecial
@@ -178,6 +179,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
               );
             })}
           </ul>
+          <ConnectWalletButton />
           {/* Sign in / Sign out */}
           <div>
             {isAuthenticated ? (

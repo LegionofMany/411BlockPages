@@ -1,2 +1,2 @@
-// Minimal shim for '@reown/appkit-scaffold-ui/basic'
+// Minimal basic UI shim module (kept for backward compatibility)
 module.exports = {};
