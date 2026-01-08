@@ -42,6 +42,8 @@ export default function LiveFeed() {
     bsc: 0,
     polygon: 0,
   });       
+  const seenRef = useRef<Set<string>>(new Set());
+  const pollingTimersRef = useRef<Record<string, ReturnType<typeof setInterval> | null>>({});
 
   useEffect(() => {
     // Auto-scroll when new items arrive
@@ -62,10 +64,28 @@ export default function LiveFeed() {
     const flush = () => {
       if (!mounted || buffered.length === 0) return;
       setTxs((prev) => {
-        const next = [...prev, ...buffered];
-        // keep last 150 transactions
-        return next.slice(-150);
+        // Merge buffered items, dedupe, sort by timestamp then value, and keep last 150
+        const combined = [...prev, ...buffered].filter((t) => {
+          if (seenRef.current.has(t.id)) return false;
+          seenRef.current.add(t.id);
+          return true;
+        });
+        combined.sort((a, b) => {
+          if (b.timestamp !== a.timestamp) return b.timestamp - a.timestamp;
+          return (b.valueUsd || b.valueNative) - (a.valueUsd || a.valueNative);
+        });
+        const next = combined.concat();
+        return next.slice(0, 150);
       });
+      // Highlight top native-value entries from the flush as whale transfers
+      try {
+        const recent = buffered.slice();
+        recent.sort((a, b) => (b.valueUsd || b.valueNative) - (a.valueUsd || a.valueNative));
+        const top = recent.slice(0, 5).map((t) => t.id);
+        setTxs((prev) => prev.map((t) => (top.includes(t.id) ? { ...t, label: t.label || '🔥 Whale Transfer Detected' } : t)));
+      } catch {
+        // ignore
+      }
       buffered.length = 0;
       flushTimeout = null;
     };
@@ -73,10 +93,14 @@ export default function LiveFeed() {
     const activeProviders: any[] = [];
 
     try {
-      const connectNetwork = async (network: SupportedNetwork) => {
+        const connectNetwork = async (network: SupportedNetwork) => {
         const url = WS_RPC_ENDPOINTS[network];
         if (!url) {
           setNetworkStatus((prev) => ({ ...prev, [network]: 'down' }));
+          // If Alchemy key present, start polling fallback for this network
+          if (ALCHEMY_KEY && (network === 'ethereum' || network === 'polygon')) {
+            startPollingFallback(network);
+          }
           return;
         }
         setNetworkStatus((prev) => ({ ...prev, [network]: 'connecting' }));
@@ -185,6 +209,63 @@ export default function LiveFeed() {
       setError((e as Error).message || 'Live feed initialization error');
     }
 
+    // Polling fallback implementation (Alchemy REST) for networks without WS
+    function startPollingFallback(network: SupportedNetwork) {
+      const base = network === 'ethereum' ? `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
+      let lastBlock: string | null = null;
+      const poll = async () => {
+        try {
+          const blockRes = await fetch(base, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
+          });
+          if (!blockRes.ok) return;
+          const blockData = await blockRes.json().catch(() => ({}));
+          const blockNumHex = blockData?.result;
+          if (!blockNumHex) return;
+          if (blockNumHex === lastBlock) return;
+          lastBlock = blockNumHex;
+          const blockRes2 = await fetch(base, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: [blockNumHex, true] }),
+          });
+          if (!blockRes2.ok) return;
+          const blockData2 = await blockRes2.json().catch(() => ({}));
+          const txsInBlock = (blockData2?.result?.transactions || []).slice(0, 30);
+          const meta = getNativeTokenMetadata(network);
+          for (const rawTx of txsInBlock) {
+            const raw: RawWsTransaction = {
+              hash: rawTx.hash,
+              from: rawTx.from || '',
+              to: rawTx.to || '',
+              value: rawTx.value || '0',
+              input: rawTx.input,
+              blockNumber: rawTx.blockNumber,
+              timestamp: Date.now(),
+            };
+            const normalized = normalizeTransaction(raw, {
+              network,
+              nativeSymbol: meta.symbol,
+              nativeDecimals: meta.decimals,
+              usdPrice: undefined,
+              largeThresholdUsd: 10_000,
+            });
+            buffered.push(normalized);
+          }
+          if (!flushTimeout) flushTimeout = setTimeout(flush, 500);
+          setNetworkStatus((prev) => ({ ...prev, [network]: 'up' }));
+        } catch {
+          setNetworkStatus((prev) => ({ ...prev, [network]: 'down' }));
+        }
+      };
+      // Start immediate poll and then interval
+      void poll();
+      const id = setInterval(poll, 10_000);
+      pollingTimersRef.current[network] = id;
+    }
+
     return () => {
       mounted = false;
       activeProviders.forEach((p) => {
@@ -197,6 +278,14 @@ export default function LiveFeed() {
       providersRef.current = { ethereum: null, bsc: null, polygon: null };
       retryCountsRef.current = { ethereum: 0, bsc: 0, polygon: 0 };
       if (flushTimeout) clearTimeout(flushTimeout);
+      // clear any polling fallbacks
+      try {
+        Object.values(pollingTimersRef.current).forEach((t) => {
+          if (t) clearInterval(t as any);
+        });
+      } catch {
+        // ignore
+      }
     };
   }, []);
 
@@ -269,7 +358,7 @@ export default function LiveFeed() {
         )}
         {txs.length === 0 && !error && (
           <div className="text-[11px] text-slate-300">
-            Waiting for live transactions…
+            {connected ? 'Waiting for live transactions…' : 'Connecting to live feeds…'}
           </div>
         )}
         {txs.map((tx) => (

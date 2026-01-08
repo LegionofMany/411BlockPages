@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useConnect } from 'wagmi';
+import { useConnect, useSignMessage, useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { mainnet } from 'viem/chains';
 
@@ -9,8 +9,12 @@ const chains = [mainnet];
 
 export default function WalletConnectButtons({ onError }: { onError?: (e: unknown) => void }) {
   const { connect, connectors, isPending } = useConnect();
+  const { signMessageAsync } = useSignMessage();
+  const { address: connectedAddress, isConnected } = useAccount();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [relayError, setRelayError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [lastVerified, setLastVerified] = useState<string | null>(null);
   const router = useRouter();
   const [connectorsReady, setConnectorsReady] = useState(false);
 
@@ -134,7 +138,46 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
         return;
       }
 
+      // Attempt to connect via wagmi connector. Many connectors (WalletConnect/Coinbase)
+      // require an additional client-side signature to establish a server session.
       await connect({ connector });
+
+      // Wait briefly for wagmi/useAccount to update with the connected address.
+      const waitForAddress = async (timeoutMs = 5000) => {
+        const started = Date.now();
+        while (Date.now() - started < timeoutMs) {
+          if (isConnected && connectedAddress) return connectedAddress;
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((r) => setTimeout(r, 200));
+        }
+        return null;
+      };
+
+      const addr = await waitForAddress(5000);
+      if (addr && !lastVerified) {
+        try {
+          setVerifying(true);
+          // Request nonce and perform an EIP-191 style message signature via wagmi's signMessage.
+          const nonceRes = await fetch('/api/auth/nonce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: addr }) });
+          if (!nonceRes.ok) throw new Error('Failed to fetch nonce');
+          const nonceData = await nonceRes.json();
+          const message = `Login nonce: ${nonceData.nonce}`;
+          const signature = await signMessageAsync({ message });
+          const verifyRes = await fetch('/api/auth/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ address: addr, signature }) });
+          if (!verifyRes.ok) {
+            const err = await verifyRes.json().catch(() => ({}));
+            throw new Error(err?.message || 'Verification failed');
+          }
+          setLastVerified(addr);
+          router.push('/search');
+          return;
+        } catch (err) {
+          onError?.(err);
+        } finally {
+          setVerifying(false);
+        }
+      }
+
       try {
         // ensure UI updates to reflect connected state
         router.refresh();
@@ -166,7 +209,7 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
         <button
           className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-sky-500"
           onClick={() => handleConnect('walletConnect')}
-          disabled={!!loadingId || isPending}
+          disabled={!!loadingId || isPending || verifying}
         >
           <span className="text-2xl">🔗</span>
           <span className="font-bold">WalletConnect</span>
@@ -175,7 +218,7 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
         <button
           className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-500"
           onClick={() => handleConnect('coinbaseWallet')}
-          disabled={!!loadingId || isPending}
+          disabled={!!loadingId || isPending || verifying}
         >
           <span className="text-2xl">💼</span>
           <span className="font-bold">Coinbase Wallet</span>
@@ -201,7 +244,7 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
       <button
         className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-yellow-500"
         onClick={() => handleConnect('injected')}
-        disabled={!!loadingId || isPending}
+          disabled={!!loadingId || isPending || verifying}
       >
         <span className="text-2xl">🦊</span>
         <span className="font-bold">MetaMask</span>
@@ -210,7 +253,7 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
       <button
         className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-sky-500"
         onClick={() => handleConnect('walletConnect')}
-        disabled={!!loadingId || isPending}
+          disabled={!!loadingId || isPending || verifying}
       >
         <span className="text-2xl">🔗</span>
         <span className="font-bold">WalletConnect</span>
@@ -219,7 +262,7 @@ export default function WalletConnectButtons({ onError }: { onError?: (e: unknow
       <button
         className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-500"
         onClick={() => handleConnect('coinbaseWallet')}
-        disabled={!!loadingId || isPending}
+          disabled={!!loadingId || isPending || verifying}
       >
         <span className="text-2xl">💼</span>
         <span className="font-bold">Coinbase Wallet</span>

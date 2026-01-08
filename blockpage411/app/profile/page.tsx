@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAccount } from 'wagmi';
 import Link from 'next/link';
 import Image from 'next/image';
 import Skeleton from '../components/ui/Skeleton';
@@ -39,12 +40,14 @@ interface MeResponse {
 export default function ProfilePage() {
   const [tab, setTab] = useState<'profile' | 'events'>('events');
   const [me, setMe] = useState<MeResponse | null>(null);
+  const { address: connectedAddress, isConnected } = useAccount();
   const [featuredCharity, setFeaturedCharity] = useState<any | null>(null);
   const [activeEvent, setActiveEvent] = useState<EventItem | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [walletMeta, setWalletMeta] = useState({ chain: 'eth', exchangeSource: '', storageType: '' });
   const [metadataOptions, setMetadataOptions] = useState<{ exchanges: string[]; coldWallets: string[]; softWallets: string[] }>({ exchanges: [], coldWallets: [], softWallets: [] });
+  const [meLoading, setMeLoading] = useState(true);
   const [savingWalletMeta, setSavingWalletMeta] = useState(false);
   const [form, setForm] = useState({
     title: '',
