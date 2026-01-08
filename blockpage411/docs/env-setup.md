@@ -18,9 +18,17 @@ This document explains the environment variables required for local development 
 - GIVINGBLOCK_ENCRYPTION_KEY — Hex-encoded AES-256 key for decrypting encrypted Giving Block payloads.
 - GIVINGBLOCK_ENCRYPTION_IV — Hex-encoded IV for decrypting encrypted Giving Block payloads.
 
+### New / Wallet and security variables
+- NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID — WalletConnect v2 project ID (public). Required for WalletConnect connector in the client. Example: `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id`
+- JWT_SECRET — Server-side secret used to sign/verify JWTs for auth and moderation flows. Keep this secret and set it in Vercel env vars (do not expose client-side).
+
 ## Optional but recommended
 - ETHERSCAN_API_KEY, POLYGONSCAN_API_KEY, BSCSCAN_API_KEY — improves tx verification.
 - BASE_URL — used by some services to post metrics (defaults to `http://localhost:3000`).
+
+## Notes about WalletRisk ingestion
+- WalletRisk ingestion may use public data sources (OFAC lists, public block explorer APIs, GitHub-curated lists). Some ingestion sources may require API keys (e.g., `ETHERSCAN_API_KEY`).
+- Ensure `MONGODB_URI` has write access for ingestion jobs and that secrets for ingestion workflows are kept in CI/CD secrets (GitHub Actions secrets or Vercel environment variables).
 
 ## Security: rotate secrets if exposed
 If any secrets from `.env.local` have been committed or exposed, rotate them immediately in the provider (MongoDB user, Redis password, etc.).
@@ -36,6 +44,8 @@ If any secrets from `.env.local` have been committed or exposed, rotate them imm
 2. Install dependencies: `npm ci`.
 3. Run migrations: `npx ts-node scripts/migrate_pledge_index.ts` (or `node -r ts-node/register scripts/migrate_pledge_index.ts`).
 4. Verify locally: `npm run lint && npm test && npm run build`.
+
+When testing WalletConnect locally, ensure `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is present in your `.env.local` so client wallet connectors initialize correctly.
 
 ## Notes about MongoDB transactions
 Transactions require a replica set. If you're using a single-node local MongoDB, transactions will not work. Use MongoDB Atlas with the free tier replica set for staging/production.

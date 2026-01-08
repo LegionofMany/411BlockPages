@@ -10,6 +10,7 @@ import DonationSectionSkeleton from './DonationSectionSkeleton';
 const DonationSection = dynamic(() => import('./DonationSection'), { ssr: false, loading: () => <DonationSectionSkeleton /> });
 import V5UpgradeInfo from "./V5UpgradeInfo";
 import WalletFlagSection from "./WalletFlagSection";
+import WalletRiskPanel from '../../../components/WalletRisk/WalletRiskPanel';
 import WalletRatingSection from "./WalletRatingSection";
 import Footer from "../../../components/Footer";
 import { useRouter } from "next/navigation";
@@ -37,8 +38,9 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
 
   const hasActiveDonation = data?.donationRequests?.some((d: DonationRequest) => d.active);
   const avatarUrl: string | undefined = data?.nftAvatarUrl || data?.avatarUrl;
-  const riskScore: number | null = typeof data?.riskScore === 'number' ? data.riskScore : null;
-  const riskCategory = (data?.riskCategory || null) as 'green' | 'yellow' | 'red' | null;
+  // Support both legacy and new API shapes (`riskScore` vs `risk_score`).
+  const riskScore: number | null = typeof data?.risk_score === 'number' ? data.risk_score : (typeof data?.riskScore === 'number' ? data.riskScore : null);
+  const riskCategory = (data?.risk_level || data?.riskCategory || null) as 'low' | 'medium' | 'high' | null;
 
   const visibilityLabel = (() => {
     const vis = data?.visibility as
@@ -58,6 +60,9 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
           <div className="mb-4">
             <UserProfile walletAddress={address} chain={chain} />
             <div className="text-sm text-slate-400 mt-2">Chain: {chain}</div>
+          </div>
+          <div className="my-6">
+            <WalletRiskPanel risk_score={data?.risk_score ?? data?.riskScore} risk_level={data?.risk_level ?? data?.riskCategory} flags={data?.flags || []} behavior_signals={data?.behavior_signals || {}} />
           </div>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <RiskMeter score={riskScore ?? undefined} category={riskCategory ?? undefined} />

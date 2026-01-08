@@ -37,6 +37,7 @@ const req = http.request(options, (res) => {
     console.log('BODY:', body);
     process.exit(0);
   });
+  
 });
 
 req.on('error', (e) => {

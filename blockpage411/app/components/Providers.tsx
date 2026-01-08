@@ -51,8 +51,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // Wait until client-only initialization completes so the wagmi config can
   // include any Reown-provided connector and avoid double-initializing
   // WalletConnect relays during hydration.
-  if (!ready && typeof window !== 'undefined') {
-    return <div aria-hidden>Loading...</div>;
+  // Avoid checking `typeof window` in render paths — this can create
+  // server/client branching and cause hydration mismatches. Return a
+  // stable placeholder while `ready` is false.
+  if (!ready) {
+    return <div aria-hidden="true">Loading...</div>;
   }
 
   return (

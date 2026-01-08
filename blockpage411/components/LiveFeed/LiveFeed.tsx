@@ -11,7 +11,7 @@ const NETWORKS: SupportedNetwork[] = ['ethereum', 'bsc', 'polygon'];
 // use Alchemy's WSS URLs keyed off NEXT_PUBLIC_ALCHEMY_KEY. BSC can be
 // configured via a dedicated public WSS endpoint.
 const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_KEY;
-
+ 
 const WS_RPC_ENDPOINTS: Partial<Record<SupportedNetwork, string>> = {
   ethereum: ALCHEMY_KEY ? `wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : undefined,
   polygon: ALCHEMY_KEY ? `wss://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : undefined,
