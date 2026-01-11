@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import Charity from '../models/Charity';
 import { fetchGivingBlockCharities } from '../utils/givingblock';
+import { sanitizeDescription } from '../services/givingBlockService';
 
 // dbConnect is dynamically loaded below to avoid ts-node/ESM resolution issues when
 // running the script directly (some environments require require() while others need import()).
@@ -22,10 +23,11 @@ async function seedFromApi(dryRun = false) {
     const c = raw as Record<string, unknown>;
     const name = String(c.name ?? c.organization_name ?? c.title ?? '');
     if (!name) continue;
+    const rawDesc = String(c.mission ?? c.description ?? '');
     const doc: Record<string, unknown> = {
       givingBlockId: String(c.id ?? c.organization_id ?? ''),
       name,
-      description: String(c.mission ?? c.description ?? ''),
+      description: sanitizeDescription(rawDesc),
       website: String(c.website ?? c.url ?? ''),
       logo: String(c.logoUrl ?? c.logo ?? c.logo_url ?? ''),
       givingBlockEmbedUrl: String(c.donationWidget ?? c.donation_widget ?? c.embed ?? ''),
@@ -52,10 +54,11 @@ async function seedFromLocal(dryRun = false) {
     const c = raw as Record<string, unknown>;
     const name = String(c.name ?? c.title ?? '');
     if (!name) continue;
+    const rawDesc = String(c.mission ?? c.description ?? '');
     const doc: Record<string, unknown> = {
       givingBlockId: String(c.id ?? c.givingBlockId ?? ''),
       name,
-      description: String(c.mission ?? c.description ?? ''),
+      description: sanitizeDescription(rawDesc),
       website: String(c.website ?? c.url ?? ''),
       logo: String(c.logoUrl ?? c.logo ?? ''),
       givingBlockEmbedUrl: String(c.donationWidget ?? c.embed ?? c.donationWidget ?? ''),

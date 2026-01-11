@@ -79,7 +79,7 @@ export default function CharityProfile({ charity }: Props) {
         <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-black/60 border border-emerald-500/40 flex items-center justify-center">
           {charity.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={charity.logo} alt={charity.name} className="max-h-40 w-auto object-contain mx-auto" />
+            <img src={charity.logo} alt={charity.name} className="max-h-40 max-w-full h-auto object-contain mx-auto" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-emerald-300/80">
               {charity.name.slice(0, 4).toUpperCase()}
@@ -144,6 +144,7 @@ export default function CharityProfile({ charity }: Props) {
           <p
             className={`text-sm leading-relaxed text-emerald-50/90 ${expanded ? '' : 'line-clamp-4 md:line-clamp-none'}`}
             id={`charity-desc-${String(charity._id || charity.charityId || charity.givingBlockId || charity.name)}`}
+            style={{ wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}
           >
             {charity.description}
           </p>

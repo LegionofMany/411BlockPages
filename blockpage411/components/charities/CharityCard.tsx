@@ -34,7 +34,7 @@ export default function CharityCard({ charity }: Props) {
         <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-black/40 border border-emerald-500/30 flex items-center justify-center">
           {charity.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={charity.logo} alt={charity.name} className="max-h-40 w-auto object-contain mx-auto" />
+            <img src={charity.logo} alt={charity.name} className="max-h-40 max-w-full h-auto object-contain mx-auto" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-emerald-300/80">
               {charity.name.slice(0, 3).toUpperCase()}
@@ -55,6 +55,7 @@ export default function CharityCard({ charity }: Props) {
               <p
                 id={`desc-${String(id)}`}
                 className={`mt-2 text-xs leading-snug text-emerald-50/90 ${expanded ? '' : 'line-clamp-4 md:line-clamp-2'}`}
+                style={{ wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}
               >
                 {charity.description}
               </p>

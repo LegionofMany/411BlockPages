@@ -266,7 +266,7 @@ export function normalizeCharity(apiCharity: GivingBlockCharityApi): NormalizedC
   return {
     charityId: apiCharity.id,
     name: apiCharity.name,
-    description: apiCharity.description ?? undefined,
+    description: sanitizeDescription(apiCharity.description ?? undefined),
     logo: apiCharity.logo ?? undefined,
     website,
     donationAddress,
@@ -274,6 +274,51 @@ export function normalizeCharity(apiCharity: GivingBlockCharityApi): NormalizedC
     wallet: donationAddress,
     categories: apiCharity.categories ?? undefined,
   };
+}
+
+// Sanitize free-form HTML descriptions coming from external sources.
+// - Strip inline styles and disallowed tags
+// - Remove <img> and <svg> elements
+// - Allow only a small whitelist of tags: p, br, strong, em, ul, li
+// - Clamp overly long descriptions to a safe maximum (1200 chars)
+export function sanitizeDescription(input?: string | null): string | undefined {
+  if (!input) return undefined;
+  let s = String(input || '');
+
+  // Remove <style> blocks entirely
+  s = s.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '');
+
+  // Remove images and svg elements to avoid layout/size issues
+  s = s.replace(/<img\b[^>]*>/gi, '');
+  s = s.replace(/<svg[\s\S]*?>[\s\S]*?<\/svg>/gi, '');
+
+  // Whitelist tags; remove attributes (including style/class/id) from allowed tags
+  const allowed = new Set(['p', 'br', 'strong', 'em', 'ul', 'li']);
+
+  s = s.replace(/<([a-zA-Z0-9]+)([^>]*)>/g, (_m, tagName) => {
+    const t = String(tagName).toLowerCase();
+    if (allowed.has(t)) return `<${t}>`;
+    return '';
+  });
+
+  s = s.replace(/<\/([a-zA-Z0-9]+)[^>]*>/g, (_m, tagName) => {
+    const t = String(tagName).toLowerCase();
+    if (allowed.has(t)) return `</${t}>`;
+    return '';
+  });
+
+  // Collapse excessive whitespace
+  s = s.replace(/\s{2,}/g, ' ');
+  s = s.trim();
+
+  // If the plain-text length exceeds our limit, return a truncated plain-text string
+  const plain = s.replace(/<[^>]+>/g, '');
+  const MAX = 1200;
+  if (plain.length > MAX) {
+    return plain.slice(0, MAX);
+  }
+
+  return s || undefined;
 }
 
 export function verifyWebhookSignature(rawBody: string, signatureHeader: string | undefined): boolean {

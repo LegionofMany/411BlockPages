@@ -649,7 +649,7 @@ export default function ProfilePage() {
                   <div className="flex-1">
                     <div className="font-medium text-sm" style={{ color: '#e5e7eb' }}>{featuredCharity.name}</div>
                     {featuredCharity.description && (
-                      <p className="text-xs mt-1 line-clamp-3" style={{ color: '#cbd5f5' }}>{featuredCharity.description}</p>
+                      <p className="text-xs mt-1 line-clamp-3" style={{ color: '#cbd5f5', wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}>{featuredCharity.description}</p>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       {me?.donationLink && (

@@ -270,6 +270,7 @@ export default function AdminCharitiesAppPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, description: e.target.value }))
                     }
+                    style={{ wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}
                   />
                   <div className="mt-1 text-xs text-slate-400">{(form.description || "").length}/1000</div>
                 </label>

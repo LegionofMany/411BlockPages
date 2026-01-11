@@ -38,9 +38,9 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
           <Image
             src={String(charity.logo ?? '')}
             alt={String(charity.name ?? '')}
-            width={80}
-            height={40}
-            style={{ objectFit: 'contain' }}
+            width={160}
+            height={80}
+            style={{ objectFit: 'contain', maxHeight: 160, maxWidth: '100%', height: 'auto' }}
             onError={() => setLogoFailed(true)}
             placeholder="blur"
             blurDataURL={"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='100%25' height='100%25' fill='%230b1220'/%3E%3C/svg%3E"}
@@ -55,7 +55,7 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
           {deriveChainLabel() ? <div className="text-xs text-amber-200 mt-1">{deriveChainLabel()}</div> : null}
         </div>
       </div>
-  <p className="mt-3 text-sm text-slate-300">{String(charity.description ?? '')}</p>
+  <p className="mt-3 text-sm text-slate-300" style={{ wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}>{String(charity.description ?? '')}</p>
 
       <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {charity.givingBlockEmbedUrl ? (

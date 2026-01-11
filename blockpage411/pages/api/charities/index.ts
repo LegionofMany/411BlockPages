@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '../../../lib/db';
 import Charity from '../../../models/Charity';
+import { sanitizeDescription } from '../../../services/givingBlockService';
 import { getCache, setCache } from '../../../lib/redisCache';
 import { withAdminAuth } from '../../../lib/adminMiddleware';
 
@@ -79,10 +80,11 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
       }
 
       if (req.method === 'POST') {
+        const sanitizedDesc = sanitizeDescription(description ?? undefined);
         const created = await Charity.create({
           name,
           website,
-          description,
+          description: sanitizedDesc,
           logo,
           givingBlockId,
           charityId,
@@ -97,10 +99,11 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
       if (!id) {
         return res.status(400).json({ error: 'id is required for updates' });
       }
+      const sanitizedDesc = sanitizeDescription(description ?? undefined);
       const update: any = {
         name,
         website,
-        description,
+        description: sanitizedDesc,
         logo,
         givingBlockId,
         charityId,
