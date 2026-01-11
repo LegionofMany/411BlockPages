@@ -135,3 +135,16 @@ html, body {
 	background: rgba(255,255,255,0.02);
 	outline: none;
 }
+
+/* Charity/mobile safety: prevent long unbroken text from forcing viewport zoom */
+.charity-safe-text {
+	overflow-wrap: anywhere;
+	word-break: break-word;
+	max-width: 100%;
+}
+
+.charity-safe-text * {
+	overflow-wrap: anywhere;
+	word-break: break-word;
+	max-width: 100%;
+}

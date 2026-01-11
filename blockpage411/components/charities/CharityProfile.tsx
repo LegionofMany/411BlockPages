@@ -88,7 +88,7 @@ export default function CharityProfile({ charity }: Props) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-wide text-emerald-50">{charity.name}</h1>
+            <h1 className="text-xl font-semibold tracking-wide text-emerald-50 charity-safe-text">{charity.name}</h1>
             <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100 border border-emerald-400/70">
               Verified Nonprofit
             </span>
@@ -141,13 +141,11 @@ export default function CharityProfile({ charity }: Props) {
 
       {charity.description && (
         <div className="mt-4">
-          <p
-            className={`text-sm leading-relaxed text-emerald-50/90 ${expanded ? '' : 'line-clamp-4 md:line-clamp-none'}`}
+          <div
+            className={`text-sm leading-relaxed text-emerald-50/90 charity-safe-text ${expanded ? '' : 'line-clamp-4 md:line-clamp-none'}`}
             id={`charity-desc-${String(charity._id || charity.charityId || charity.givingBlockId || charity.name)}`}
-            style={{ wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}
-          >
-            {charity.description}
-          </p>
+            dangerouslySetInnerHTML={{ __html: charity.description }}
+          />
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}

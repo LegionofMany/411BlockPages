@@ -105,10 +105,10 @@ export function TrendingCharityCard({ name, logo, tags }: TrendingCharityCardPro
       className="group relative p-5 rounded-3xl backdrop-blur-2xl shadow-[0_18px_50px_rgba(0,0,0,0.88)] transition-all duration-300 hover:-translate-y-1.5 border border-amber-400/20 bg-gradient-to-br from-amber-400/10 via-black/70 to-black"
     >
       <p className="text-xs uppercase tracking-[0.18em] text-amber-200/80 mb-2">Charity</p>
-      <p className="text-base font-semibold mb-2" style={{ color: 'var(--section-text, #fefce8)' }}>{name}</p>
+      <p className="text-base font-semibold mb-2 charity-safe-text" style={{ color: 'var(--section-text, #fefce8)' }}>{name}</p>
       {logo && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo} alt={name} className="w-10 h-10 rounded-full object-cover mb-3" />
+        <img src={logo} alt={name} className="w-10 h-10 rounded-full object-contain mb-3" />
       )}
       {tags && tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-1">

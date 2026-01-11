@@ -52,13 +52,11 @@ export default function CharityCard({ charity }: Props) {
           )}
           {charity.description && (
             <>
-              <p
+              <div
                 id={`desc-${String(id)}`}
-                className={`mt-2 text-xs leading-snug text-emerald-50/90 ${expanded ? '' : 'line-clamp-4 md:line-clamp-2'}`}
-                style={{ wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}
-              >
-                {charity.description}
-              </p>
+                className={`mt-2 text-xs leading-snug text-emerald-50/90 charity-safe-text ${expanded ? '' : 'line-clamp-4 md:line-clamp-2'}`}
+                dangerouslySetInnerHTML={{ __html: charity.description }}
+              />
               <button
                 type="button"
                 onClick={(e) => { e.preventDefault(); setExpanded((v) => !v); }}

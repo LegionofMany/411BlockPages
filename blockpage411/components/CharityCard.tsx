@@ -55,7 +55,10 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
           {deriveChainLabel() ? <div className="text-xs text-amber-200 mt-1">{deriveChainLabel()}</div> : null}
         </div>
       </div>
-  <p className="mt-3 text-sm text-slate-300" style={{ wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}>{String(charity.description ?? '')}</p>
+  <div
+    className="mt-3 text-sm text-slate-300 charity-safe-text line-clamp-3"
+    dangerouslySetInnerHTML={{ __html: String(charity.description ?? '') }}
+  />
 
       <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {charity.givingBlockEmbedUrl ? (

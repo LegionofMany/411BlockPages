@@ -116,7 +116,7 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
       const updated = await Charity.findByIdAndUpdate(
         id,
         { $set: update },
-        { new: true },
+        { new: true, runValidators: true },
       ).lean();
       if (!updated) return res.status(404).json({ error: 'Charity not found' });
       return res.status(200).json({ charity: updated });

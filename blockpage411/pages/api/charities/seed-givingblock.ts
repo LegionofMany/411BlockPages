@@ -4,6 +4,7 @@ import Charity from '../../../models/Charity';
 import { fetchGivingBlockCharities } from '../../../utils/givingblock';
 import Redis from 'ioredis';
 import { withAdminAuth } from '../../../lib/adminMiddleware';
+import { sanitizeDescription } from '../../../services/givingBlockService';
 
 // This endpoint seeds charities from The Giving Block API into the local DB.
 // Protected: in production it requires admin auth (via withAdminAuth). In development it can be called directly.
@@ -35,7 +36,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const doc: Record<string, unknown> = {
         givingBlockId: String(c.id ?? c.organization_id ?? ''),
         name,
-        description: String(c.mission ?? c.description ?? ''),
+        description: sanitizeDescription(String(c.mission ?? c.description ?? '')),
         website: String(c.website ?? c.url ?? ''),
         logo: String(c.logoUrl ?? c.logo ?? c.logo_url ?? ''),
         givingBlockEmbedUrl: String(c.donationWidget ?? c.donation_widget ?? c.embed ?? ''),

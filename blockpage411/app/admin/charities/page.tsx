@@ -101,15 +101,15 @@ export default function AdminCharitiesAppPage() {
     function normalizeCharityInput(c: CharityRow) {
       return {
         ...c,
-        description: c.description ? String(c.description).slice(0, 1000) : "",
+        description: c.description ? String(c.description).slice(0, 1200) : "",
         // mission field support: keep if present
         mission: (c as any).mission ? String((c as any).mission).slice(0, 500) : undefined,
       };
     }
 
     const normalized = normalizeCharityInput(form);
-    if ((normalized.description || "").length > 1000) {
-      alert('Description exceeds allowed length (1000 characters)');
+    if ((normalized.description || "").length > 1200) {
+      alert('Description exceeds allowed length (1200 characters)');
       return;
     }
 
@@ -265,14 +265,14 @@ export default function AdminCharitiesAppPage() {
                   <textarea
                     className="mt-1 rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-sm text-amber-50 h-32 overflow-y-auto resize-none"
                     rows={4}
-                    maxLength={1000}
+                    maxLength={1200}
                     value={form.description || ""}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, description: e.target.value }))
                     }
                     style={{ wordBreak: 'break-word' as React.CSSProperties['wordBreak'], overflowWrap: 'anywhere' as React.CSSProperties['overflowWrap'] }}
                   />
-                  <div className="mt-1 text-xs text-slate-400">{(form.description || "").length}/1000</div>
+                  <div className="mt-1 text-xs text-slate-400">{(form.description || "").length}/1200</div>
                 </label>
                 <label className="flex flex-col md:col-span-2">
                   Logo URL

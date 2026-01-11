@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import dbConnect from '../../../lib/db';
 import Charity from '../../../models/Charity';
+import { sanitizeDescription } from '../../../services/givingBlockService';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -39,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const update: any = { $set: {
         givingBlockId: String(c.id ?? c.givingBlockId ?? ''),
         name,
-        description: String(c.mission ?? c.description ?? ''),
+        description: sanitizeDescription(String(c.mission ?? c.description ?? '')),
         website: String(c.website ?? c.url ?? ''),
         logo: String((c as any).logoUrl ?? (c as any).logo ?? ''),
         givingBlockEmbedUrl: String((c as any).donationWidget ?? (c as any).embed ?? ''),

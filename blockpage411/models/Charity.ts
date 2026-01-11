@@ -20,7 +20,7 @@ const CharitySchema = new Schema<CharityDocument>({
   givingBlockId: { type: String, index: true },
   charityId: { type: String },
   name: { type: String, required: true },
-  description: { type: String },
+  description: { type: String, maxlength: 1200 },
   website: { type: String },
   logo: { type: String },
   wallet: { type: String },
