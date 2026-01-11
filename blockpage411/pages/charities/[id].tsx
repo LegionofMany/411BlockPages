@@ -106,7 +106,7 @@ export default function CharityDetailPage() {
 
   return (
     <ThemeProvider>
-      <div className="flex min-h-screen flex-col items-center bg-black">
+      <div className="flex min-h-screen flex-col bg-black">
         <Navbar />
         <main
           id="charity-detail-page"

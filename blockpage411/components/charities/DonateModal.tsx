@@ -35,11 +35,12 @@ export default function DonateModal({ open, onClose, charityName, wallets }: Pro
   const qrValue = activeWallet ? activeWallet.address : "";
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4" onClick={onClose}>
-      <div
-        className="relative w-full max-w-md rounded-3xl border border-emerald-500/40 bg-gradient-to-b from-emerald-700/40 via-black to-black/95 p-6 shadow-[0_0_40px_rgba(16,185,129,0.6)]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/70 px-4 py-6" onClick={onClose}>
+      <div className="min-h-full w-full flex items-start justify-center sm:items-center">
+        <div
+          className="relative w-full max-w-md rounded-3xl border border-emerald-500/40 bg-gradient-to-b from-emerald-700/40 via-black to-black/95 p-5 sm:p-6 shadow-[0_0_40px_rgba(16,185,129,0.6)] max-h-[85vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
         <button
           type="button"
           onClick={onClose}
@@ -151,6 +152,7 @@ export default function DonateModal({ open, onClose, charityName, wallets }: Pro
             <br />
             Donations go directly to the charity&apos;s wallet. Blockpage411 does not custody funds or provide refunds.
           </p>
+        </div>
         </div>
       </div>
     </div>

@@ -61,7 +61,7 @@ export default function CharitiesPage() {
 
   return (
     <ThemeProvider>
-      <div className="flex flex-col items-center justify-center min-h-screen bg-black">
+      <div className="flex min-h-screen flex-col bg-black">
         <Navbar />
         <main
           id="charities-page"
@@ -79,7 +79,7 @@ export default function CharitiesPage() {
 
       <h1 className="mb-2 text-3xl font-extrabold tracking-tight text-emerald-100 sm:text-4xl">Verified Charities</h1>
       <p className="mb-6 max-w-2xl text-sm text-emerald-100/80">
-        Discover audited nonprofits and donate directly on-chain. All donations are peer-to-peer  you always control your wallet.
+        Discover audited nonprofits and donate directly on-chain. All donations are peer-to-peer — you always control your wallet.
       </p>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -145,7 +145,7 @@ export default function CharitiesPage() {
           Error loading charities: {err}
         </div>
       ) : list === null ? (
-        <div className="mt-6 text-center text-sm text-emerald-100">Loading charities</div>
+        <div className="mt-6 text-center text-sm text-emerald-100">Loading charities...</div>
       ) : list.length === 0 ? (
         <div className="mt-6 text-center text-sm text-emerald-100">
           No charities found. You can seed sample data for development using the button above, or connect a real database and seed from The Giving Block.

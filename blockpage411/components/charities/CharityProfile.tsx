@@ -72,7 +72,7 @@ export default function CharityProfile({ charity }: Props) {
   }, [charity.givingBlockId, charity.charityId]);
 
   return (
-    <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-700/30 via-emerald-900/40 to-black/95 p-6 text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.35)]">
+    <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-700/30 via-emerald-900/40 to-black/95 p-4 sm:p-6 text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.35)]">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-black/60 border border-emerald-500/40">
           {charity.logo ? (
@@ -298,7 +298,8 @@ export default function CharityProfile({ charity }: Props) {
               <iframe
                 title={`givingblock-donate-${charity.givingBlockEmbedUrl}`}
                 src={charity.givingBlockEmbedUrl}
-                style={{ width: "100%", height: 420, border: "none" }}
+                className="w-full h-[70vh] max-h-[520px] min-h-[360px]"
+                style={{ border: "none" }}
                 sandbox="allow-forms allow-scripts allow-popups"
                 loading="lazy"
                 referrerPolicy="no-referrer"
