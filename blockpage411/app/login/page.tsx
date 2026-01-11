@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState, useEffect, useRef } from "react";
 import dynamic from 'next/dynamic';
 const WalletButtons = dynamic(() => import('./WalletButtons'));
 import { useRouter } from "next/navigation";
@@ -11,43 +10,70 @@ import { useEvmWallet } from "../../components/EvmWalletProvider";
 export default function LoginPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-    // Check if user is already authenticated.
-    // The session token cookie is HttpOnly, so we can't reliably read it from JS.
-    // Use a cheap server-side status endpoint that always returns 200.
-    axios
-      .get('/api/auth/status', { withCredentials: true })
-      .then((res) => {
-        if (res?.data?.authenticated) router.replace('/search');
-      })
-      .catch(() => {
-        // ignore
-      });
-  }, [router]);
   const { address, isConnected, disconnect, getSigner } = useEvmWallet();
+  const abortRef = useRef<AbortController | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function handleLogin() {
     setError("");
     setLoading(true);
+
+    // Cancel any previous in-flight attempt before starting a new one.
+    try {
+      abortRef.current?.abort();
+    } catch {
+      // ignore
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       if (!address) throw new Error('Connect a wallet first.');
       console.log('LOGIN: starting handleLogin', { address });
-      // 1. Get nonce
-      const { data } = await axios.post("/api/auth/nonce", { address });
-      console.log('LOGIN: received nonce', data);
-      const message = `Login nonce: ${data.nonce}`;
+
+      // 1) Get nonce
+      const nonceRes = await fetch("/api/auth/nonce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ address }),
+        signal: controller.signal,
+      });
+      const nonceJson = await nonceRes.json().catch(() => ({} as any));
+      if (!nonceRes.ok) {
+        throw new Error(nonceJson?.message || nonceRes.statusText || "Failed to fetch nonce");
+      }
+      console.log('LOGIN: received nonce', nonceJson);
+      const message = `Login nonce: ${nonceJson.nonce}`;
+
       // 2. Sign nonce with the currently connected wallet
       const signer = await getSigner();
       const signature = await signer.signMessage(message);
       console.log('LOGIN: obtained signature', { signature });
-      // 3. Verify signature
-      const verifyRes = await axios.post("/api/auth/verify", { address, signature }, { withCredentials: true });
-      console.log('LOGIN: verify response', verifyRes.status, verifyRes.data);
+
+      // 3) Verify signature (sets HttpOnly cookie)
+      const verifyRes = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ address, signature }),
+        signal: controller.signal,
+      });
+      const verifyJson = await verifyRes.json().catch(() => ({} as any));
+      console.log('LOGIN: verify response', verifyRes.status, verifyJson);
+      if (!verifyRes.ok) {
+        throw new Error(verifyJson?.message || verifyRes.statusText || "Verification failed");
+      }
+
       // Save wallet address for admin panel access
-  window.localStorage.setItem("wallet", address || "");
+      window.localStorage.setItem("wallet", address || "");
       // Notify the app shell (Navbar, etc.) that auth state changed
       try {
         window.dispatchEvent(new Event('auth-changed'));
@@ -55,21 +81,44 @@ export default function LoginPage() {
         // ignore
       }
       // On success, redirect or update UI as needed
-      router.push("/search");
+      router.push("/dashboard");
     } catch (err: any) {
+      // If the user clicked Disconnect or otherwise cancelled, do not show an error.
+      const isAbort =
+        err?.name === 'AbortError' ||
+        String(err?.message || '').toLowerCase().includes('aborted') ||
+        String(err?.message || '').toLowerCase().includes('canceled') ||
+        String(err?.message || '').toLowerCase().includes('cancelled');
+      if (isAbort) {
+        console.log('LOGIN: aborted');
+        return;
+      }
+
       // Log the actual error (not the handler arguments) so we can diagnose failures
       try {
         console.error('LOGIN: sign-in flow failed', err);
       } catch (_) {
         console.error('LOGIN: sign-in flow failed (unable to stringify error)');
       }
-      // Prefer useful messages when available (Axios / wallet errors may include details)
-      const msg = err?.response?.data?.message || err?.message || 'Login failed. Check console/network for details.';
+      const msg = err?.message || 'Login failed. Check console/network for details.';
       setError(String(msg));
     } finally {
       setLoading(false);
+      // Clear controller if this attempt is the active one.
+      if (abortRef.current === controller) abortRef.current = null;
     }
   }
+
+  // Abort any in-flight verification if the user navigates away.
+  useEffect(() => {
+    return () => {
+      try {
+        abortRef.current?.abort();
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
 
   if (!mounted) return null;
 
@@ -105,6 +154,14 @@ export default function LoginPage() {
               className="w-full text-sm text-gray-400 hover:text-white transition-colors"
               onClick={async () => {
                 try {
+                  try {
+                    abortRef.current?.abort();
+                    abortRef.current = null;
+                  } catch {
+                    // ignore
+                  }
+                  setLoading(false);
+                  setError("");
                   await disconnect();
                   window.localStorage.removeItem('wallet');
                 } catch (e) {

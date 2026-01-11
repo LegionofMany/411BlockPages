@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "../styles/globals.css";
 import { Providers } from "./components/Providers";
 import Navbar from "./components/Navbar";
+import { AuthGate } from "./components/AuthGate";
 
 export const metadata: Metadata = {
   // Set the canonical site origin so Next.js can generate consistent absolute URLs
@@ -32,6 +33,7 @@ export default function RootLayout({
         }}
       >
           <Providers>
+            <AuthGate />
             {/* Accessible skip link: hidden until focused for keyboard users */}
             <a
               href="#content"

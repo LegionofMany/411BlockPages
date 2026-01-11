@@ -125,7 +125,11 @@ export default function SearchPage() {
     let cancelled = false;
     async function loadMe() {
       try {
-        const res = await fetch('/api/me', { credentials: 'include' });
+        const statusRes = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+        const status = await statusRes.json().catch(() => ({} as any));
+        if (!status?.authenticated) return;
+
+        const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;

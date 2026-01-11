@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import NavLinkItem from './NavLinkItem';
 import { ConnectWalletButton } from './ConnectWalletButton';
+import { useEvmWallet } from '../../components/EvmWalletProvider';
 import {
   IconHome, IconSearch, IconFund, IconDonate, IconTrending,
   IconAdmin, IconActions, IconSignIn, IconMenuSpecial
@@ -22,6 +23,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
   const [nftAvatarUrl, setNftAvatarUrl] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { disconnect } = useEvmWallet();
   // call hook unconditionally to satisfy rules-of-hooks
   const pathname = usePathname() || '';
 
@@ -211,6 +213,9 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include', cache: 'no-store' });
                   } catch {}
                   try {
+                    await disconnect();
+                  } catch {}
+                  try {
                     window.localStorage.removeItem('wallet');
                   } catch {}
                   try {
@@ -385,6 +390,9 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                           onClick={async () => {
                             try {
                               await fetch('/api/auth/logout', { method: 'POST', credentials: 'include', cache: 'no-store' });
+                            } catch {}
+                            try {
+                              await disconnect();
                             } catch {}
                             try {
                               window.localStorage.removeItem('wallet');

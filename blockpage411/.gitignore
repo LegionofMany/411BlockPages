@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# next-sitemap (generated during build)
+/public/sitemap*.xml
+/public/robots.txt
+
 # production
 /build
 

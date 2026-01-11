@@ -33,12 +33,14 @@ type EvmWalletContextValue = {
   address: string | null;
   isConnected: boolean;
   isConnecting: boolean;
+  isInitialized: boolean;
   error: string | null;
   providerType: ProviderType | null;
   provider: Eip1193Provider | null;
   connectMetaMask: () => Promise<void>;
   connectTrustWallet: () => Promise<void>;
   connectCoinbase: () => Promise<void>;
+  reconnect: (opts?: { requestAccountsIfNeeded?: boolean }) => Promise<boolean>;
   disconnect: () => Promise<void>;
   getSigner: () => Promise<Awaited<ReturnType<BrowserProvider["getSigner"]>>>;
 };
@@ -88,6 +90,7 @@ export default function EvmWalletProvider({ children }: { children: React.ReactN
   const [providerType, setProviderType] = useState<ProviderType | null>(null);
   const [provider, setProvider] = useState<Eip1193Provider | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cbSdkRef = useRef<CoinbaseWalletSDK | null>(null);
@@ -208,6 +211,61 @@ export default function EvmWalletProvider({ children }: { children: React.ReactN
     }
   }, [coinbasePreference, setConnected]);
 
+  const reconnect = useCallback(
+    async (opts?: { requestAccountsIfNeeded?: boolean }) => {
+      const requestAccountsIfNeeded = Boolean(opts?.requestAccountsIfNeeded);
+      try {
+        if (provider && address) return true;
+
+        const savedType =
+          typeof window !== "undefined"
+            ? (window.localStorage.getItem(STORAGE_PROVIDER) as ProviderType | null)
+            : null;
+
+        const tryInjected = async () => {
+          const injected = getInjectedEthereum(null);
+          if (!injected) return false;
+          const method = requestAccountsIfNeeded ? "eth_requestAccounts" : "eth_accounts";
+          const accounts = (await injected.request({ method })) as unknown;
+          const list = Array.isArray(accounts) ? (accounts as unknown[]) : [];
+          const nextAddr = normalizeAddress(list[0]);
+          if (!nextAddr) return false;
+          setConnected("injected", injected, nextAddr);
+          return true;
+        };
+
+        const tryCoinbase = async () => {
+          if (!cbSdkRef.current) {
+            cbSdkRef.current = new CoinbaseWalletSDK({ appName: "Blockpage411", appLogoUrl: null, appChainIds: [1] });
+          }
+          const cbProvider = cbSdkRef.current.makeWeb3Provider(coinbasePreference) as unknown;
+          if (!isEip1193Provider(cbProvider)) return false;
+          const method = requestAccountsIfNeeded ? "eth_requestAccounts" : "eth_accounts";
+          const accounts = (await cbProvider.request({ method })) as unknown;
+          const list = Array.isArray(accounts) ? (accounts as unknown[]) : [];
+          const nextAddr = normalizeAddress(list[0]);
+          if (!nextAddr) return false;
+          setConnected("coinbase", cbProvider, nextAddr);
+          return true;
+        };
+
+        // Prefer the last used provider type if we have it.
+        if (savedType === "coinbase") {
+          if (await tryCoinbase()) return true;
+          if (await tryInjected()) return true;
+          return false;
+        }
+
+        if (await tryInjected()) return true;
+        if (await tryCoinbase()) return true;
+        return false;
+      } catch {
+        return false;
+      }
+    },
+    [address, coinbasePreference, provider, setConnected]
+  );
+
   const getSigner = useCallback(async () => {
     // If we don't have an active provider yet, try injected as a fallback.
     const p = provider || getInjectedEthereum(null);
@@ -223,37 +281,15 @@ export default function EvmWalletProvider({ children }: { children: React.ReactN
 
     (async () => {
       try {
-        const savedType = window.localStorage.getItem(STORAGE_PROVIDER) as ProviderType | null;
-        if (!savedType) return;
-
-        if (savedType === "injected") {
-          const injected = getInjectedEthereum(null);
-          if (!injected) return;
-          const accounts = (await injected.request({ method: "eth_accounts" })) as unknown;
-          const list = Array.isArray(accounts) ? (accounts as unknown[]) : [];
-          const nextAddr = normalizeAddress(list[0]);
-          if (!nextAddr) return;
-          setConnected("injected", injected, nextAddr);
-          return;
-        }
-
-        if (savedType === "coinbase") {
-          if (!cbSdkRef.current) {
-            cbSdkRef.current = new CoinbaseWalletSDK({ appName: "Blockpage411", appLogoUrl: null, appChainIds: [1] });
-          }
-          const cbProvider = cbSdkRef.current.makeWeb3Provider(coinbasePreference) as unknown;
-          if (!isEip1193Provider(cbProvider)) return;
-          const accounts = (await cbProvider.request({ method: "eth_accounts" })) as unknown;
-          const list = Array.isArray(accounts) ? (accounts as unknown[]) : [];
-          const nextAddr = normalizeAddress(list[0]);
-          if (!nextAddr) return;
-          setConnected("coinbase", cbProvider, nextAddr);
-        }
+        // Silent restore: do not trigger a wallet permission popup.
+        await reconnect({ requestAccountsIfNeeded: false });
       } catch {
         // ignore
+      } finally {
+        setIsInitialized(true);
       }
     })();
-  }, [coinbasePreference, setConnected]);
+  }, [reconnect]);
 
   // Keep address in sync when accounts change.
   useEffect(() => {
@@ -300,11 +336,14 @@ export default function EvmWalletProvider({ children }: { children: React.ReactN
       address,
       isConnected: !!address,
       isConnecting,
+      isInitialized,
       error,
       providerType,
       provider,
       connectMetaMask,
+      connectTrustWallet,
       connectCoinbase,
+      reconnect,
       disconnect,
       getSigner,
     }),
@@ -312,12 +351,15 @@ export default function EvmWalletProvider({ children }: { children: React.ReactN
       address,
       connectCoinbase,
       connectMetaMask,
+      connectTrustWallet,
       disconnect,
       error,
       getSigner,
       isConnecting,
+      isInitialized,
       provider,
       providerType,
+      reconnect,
     ]
   );
 

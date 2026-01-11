@@ -80,6 +80,11 @@ export default function WalletButtons({ onError }: Props) {
 
       // Mobile + no injected provider: deep link into MetaMask app.
       if (isMobile && (!hasInjected || !isMetaMask)) {
+        try {
+          window.localStorage.setItem("walletLoginPending", "true");
+        } catch {
+          // ignore
+        }
         const deepLink = buildMetaMaskDeepLink(window.location.href);
         window.location.href = deepLink;
         return;
@@ -104,6 +109,11 @@ export default function WalletButtons({ onError }: Props) {
       // Mobile + no injected Coinbase provider: deep link into Coinbase Wallet.
       // This provides a smoother UX than trying to connect from a regular mobile browser.
       if (isMobile && (!hasInjected || !isCoinbase)) {
+        try {
+          window.localStorage.setItem("walletLoginPending", "true");
+        } catch {
+          // ignore
+        }
         const deepLink = buildCoinbaseDeepLink(window.location.href);
         window.location.href = deepLink;
         return;
@@ -127,6 +137,11 @@ export default function WalletButtons({ onError }: Props) {
 
       // Mobile + no injected Trust provider: deep link into Trust Wallet.
       if (isMobile && (!hasInjected || !isTrust)) {
+        try {
+          window.localStorage.setItem("walletLoginPending", "true");
+        } catch {
+          // ignore
+        }
         const deepLink = buildTrustWalletDeepLink(window.location.href);
         window.location.href = deepLink;
         return;
@@ -205,6 +220,11 @@ export default function WalletButtons({ onError }: Props) {
                 type="button"
                 className="w-full rounded-xl px-3 py-2 text-left bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-100"
                 onClick={() => {
+                  try {
+                    window.localStorage.setItem("walletLoginPending", "true");
+                  } catch {
+                    // ignore
+                  }
                   window.location.href = buildMetaMaskDeepLink(window.location.href);
                 }}
               >
@@ -214,6 +234,11 @@ export default function WalletButtons({ onError }: Props) {
                 type="button"
                 className="w-full rounded-xl px-3 py-2 text-left bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-100"
                 onClick={() => {
+                  try {
+                    window.localStorage.setItem("walletLoginPending", "true");
+                  } catch {
+                    // ignore
+                  }
                   window.location.href = buildCoinbaseDeepLink(window.location.href);
                 }}
               >
@@ -223,6 +248,11 @@ export default function WalletButtons({ onError }: Props) {
                 type="button"
                 className="w-full rounded-xl px-3 py-2 text-left bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-100"
                 onClick={() => {
+                  try {
+                    window.localStorage.setItem("walletLoginPending", "true");
+                  } catch {
+                    // ignore
+                  }
                   window.location.href = buildTrustWalletDeepLink(window.location.href);
                 }}
               >
