@@ -68,7 +68,7 @@ Take Blockpage411 from a **functional MVP** (v1–v5) into a **production-ready 
 
 ### e) **Enhanced Security**
 
-* **Wallet login only** (via wagmi + RainbowKit + Coinbase + WalletConnect).
+* **Wallet login only** (via wagmi + MetaMask (injected) + Coinbase Wallet SDK).
 * No emails until **KYC flow**.
 * Add **JWT session hardening**:
 

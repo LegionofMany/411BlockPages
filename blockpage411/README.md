@@ -91,7 +91,7 @@ Yes. The architecture is built to add more donation platforms, custodians, and d
 - **Frontend**
   - Next.js App Router (React + TypeScript).
   - TailwindCSS for styling.
-  - wagmi + ethers v6 for EVM wallet connections.
+  - MetaMask (injected + mobile deep link) + Coinbase Wallet SDK for EVM wallet connections.
   - SWR and custom hooks for data fetching.
 
 - **Backend / APIs**

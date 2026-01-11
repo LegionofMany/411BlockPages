@@ -1,0 +1,13 @@
+# Ignore end-to-end tests and Playwright artifacts
+e2e/
+playwright-report/
+.playwright/
+# lokal test artifacts
+__tests__/
+tests/
+coverage/
+# Optional editor/IDE configs
+.vscode/
+.idea/
+# CI config (if you don't want to deploy workflows)
+.github/

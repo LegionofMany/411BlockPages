@@ -11,4 +11,5 @@ module.exports = {
     '^pages/(.*)$': '<rootDir>/pages/$1'
   },
   setupFiles: ['<rootDir>/jest.setup.js'],
+  testPathIgnorePatterns: ['<rootDir>/e2e/'],
 };

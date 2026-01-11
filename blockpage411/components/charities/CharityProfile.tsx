@@ -117,7 +117,7 @@ export default function CharityProfile({ charity }: Props) {
                   }
                   setShowDonate(true);
                 }}
-                className="mt-2 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black shadow hover:from-emerald-300 hover:to-emerald-500"
+                className="mt-2 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black shadow hover:from-emerald-300 hover:to-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
               >
                 Donate
               </button>
@@ -127,7 +127,8 @@ export default function CharityProfile({ charity }: Props) {
                 href={charity.givingBlockEmbedUrl as string}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-1 inline-flex items-center justify-center rounded-full border border-emerald-400/70 bg-emerald-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100 hover:bg-emerald-500/20"
+                className="mt-1 inline-flex items-center justify-center rounded-full border border-emerald-400/70 bg-emerald-500/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100 hover:bg-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                aria-label={`Open Giving Block donate widget for ${charity.name}`}
               >
                 Donate via The Giving Block
               </a>
@@ -137,7 +138,9 @@ export default function CharityProfile({ charity }: Props) {
       </div>
 
       {charity.description && (
-        <p className="mt-4 text-sm leading-relaxed text-emerald-50/90">{charity.description}</p>
+        <p className="mt-4 text-sm leading-relaxed text-emerald-50/90" id={`charity-desc-${String(charity._id || charity.charityId || charity.givingBlockId || charity.name)}`}>
+          {charity.description}
+        </p>
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -157,10 +160,10 @@ export default function CharityProfile({ charity }: Props) {
           <ul className="mt-2 space-y-1 text-xs">
             {charity.website && (
               <li>
-                <a href={charity.website} target="_blank" rel="noreferrer" className="text-emerald-200 hover:text-emerald-100">
-                  Website
-                </a>
-              </li>
+                  <a href={charity.website} target="_blank" rel="noreferrer" className="text-emerald-200 hover:text-emerald-100" aria-label={`Open website for ${charity.name}`}>
+                    Website
+                  </a>
+                </li>
             )}
             {charity.socials?.twitter && (
               <li>
@@ -169,6 +172,7 @@ export default function CharityProfile({ charity }: Props) {
                   target="_blank"
                   rel="noreferrer"
                   className="text-emerald-200 hover:text-emerald-100"
+                  aria-label={`Open Twitter for ${charity.name}`}
                 >
                   Twitter
                 </a>
@@ -181,6 +185,7 @@ export default function CharityProfile({ charity }: Props) {
                   target="_blank"
                   rel="noreferrer"
                   className="text-emerald-200 hover:text-emerald-100"
+                  aria-label={`Open Facebook for ${charity.name}`}
                 >
                   Facebook
                 </a>
@@ -193,6 +198,7 @@ export default function CharityProfile({ charity }: Props) {
                   target="_blank"
                   rel="noreferrer"
                   className="text-emerald-200 hover:text-emerald-100"
+                  aria-label={`Open Instagram for ${charity.name}`}
                 >
                   Instagram
                 </a>
@@ -205,6 +211,7 @@ export default function CharityProfile({ charity }: Props) {
                   target="_blank"
                   rel="noreferrer"
                   className="text-emerald-200 hover:text-emerald-100"
+                  aria-label={`Open Giving Block donate page for ${charity.name}`}
                 >
                   Donate via The Giving Block
                 </a>

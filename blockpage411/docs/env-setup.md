@@ -19,7 +19,6 @@ This document explains the environment variables required for local development 
 - GIVINGBLOCK_ENCRYPTION_IV — Hex-encoded IV for decrypting encrypted Giving Block payloads.
 
 ### New / Wallet and security variables
-- NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID — WalletConnect v2 project ID (public). Required for WalletConnect connector in the client. Example: `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id`
 - JWT_SECRET — Server-side secret used to sign/verify JWTs for auth and moderation flows. Keep this secret and set it in Vercel env vars (do not expose client-side).
 
 ## Optional but recommended
@@ -45,7 +44,7 @@ If any secrets from `.env.local` have been committed or exposed, rotate them imm
 3. Run migrations: `npx ts-node scripts/migrate_pledge_index.ts` (or `node -r ts-node/register scripts/migrate_pledge_index.ts`).
 4. Verify locally: `npm run lint && npm test && npm run build`.
 
-When testing WalletConnect locally, ensure `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is present in your `.env.local` so client wallet connectors initialize correctly.
+Wallet connections use injected providers (MetaMask) and Coinbase Wallet SDK; no extra public wallet project ID is required.
 
 ## Notes about MongoDB transactions
 Transactions require a replica set. If you're using a single-node local MongoDB, transactions will not work. Use MongoDB Atlas with the free tier replica set for staging/production.

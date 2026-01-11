@@ -23,7 +23,23 @@ export interface LiveFeedConnection {
 
 export function connectLiveFeed(config: LiveFeedConfig, callbacks: LiveFeedCallbacks): LiveFeedConnection {
   const { networks, largeThresholdUsd = 10_000 } = config;
-  const socketUrl = process.env.NEXT_PUBLIC_LIVE_FEED_WS_URL || `${process.env.NEXT_PUBLIC_APP_URL?.replace(/^http/, 'ws')}/realtime`;
+  const envWs = process.env.NEXT_PUBLIC_LIVE_FEED_WS_URL;
+  const envApp = process.env.NEXT_PUBLIC_APP_URL;
+
+  // Derive a socket URL safely:
+  // - Prefer explicit NEXT_PUBLIC_LIVE_FEED_WS_URL (recommended for production).
+  // - Else try NEXT_PUBLIC_APP_URL (if set).
+  // - Else fall back to current window origin.
+  const derivedFromEnvApp = envApp ? `${envApp.replace(/^http/, 'ws')}/realtime` : null;
+  const derivedFromWindow =
+    typeof window !== 'undefined'
+      ? `${window.location.origin.replace(/^http/, 'ws')}/realtime`
+      : null;
+
+  const socketUrl =
+    (envWs && !String(envWs).includes('undefined') ? envWs : null) ||
+    (derivedFromEnvApp && !String(derivedFromEnvApp).includes('undefined') ? derivedFromEnvApp : null) ||
+    derivedFromWindow;
 
   let socket: Socket | null = null;
 

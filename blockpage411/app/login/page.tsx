@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { useAccount, useSignMessage, useDisconnect } from "wagmi";
-import { BrowserProvider } from "ethers";
 import dynamic from 'next/dynamic';
-const WalletConnectButtons = dynamic(() => import('./WalletConnectButtons'));
+const WalletButtons = dynamic(() => import('./WalletButtons'));
 import { useRouter } from "next/navigation";
+import { useEvmWallet } from "../../components/EvmWalletProvider";
 
 
 export default function LoginPage() {
@@ -26,9 +25,7 @@ export default function LoginPage() {
         // ignore
       });
   }, [router]);
-  const { address, isConnected } = useAccount();
-  const { disconnect, disconnectAsync } = useDisconnect();
-  const { signMessageAsync } = useSignMessage();
+  const { address, isConnected, disconnect, getSigner } = useEvmWallet();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,38 +33,27 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
+      if (!address) throw new Error('Connect a wallet first.');
       console.log('LOGIN: starting handleLogin', { address });
       // 1. Get nonce
       const { data } = await axios.post("/api/auth/nonce", { address });
       console.log('LOGIN: received nonce', data);
       const message = `Login nonce: ${data.nonce}`;
-      // 2. Sign nonce — try wagmi first, fall back to ethers provider if connector is missing methods
-      let signature: string;
-      try {
-        signature = await signMessageAsync({ message });
-      } catch (signErr: any) {
-        // Some connectors (third-party SDKs) do not implement connector.getChainId and
-        // wagmi may throw a TypeError referencing that. Fall back to the injected provider
-        // via ethers if available.
-        const msg = String(signErr?.message || signErr);
-        if (msg.includes('getChainId is not a function') || msg.includes('connector.getChainId')) {
-          if (typeof window !== 'undefined' && (window as any).ethereum) {
-            const provider = new BrowserProvider((window as any).ethereum as any);
-            const signer = await provider.getSigner();
-            signature = await signer.signMessage(message);
-          } else {
-            throw signErr;
-          }
-        } else {
-          throw signErr;
-        }
-      }
+      // 2. Sign nonce with the currently connected wallet
+      const signer = await getSigner();
+      const signature = await signer.signMessage(message);
       console.log('LOGIN: obtained signature', { signature });
       // 3. Verify signature
       const verifyRes = await axios.post("/api/auth/verify", { address, signature }, { withCredentials: true });
       console.log('LOGIN: verify response', verifyRes.status, verifyRes.data);
       // Save wallet address for admin panel access
   window.localStorage.setItem("wallet", address || "");
+      // Notify the app shell (Navbar, etc.) that auth state changed
+      try {
+        window.dispatchEvent(new Event('auth-changed'));
+      } catch {
+        // ignore
+      }
       // On success, redirect or update UI as needed
       router.push("/search");
     } catch (err: any) {
@@ -96,7 +82,7 @@ export default function LoginPage() {
         </div>
         {!isConnected ? (
           <div className="space-y-4">
-            <WalletConnectButtons onError={(e: unknown) => {
+            <WalletButtons onError={(e: unknown) => {
               const obj = e as Record<string, unknown>;
               const msg = typeof e === 'string' ? e : (obj && typeof obj.message === 'string') ? String(obj.message) : String(e);
               setError(msg);
@@ -119,7 +105,7 @@ export default function LoginPage() {
               className="w-full text-sm text-gray-400 hover:text-white transition-colors"
               onClick={async () => {
                 try {
-                  await disconnectAsync?.();
+                  await disconnect();
                   window.localStorage.removeItem('wallet');
                 } catch (e) {
                   console.error('DISCONNECT: failed', e);

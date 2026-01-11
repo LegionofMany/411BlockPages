@@ -3,9 +3,8 @@
 import React from "react";
 import { useWallet } from './WalletProvider';
 
-// Connect button wired to the client-only `WalletProvider`. Opening the
-// Reown modal is performed via the provider so no WalletConnect code runs
-// during SSR.
+// Connect button wired to the client-only `WalletProvider`.
+// Wallet relays have been removed; this routes users to /login.
 export function ConnectWalletButton() {
   let open = () => {};
   try {

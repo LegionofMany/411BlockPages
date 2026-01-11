@@ -95,7 +95,7 @@ Verification options (pro/con)
 
 1. Message signature (recommended)
 
-   - User signs a short nonce with their wallet (MetaMask / WalletConnect / Coinbase wallet). Proof is cryptographic and no funds move. Good UX for web wallets.
+  - User signs a short nonce with their wallet (MetaMask / Coinbase Wallet). Proof is cryptographic and no funds move. Good UX for web wallets.
 2. OAuth login (e.g., Coinbase login)
 
    - Possible for some exchanges; more complex and may require integrations.
@@ -176,7 +176,7 @@ Developer-ready to-do checklist (prioritized)
    - 3 fields + autocomplete provider dropdown.
    - “Other” option opens provider add modal.
    - Flag/report button & modal with ownership checkbox + sign option.
-4. Wallet verification: implement message-signature verification (MetaMask / WalletConnect). If unavailable, allow checkbox fallback + store unverified.
+4. Wallet verification: implement message-signature verification (MetaMask / Coinbase Wallet). If unavailable, allow checkbox fallback + store unverified.
 5. Admin UI: basic dashboard to review pending providers, view provider counts, export provider report list.
 6. Address labeling: add simple mapping for known exchange addresses (extendable).
 7. Analytics: track unique users and report counts per provider; expose threshold state.

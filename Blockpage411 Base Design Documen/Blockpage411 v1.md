@@ -19,7 +19,7 @@ Users can:
 
 ### a) **Authentication**
 
-* **Login with Wallet only** (MetaMask, Coinbase Wallet, WalletConnect).
+* **Login with Wallet only** (MetaMask, Coinbase Wallet).
 * Nonce + Signature flow for secure login:
 
   1. Backend issues a **nonce**.

@@ -25,7 +25,9 @@ export default function CharityCard({ charity }: Props) {
   return (
     <Link
       href={href}
-      className="group relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-600/25 via-emerald-900/40 to-black/90 p-4 transition-transform duration-200 hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.45)]"
+      role="article"
+      aria-label={`Charity ${charity.name}`}
+      className="group relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-600/25 via-emerald-900/40 to-black/90 p-4 transition-transform duration-200 hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.45)] focus:outline-none focus:ring-4 focus:ring-emerald-400/30"
     >
       <div className="flex items-start gap-4">
         <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-black/40 border border-emerald-500/30">
@@ -39,7 +41,7 @@ export default function CharityCard({ charity }: Props) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-semibold tracking-wide text-emerald-100">
+          <h3 className="truncate text-base font-semibold tracking-wide text-emerald-100" title={charity.name}>
             {charity.name}
           </h3>
           {charity.categories && charity.categories.length > 0 && (
@@ -48,15 +50,17 @@ export default function CharityCard({ charity }: Props) {
             </p>
           )}
           {charity.description && (
-            <p className="mt-2 line-clamp-2 text-xs leading-snug text-emerald-50/90">
+            <p id={`desc-${String(id)}`} className="mt-2 line-clamp-2 text-xs leading-snug text-emerald-50/90">
               {charity.description}
             </p>
           )}
+          <div aria-hidden={!charity.description} className="sr-only" />
           <div className="mt-3 flex flex-wrap gap-1.5">
             {charity.tags?.map((tag) => (
               <span
                 key={tag}
                 className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-200 border border-emerald-500/40"
+                aria-label={`Tag ${tag}`}
               >
                 {tag}
               </span>

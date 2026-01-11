@@ -16,6 +16,8 @@
     "poller:worker": "node scripts/poller-worker.ts",
     "test:smoke": "ts-node scripts/test-harness.ts",
     "test": "jest --config jest.config.js --runInBand",
+    "test:e2e": "playwright test",
+    "install:playwright": "npx playwright install --with-deps",
     "test:swc-load": "node scripts/test_swc_load.js",
     "pretest": "echo \"Skipping lint in pretest; run npm run lint manually when needed\"",
     "migrate:pledge:index": "ts-node scripts/migrate_pledge_index.ts",
@@ -28,6 +30,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.20.0",
+    "@coinbase/wallet-sdk": "^4.3.6",
     "@sentry/node": "^10.22.0",
     "@solana/web3.js": "^1.98.4",
     "@tailwindcss/postcss": "^4.1.14",
@@ -54,11 +57,10 @@
     "swr": "^2.3.6",
     "tronweb": "^4.0.0",
     "uuid": "^13.0.0",
-    "viem": "^2.38.0",
-    "wagmi": "^2.18.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/dotenv": "^6.1.1",
     "@types/jest": "^29.5.3",
     "@types/jsonwebtoken": "^9.0.10",
@@ -71,6 +73,7 @@
     "jest": "^29.6.1",
     "mongodb-memory-server": "^8.16.1",
     "next-sitemap": "^4.2.3",
+    "playwright": "^1.40.0",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5"

@@ -31,7 +31,7 @@ Users can build **profiles with optional verification**, connect **social media 
 
 ### b) **KYC Flow**
 
-* Base login = wallet only (MetaMask, Coinbase, WalletConnect).
+* Base login = wallet only (MetaMask, Coinbase Wallet).
 * After login:
 
   * **Optional KYC verification** (upload docs via integrated provider or stub in v3).

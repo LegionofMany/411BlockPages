@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAccount } from 'wagmi';
 import Link from 'next/link';
 import Image from 'next/image';
 import Skeleton from '../components/ui/Skeleton';
@@ -40,7 +39,6 @@ interface MeResponse {
 export default function ProfilePage() {
   const [tab, setTab] = useState<'profile' | 'events'>('events');
   const [me, setMe] = useState<MeResponse | null>(null);
-  const { address: connectedAddress, isConnected } = useAccount();
   const [featuredCharity, setFeaturedCharity] = useState<any | null>(null);
   const [activeEvent, setActiveEvent] = useState<EventItem | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -251,12 +249,12 @@ export default function ProfilePage() {
     const eth = (window as any).ethereum;
     if (!eth) {
       // On mobile or when injected provider is absent, route to the login page
-      // which uses WalletConnect. This preserves existing desktop injected flow.
+      // where the user can connect via MetaMask deep link or Coinbase Wallet.
       try {
         router.push('/login');
         return;
       } catch {
-        setNftError('MetaMask not detected. Please install the extension or use WalletConnect on mobile.');
+        setNftError('MetaMask not detected. Please install the extension or use a supported mobile wallet app.');
         return;
       }
     }

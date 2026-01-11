@@ -1,12 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { initReownAppKit, getReownAppKit } from '../../lib/appkit';
+import React, { createContext, useContext, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 
-// Wallet UI context — exposes a single `open` method to request the wallet
-// modal. The provider initializes Reown AppKit client-side only and attempts
-// to invoke common UI entrypoints on the loaded SDK. This file is intentionally
-// client-only to avoid importing WalletConnect networking code during SSR.
+// Wallet UI context — exposes a single `open` method.
+// Wallet relays have been removed; we route users to /login where
+// they can connect via MetaMask (injected/deep link) or Coinbase Wallet SDK.
 
 type WalletContext = {
   open: () => void;
@@ -21,57 +20,17 @@ export function useWallet() {
 }
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        await initReownAppKit();
-      } catch (err) {
-        if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
-          console.warn('WalletProvider: initReownAppKit failed', err);
-        }
-      } finally {
-        if (mounted) setReady(true);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
+  const router = useRouter();
 
   const api = useMemo<WalletContext>(() => ({
     open: () => {
-      const inst = getReownAppKit();
-      if (!inst) {
-        if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
-          console.warn('Wallet UI not available: Reown AppKit not initialized.');
-        }
-        return;
-      }
-
-      const appkit = (inst as any).appkit || inst;
-      // Try a few common API entrypoints without throwing if they don't exist.
       try {
-        if (typeof appkit.showWalletModal === 'function') return appkit.showWalletModal();
-        if (appkit.ui && typeof appkit.ui.open === 'function') return appkit.ui.open();
-        if (appkit.controllers && appkit.controllers.wallet && typeof appkit.controllers.wallet.open === 'function') return appkit.controllers.wallet.open();
-        // If no known UI entrypoint is available, do nothing silently in prod.
-        if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
-          console.warn('WalletProvider: no UI entrypoint found on Reown AppKit instance.');
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
-          console.warn('WalletProvider: error opening wallet UI', err);
-        }
+        router.push('/login');
+      } catch (_) {
+        // ignore
       }
     }
-  }), []);
-
-  if (!ready) return null;
+  }), [router]);
 
   return (
     <Ctx.Provider value={api}>

@@ -115,19 +115,31 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     let cancelled = false;
     async function loadMe() {
       try {
-        const statusRes = await fetch('/api/auth/status', { credentials: 'include' });
+        const statusRes = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
         const status = await statusRes.json().catch(() => ({} as any));
         if (!status?.authenticated) {
           if (!cancelled) {
             setIsAdmin(false);
             setIsAuthenticated(false);
+            setNftAvatarUrl(null);
           }
           return;
         }
 
-        const res = await fetch('/api/me', { credentials: 'include' });
+        // IMPORTANT: show authenticated state as soon as we know the cookie is valid.
+        // `/api/me` can fail if MongoDB is down; we still want Sign out visible so
+        // users can log out and the UI doesn't get stuck.
+        if (!cancelled) {
+          setIsAuthenticated(true);
+        }
+
+        const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
         if (!res.ok) {
-          if (!cancelled) setIsAuthenticated(false);
+          if (!cancelled) {
+            // Keep isAuthenticated=true (cookie is valid), but clear profile-derived UI.
+            setIsAdmin(false);
+            setNftAvatarUrl(null);
+          }
           return;
         }
         const data = await res.json();
@@ -144,15 +156,25 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
         const isAddressAdmin = !!(address && envAdmins.length && envAdmins.includes(address.toLowerCase()));
 
         setIsAdmin(Boolean(hasAdminFlag || isAddressAdmin));
-        setIsAuthenticated(true);
       } catch {
         // ignore
         setIsAuthenticated(false);
+        setIsAdmin(false);
+        setNftAvatarUrl(null);
       }
     }
+
+    function onAuthChanged() {
+      loadMe();
+    }
+
     loadMe();
-    return () => { cancelled = true; };
-  }, []);
+    window.addEventListener('auth-changed', onAuthChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('auth-changed', onAuthChanged);
+    };
+  }, [pathname]);
 
   // NavLinkItem is imported from ./NavLinkItem to keep markup consistent across desktop+mobile
 
@@ -185,8 +207,20 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
             {isAuthenticated ? (
               <button
                 onClick={async () => {
-                  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
-                  window.location.href = '/';
+                  try {
+                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include', cache: 'no-store' });
+                  } catch {}
+                  try {
+                    window.localStorage.removeItem('wallet');
+                  } catch {}
+                  try {
+                    window.dispatchEvent(new Event('auth-changed'));
+                  } catch {}
+                  try {
+                    window.location.href = '/';
+                  } catch {
+                    // ignore
+                  }
                 }}
                 className="nav-link inline-flex items-center gap-2 px-2 py-1 rounded transition ml-4"
                 aria-label="Sign out"
@@ -347,7 +381,28 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                     ))}
                     <li>
                       {isAuthenticated ? (
-                        <button onClick={async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {} window.location.href = '/'; }} className="w-full text-left nav-link-mobile">Sign out</button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await fetch('/api/auth/logout', { method: 'POST', credentials: 'include', cache: 'no-store' });
+                            } catch {}
+                            try {
+                              window.localStorage.removeItem('wallet');
+                            } catch {}
+                            try {
+                              window.dispatchEvent(new Event('auth-changed'));
+                            } catch {}
+                            try {
+                              setOpen(false);
+                            } catch {}
+                            try {
+                              window.location.href = '/';
+                            } catch {}
+                          }}
+                          className="w-full text-left nav-link-mobile"
+                        >
+                          Sign out
+                        </button>
                       ) : (
                         <NavLinkItem href="/login" label="Sign in" Icon={IconSignIn} onClick={() => setOpen(false)} mobile />
                       )}

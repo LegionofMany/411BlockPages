@@ -22,13 +22,13 @@ const WS_RPC_ENDPOINTS: Partial<Record<SupportedNetwork, string>> = {
 
 export default function LiveFeed() {
   const [txs, setTxs] = useState<NormalizedTransaction[]>([]);
-  const [connected, setConnected] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<Record<SupportedNetwork, 'up' | 'down' | 'connecting'>>({
     ethereum: 'connecting',
     bsc: 'connecting',
     polygon: 'connecting',
   });
   const [whalesOnly, setWhalesOnly] = useState(false);
+  const whalesOnlyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastScrollHeightRef = useRef<number>(0);
@@ -44,6 +44,10 @@ export default function LiveFeed() {
   });       
   const seenRef = useRef<Set<string>>(new Set());
   const pollingTimersRef = useRef<Record<string, ReturnType<typeof setInterval> | null>>({});
+
+  useEffect(() => {
+    whalesOnlyRef.current = whalesOnly;
+  }, [whalesOnly]);
 
   useEffect(() => {
     // Auto-scroll when new items arrive
@@ -63,44 +67,52 @@ export default function LiveFeed() {
 
     const flush = () => {
       if (!mounted || buffered.length === 0) return;
+
+      // Decide whale labels from the buffered batch once.
+      const whaleIds = (() => {
+        try {
+          const recent = buffered.slice();
+          recent.sort((a, b) => (b.valueUsd || b.valueNative) - (a.valueUsd || a.valueNative));
+          return new Set(recent.slice(0, 5).map((t) => t.id));
+        } catch {
+          return new Set<string>();
+        }
+      })();
+
       setTxs((prev) => {
-        // Merge buffered items, dedupe, sort by timestamp then value, and keep last 150
-        const combined = [...prev, ...buffered].filter((t) => {
-          if (seenRef.current.has(t.id)) return false;
-          seenRef.current.add(t.id);
-          return true;
-        });
+        // Merge buffered items into existing state, only deduping NEW items.
+        // (Do not filter prev items based on seenRef, or the list will collapse
+        // to only the newest batch each time.)
+        const nextBuffered = buffered
+          .filter((t) => {
+            if (seenRef.current.has(t.id)) return false;
+            seenRef.current.add(t.id);
+            return true;
+          })
+          .map((t) => (whaleIds.has(t.id) ? { ...t, label: t.label || '🔥 Whale Transfer Detected' } : t));
+
+        const combined = [...nextBuffered, ...prev];
         combined.sort((a, b) => {
           if (b.timestamp !== a.timestamp) return b.timestamp - a.timestamp;
           return (b.valueUsd || b.valueNative) - (a.valueUsd || a.valueNative);
         });
-        const next = combined.concat();
-        return next.slice(0, 150);
+        return combined.slice(0, 150);
       });
-      // Highlight top native-value entries from the flush as whale transfers
-      try {
-        const recent = buffered.slice();
-        recent.sort((a, b) => (b.valueUsd || b.valueNative) - (a.valueUsd || a.valueNative));
-        const top = recent.slice(0, 5).map((t) => t.id);
-        setTxs((prev) => prev.map((t) => (top.includes(t.id) ? { ...t, label: t.label || '🔥 Whale Transfer Detected' } : t)));
-      } catch {
-        // ignore
-      }
       buffered.length = 0;
       flushTimeout = null;
     };
 
     const activeProviders: any[] = [];
+    const startedSomethingRef = { started: false };
 
     try {
-        const connectNetwork = async (network: SupportedNetwork) => {
+      const connectNetwork = async (network: SupportedNetwork) => {
         const url = WS_RPC_ENDPOINTS[network];
         if (!url) {
-          setNetworkStatus((prev) => ({ ...prev, [network]: 'down' }));
-          // If Alchemy key present, start polling fallback for this network
-          if (ALCHEMY_KEY && (network === 'ethereum' || network === 'polygon')) {
-            startPollingFallback(network);
-          }
+          // No WSS endpoint configured; use a public HTTP polling fallback.
+          setNetworkStatus((prev) => ({ ...prev, [network]: 'connecting' }));
+          startPollingFallback(network);
+          startedSomethingRef.started = true;
           return;
         }
         setNetworkStatus((prev) => ({ ...prev, [network]: 'connecting' }));
@@ -112,13 +124,17 @@ export default function LiveFeed() {
           const WebSocketProvider = (ethers as any).WebSocketProvider || (ethers as any).providers?.WebSocketProvider || (ethers as any).providers?.WebSocketProvider;
           provider = new WebSocketProvider(url);
         } catch (err) {
-          setNetworkStatus((prev) => ({ ...prev, [network]: 'down' }));
-          setError('Failed to initialize live feed provider');
+          // If WSS fails to initialize (blocked websockets, missing polyfills, etc.)
+          // fall back to public HTTPS polling so the page still works in production.
+          setNetworkStatus((prev) => ({ ...prev, [network]: 'connecting' }));
+          startPollingFallback(network);
+          startedSomethingRef.started = true;
           return;
         }
 
         providersRef.current[network] = provider;
         activeProviders.push(provider);
+        startedSomethingRef.started = true;
 
         const meta = getNativeTokenMetadata(network);
 
@@ -172,7 +188,7 @@ export default function LiveFeed() {
               largeThresholdUsd: 10_000,
             });
 
-            if (whalesOnly && normalized.label !== '🔥 Whale Transfer Detected') {
+            if (whalesOnlyRef.current && normalized.label !== '🔥 Whale Transfer Detected') {
               return;
             }
 
@@ -199,41 +215,40 @@ export default function LiveFeed() {
       };
 
       NETWORKS.forEach((network) => connectNetwork(network));
-
-      if (activeProviders.length === 0) {
-        setError('Live feed RPC endpoints not configured. Set NEXT_PUBLIC_ALCHEMY_KEY (and optionally NEXT_PUBLIC_BSC_MAINNET_WSS) to enable live data.');
-      } else {
-        setConnected(true);
-      }
     } catch (e) {
       setError((e as Error).message || 'Live feed initialization error');
     }
 
-    // Polling fallback implementation (Alchemy REST) for networks without WS
+    // Polling fallback implementation (public JSON-RPC over HTTPS)
     function startPollingFallback(network: SupportedNetwork) {
-      const base = network === 'ethereum' ? `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
+      const base =
+        network === 'ethereum'
+          ? 'https://cloudflare-eth.com'
+          : network === 'polygon'
+            ? 'https://polygon-rpc.com'
+            : 'https://bsc-dataseed.binance.org';
+
+      async function rpc(method: string, params: unknown[] = []) {
+        const res = await fetch(base, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+        });
+        if (!res.ok) throw new Error(`RPC ${method} failed (${res.status})`);
+        const js = await res.json().catch(() => ({} as any));
+        return js?.result;
+      }
+
       let lastBlock: string | null = null;
       const poll = async () => {
         try {
-          const blockRes = await fetch(base, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
-          });
-          if (!blockRes.ok) return;
-          const blockData = await blockRes.json().catch(() => ({}));
-          const blockNumHex = blockData?.result;
+          const blockNumHex = await rpc('eth_blockNumber', []);
           if (!blockNumHex) return;
           if (blockNumHex === lastBlock) return;
           lastBlock = blockNumHex;
-          const blockRes2 = await fetch(base, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getBlockByNumber', params: [blockNumHex, true] }),
-          });
-          if (!blockRes2.ok) return;
-          const blockData2 = await blockRes2.json().catch(() => ({}));
-          const txsInBlock = (blockData2?.result?.transactions || []).slice(0, 30);
+
+          const block = await rpc('eth_getBlockByNumber', [blockNumHex, true]);
+          const txsInBlock = ((block?.transactions as any[]) || []).slice(0, 30);
           const meta = getNativeTokenMetadata(network);
           for (const rawTx of txsInBlock) {
             const raw: RawWsTransaction = {
@@ -252,6 +267,7 @@ export default function LiveFeed() {
               usdPrice: undefined,
               largeThresholdUsd: 10_000,
             });
+            if (whalesOnlyRef.current && normalized.label !== '🔥 Whale Transfer Detected') continue;
             buffered.push(normalized);
           }
           if (!flushTimeout) flushTimeout = setTimeout(flush, 500);
@@ -288,6 +304,18 @@ export default function LiveFeed() {
       }
     };
   }, []);
+
+  const connected = Object.values(networkStatus).some((s) => s === 'up');
+
+  useEffect(() => {
+    // If nothing is configured, show a single, production-appropriate message.
+    // (We poll public RPCs, so the feed should usually come alive, but some networks
+    // may still be blocked by corporate DNS/firewalls.)
+    const anyConfigured = Object.values(networkStatus).some((s) => s === 'connecting' || s === 'up');
+    if (!anyConfigured) {
+      setError('Live feed is unavailable in this environment.');
+    }
+  }, [networkStatus]);
 
   return (
     <section
