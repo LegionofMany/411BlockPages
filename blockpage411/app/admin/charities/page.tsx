@@ -24,6 +24,7 @@ type CharityRow = {
 export default function AdminCharitiesAppPage() {
   const pathname = usePathname() || "/admin/charities";
   const { adminWallet } = useAdminWallet();
+  const mobileInputStyle: React.CSSProperties = { fontSize: 16 };
   const [items, setItems] = useState<CharityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -247,6 +248,7 @@ export default function AdminCharitiesAppPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, name: e.target.value }))
                     }
+                    style={mobileInputStyle}
                     required
                   />
                 </label>
@@ -258,6 +260,7 @@ export default function AdminCharitiesAppPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, website: e.target.value }))
                     }
+                    style={mobileInputStyle}
                   />
                 </label>
                 <label className="flex flex-col md:col-span-2">
@@ -282,6 +285,7 @@ export default function AdminCharitiesAppPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, logo: e.target.value }))
                     }
+                    style={mobileInputStyle}
                   />
                 </label>
                 <label className="flex flex-col md:col-span-2">
@@ -293,6 +297,7 @@ export default function AdminCharitiesAppPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, donationAddress: e.target.value }))
                     }
+                    style={mobileInputStyle}
                   />
                 </label>
                 <label className="flex flex-col md:col-span-2">
@@ -304,6 +309,7 @@ export default function AdminCharitiesAppPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, givingBlockEmbedUrl: e.target.value }))
                     }
+                    style={mobileInputStyle}
                   />
                 </label>
                 <label className="flex flex-col">
@@ -314,6 +320,7 @@ export default function AdminCharitiesAppPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, givingBlockId: e.target.value }))
                     }
+                    style={mobileInputStyle}
                   />
                 </label>
                 <label className="flex flex-col">
@@ -324,6 +331,7 @@ export default function AdminCharitiesAppPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, charityId: e.target.value }))
                     }
+                    style={mobileInputStyle}
                   />
                 </label>
                 <label className="flex flex-col md:col-span-2">
@@ -339,6 +347,7 @@ export default function AdminCharitiesAppPage() {
                         .filter(Boolean);
                       setForm((f) => ({ ...f, tags: parts }));
                     }}
+                    style={mobileInputStyle}
                   />
                 </label>
                 <label className="flex flex-col md:col-span-2">
@@ -354,6 +363,7 @@ export default function AdminCharitiesAppPage() {
                         .filter(Boolean);
                       setForm((f) => ({ ...f, categories: parts }));
                     }}
+                    style={mobileInputStyle}
                   />
                 </label>
               </div>

@@ -35,6 +35,7 @@ export default function CharityProfile({ charity }: Props) {
   const [showDonate, setShowDonate] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const safeTextStyle: React.CSSProperties = { overflowWrap: "anywhere", wordBreak: "break-word", maxWidth: "100%" };
 
   const wallets: CharityWallet[] =
     charity.wallets ||
@@ -79,7 +80,12 @@ export default function CharityProfile({ charity }: Props) {
         <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-black/60 border border-emerald-500/40 flex items-center justify-center">
           {charity.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={charity.logo} alt={charity.name} className="max-h-40 max-w-full h-auto object-contain mx-auto" />
+            <img
+              src={charity.logo}
+              alt={charity.name}
+              className="max-h-40 max-w-full h-auto object-contain mx-auto"
+              style={{ maxHeight: 160, maxWidth: "100%", height: "auto", objectFit: "contain" }}
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-emerald-300/80">
               {charity.name.slice(0, 4).toUpperCase()}
@@ -88,7 +94,7 @@ export default function CharityProfile({ charity }: Props) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-wide text-emerald-50 charity-safe-text">{charity.name}</h1>
+            <h1 className="text-xl font-semibold tracking-wide text-emerald-50 charity-safe-text" style={safeTextStyle}>{charity.name}</h1>
             <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100 border border-emerald-400/70">
               Verified Nonprofit
             </span>
@@ -145,6 +151,7 @@ export default function CharityProfile({ charity }: Props) {
             className={`text-sm leading-relaxed text-emerald-50/90 charity-safe-text ${expanded ? '' : 'line-clamp-4 md:line-clamp-none'}`}
             id={`charity-desc-${String(charity._id || charity.charityId || charity.givingBlockId || charity.name)}`}
             dangerouslySetInnerHTML={{ __html: charity.description }}
+            style={safeTextStyle}
           />
           <button
             type="button"

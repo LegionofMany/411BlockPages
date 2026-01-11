@@ -9,6 +9,8 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
   const [showEmbed, setShowEmbed] = useState(false);
   const [showOpenNotice, setShowOpenNotice] = useState(false);
 
+  const safeTextStyle: React.CSSProperties = { overflowWrap: 'anywhere', wordBreak: 'break-word', maxWidth: '100%' };
+
   const [logoFailed, setLogoFailed] = useState(false);
 
   const onCopy = async () => {
@@ -58,6 +60,7 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
   <div
     className="mt-3 text-sm text-slate-300 charity-safe-text line-clamp-3"
     dangerouslySetInnerHTML={{ __html: String(charity.description ?? '') }}
+    style={safeTextStyle}
   />
 
       <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">

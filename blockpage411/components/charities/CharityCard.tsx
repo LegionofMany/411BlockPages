@@ -22,6 +22,7 @@ export default function CharityCard({ charity }: Props) {
   const id = charity.givingBlockId || charity.charityId || charity._id || charity.name;
   const href = `/charities/${encodeURIComponent(String(id))}`;
   const [expanded, setExpanded] = useState(false);
+  const safeTextStyle: React.CSSProperties = { overflowWrap: "anywhere", wordBreak: "break-word", maxWidth: "100%" };
 
   return (
     <Link
@@ -34,7 +35,12 @@ export default function CharityCard({ charity }: Props) {
         <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-black/40 border border-emerald-500/30 flex items-center justify-center">
           {charity.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={charity.logo} alt={charity.name} className="max-h-40 max-w-full h-auto object-contain mx-auto" />
+            <img
+              src={charity.logo}
+              alt={charity.name}
+              className="max-h-40 max-w-full h-auto object-contain mx-auto"
+              style={{ maxHeight: 160, maxWidth: "100%", height: "auto", objectFit: "contain" }}
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-emerald-300/80">
               {charity.name.slice(0, 3).toUpperCase()}
@@ -56,6 +62,7 @@ export default function CharityCard({ charity }: Props) {
                 id={`desc-${String(id)}`}
                 className={`mt-2 text-xs leading-snug text-emerald-50/90 charity-safe-text ${expanded ? '' : 'line-clamp-4 md:line-clamp-2'}`}
                 dangerouslySetInnerHTML={{ __html: charity.description }}
+                style={safeTextStyle}
               />
               <button
                 type="button"
