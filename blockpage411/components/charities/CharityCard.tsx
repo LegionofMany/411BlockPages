@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 
 export interface CharitySummary {
@@ -21,6 +21,7 @@ interface Props {
 export default function CharityCard({ charity }: Props) {
   const id = charity.givingBlockId || charity.charityId || charity._id || charity.name;
   const href = `/charities/${encodeURIComponent(String(id))}`;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <Link
@@ -30,10 +31,10 @@ export default function CharityCard({ charity }: Props) {
       className="group relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-600/25 via-emerald-900/40 to-black/90 p-4 transition-transform duration-200 hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.45)] focus:outline-none focus:ring-4 focus:ring-emerald-400/30"
     >
       <div className="flex items-start gap-4">
-        <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-black/40 border border-emerald-500/30">
+        <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-black/40 border border-emerald-500/30 flex items-center justify-center">
           {charity.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={charity.logo} alt={charity.name} className="h-full w-full object-cover" />
+            <img src={charity.logo} alt={charity.name} className="max-h-40 w-auto object-contain mx-auto" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-emerald-300/80">
               {charity.name.slice(0, 3).toUpperCase()}
@@ -50,9 +51,21 @@ export default function CharityCard({ charity }: Props) {
             </p>
           )}
           {charity.description && (
-            <p id={`desc-${String(id)}`} className="mt-2 line-clamp-2 text-xs leading-snug text-emerald-50/90">
-              {charity.description}
-            </p>
+            <>
+              <p
+                id={`desc-${String(id)}`}
+                className={`mt-2 text-xs leading-snug text-emerald-50/90 ${expanded ? '' : 'line-clamp-4 md:line-clamp-2'}`}
+              >
+                {charity.description}
+              </p>
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); setExpanded((v) => !v); }}
+                className="mt-2 text-[11px] font-semibold text-emerald-300/90"
+              >
+                {expanded ? 'Show less' : 'Read more'}
+              </button>
+            </>
           )}
           <div aria-hidden={!charity.description} className="sr-only" />
           <div className="mt-3 flex flex-wrap gap-1.5">

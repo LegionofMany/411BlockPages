@@ -97,10 +97,26 @@ export default function AdminCharitiesAppPage() {
 
   async function saveForm(e: React.FormEvent) {
     e.preventDefault();
+    // Normalize and validate inputs before sending to server
+    function normalizeCharityInput(c: CharityRow) {
+      return {
+        ...c,
+        description: c.description ? String(c.description).slice(0, 1000) : "",
+        // mission field support: keep if present
+        mission: (c as any).mission ? String((c as any).mission).slice(0, 500) : undefined,
+      };
+    }
+
+    const normalized = normalizeCharityInput(form);
+    if ((normalized.description || "").length > 1000) {
+      alert('Description exceeds allowed length (1000 characters)');
+      return;
+    }
+
     const payload: any = {
       name: form.name,
       website: form.website,
-      description: form.description,
+      description: normalized.description,
       logo: form.logo,
       donationAddress: form.donationAddress,
       givingBlockId: form.givingBlockId,
@@ -247,13 +263,15 @@ export default function AdminCharitiesAppPage() {
                 <label className="flex flex-col md:col-span-2">
                   Description
                   <textarea
-                    className="mt-1 rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-sm text-amber-50"
-                    rows={2}
+                    className="mt-1 rounded border border-slate-700 bg-slate-950/60 px-2 py-1 text-sm text-amber-50 h-32 overflow-y-auto resize-none"
+                    rows={4}
+                    maxLength={1000}
                     value={form.description || ""}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, description: e.target.value }))
                     }
                   />
+                  <div className="mt-1 text-xs text-slate-400">{(form.description || "").length}/1000</div>
                 </label>
                 <label className="flex flex-col md:col-span-2">
                   Logo URL

@@ -71,13 +71,15 @@ export default function CharityProfile({ charity }: Props) {
     };
   }, [charity.givingBlockId, charity.charityId]);
 
+  const [expanded, setExpanded] = useState(false);
+
   return (
-    <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-700/30 via-emerald-900/40 to-black/95 p-4 sm:p-6 text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.35)]">
+    <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-700/30 via-emerald-900/40 to-black/95 p-4 sm:p-6 text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.35)] overflow-hidden">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-black/60 border border-emerald-500/40">
+        <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-black/60 border border-emerald-500/40 flex items-center justify-center">
           {charity.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={charity.logo} alt={charity.name} className="h-full w-full object-cover" />
+            <img src={charity.logo} alt={charity.name} className="max-h-40 w-auto object-contain mx-auto" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-emerald-300/80">
               {charity.name.slice(0, 4).toUpperCase()}
@@ -138,9 +140,21 @@ export default function CharityProfile({ charity }: Props) {
       </div>
 
       {charity.description && (
-        <p className="mt-4 text-sm leading-relaxed text-emerald-50/90" id={`charity-desc-${String(charity._id || charity.charityId || charity.givingBlockId || charity.name)}`}>
-          {charity.description}
-        </p>
+        <div className="mt-4">
+          <p
+            className={`text-sm leading-relaxed text-emerald-50/90 ${expanded ? '' : 'line-clamp-4 md:line-clamp-none'}`}
+            id={`charity-desc-${String(charity._id || charity.charityId || charity.givingBlockId || charity.name)}`}
+          >
+            {charity.description}
+          </p>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-2 text-[12px] font-semibold text-emerald-300/90"
+          >
+            {expanded ? 'Show less' : 'Read more'}
+          </button>
+        </div>
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -158,12 +172,16 @@ export default function CharityProfile({ charity }: Props) {
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Official Links</h2>
           <ul className="mt-2 space-y-1 text-xs">
-            {charity.website && (
+            {charity.website ? (
               <li>
-                  <a href={charity.website} target="_blank" rel="noreferrer" className="text-emerald-200 hover:text-emerald-100" aria-label={`Open website for ${charity.name}`}>
-                    Website
-                  </a>
-                </li>
+                <a href={charity.website} target="_blank" rel="noreferrer" className="text-emerald-200 hover:text-emerald-100" aria-label={`Open website for ${charity.name}`}>
+                  Visit Website
+                </a>
+              </li>
+            ) : (
+              <li>
+                <span className="text-emerald-300/60 text-sm">Website not provided by charity</span>
+              </li>
             )}
             {charity.socials?.twitter && (
               <li>
@@ -204,7 +222,7 @@ export default function CharityProfile({ charity }: Props) {
                 </a>
               </li>
             )}
-            {charity.givingBlockEmbedUrl && (
+            {charity.givingBlockEmbedUrl ? (
               <li>
                 <a
                   href={charity.givingBlockEmbedUrl}
@@ -213,16 +231,22 @@ export default function CharityProfile({ charity }: Props) {
                   className="text-emerald-200 hover:text-emerald-100"
                   aria-label={`Open Giving Block donate page for ${charity.name}`}
                 >
-                  Donate via The Giving Block
+                  Donate via Giving Block
                 </a>
+              </li>
+            ) : (
+              <li>
+                <span className="text-emerald-300/60 text-sm">No public payment method provided</span>
               </li>
             )}
           </ul>
         </div>
 
-        {wallets.length > 0 && (
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Donation wallets</h2>
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Donation wallets</h2>
+          {wallets.length === 0 ? (
+            <div className="mt-2 text-sm text-emerald-300/70">No public wallets provided</div>
+          ) : (
             <ul className="mt-2 space-y-1 text-[11px] text-emerald-100/80">
               {wallets.map((w) => {
                 const explorer = explorerUrlFor(w.address, w.chain);
@@ -244,8 +268,8 @@ export default function CharityProfile({ charity }: Props) {
                 );
               })}
             </ul>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {(hasDirectWallet || hasGivingBlockEmbed) && (
@@ -255,6 +279,8 @@ export default function CharityProfile({ charity }: Props) {
           Blockpage411 does not custody funds or provide refunds.
         </p>
       )}
+
+      <p className="mt-3 text-xs text-emerald-300/60">Charity data provided by The Giving Block</p>
 
       <div className="mt-6 border-t border-emerald-500/20 pt-4">
         <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
