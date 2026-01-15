@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "noEmit": true
+  },
+  "include": [
+    "deferredAction.spec.ts",
+    "middleware.auth.spec.ts"
+  ],
+  "exclude": ["../node_modules"]
+}

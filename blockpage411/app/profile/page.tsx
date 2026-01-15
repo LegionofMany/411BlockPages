@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -7,7 +7,10 @@ import Skeleton from '../components/ui/Skeleton';
 import Toast from '../components/ui/Toast';
 import RiskBadge from '../../components/RiskBadge';
 import UserProfile from '../components/UserProfile';
-import { fetchUserNFTs, UnifiedNftItem } from '../../services/nfts';
+import type { UnifiedNftItem } from '../../services/nfts';
+import { consumeDeferredAction } from '../components/auth/deferredAction';
+import { useSearchParams } from 'next/navigation';
+import { useEvmWallet } from '../../components/EvmWalletProvider';
 
 interface EventItem {
   _id: string;
@@ -22,11 +25,23 @@ interface EventItem {
 interface MeResponse {
   _id: string;
   address: string;
+  ensName?: string | null;
+  baseName?: string | null;
+  primaryName?: string | null;
   displayName?: string;
   nftAvatarUrl?: string;
   socialLinks?: {
     trustScore?: number;
   };
+  connectedChains?: string[];
+  reputation?: {
+    score: number | null;
+    label: string;
+    tooltip?: string;
+    riskScore?: number | null;
+    riskCategory?: string | null;
+  };
+  activity?: { type: string; createdAt?: string | null; summary: string }[];
   featuredCharityId?: string;
   activeEventId?: string;
   donationLink?: string;
@@ -37,6 +52,14 @@ interface MeResponse {
 }
 
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={null}>
+      <ProfilePageInner />
+    </Suspense>
+  );
+}
+
+function ProfilePageInner() {
   const [tab, setTab] = useState<'profile' | 'events'>('events');
   const [me, setMe] = useState<MeResponse | null>(null);
   const [featuredCharity, setFeaturedCharity] = useState<any | null>(null);
@@ -58,6 +81,48 @@ export default function ProfilePage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const {
+    connectMetaMask,
+    getSigner,
+    provider: evmProvider,
+    address: connectedWalletAddress,
+    isConnected,
+  } = useEvmWallet();
+
+  const [nftChain, setNftChain] = useState<string>('ethereum');
+
+  const rawRedirectTo = searchParams?.get('redirectTo') || '';
+  const safeRedirectTo = rawRedirectTo.startsWith('/') && !rawRedirectTo.startsWith('//') ? rawRedirectTo : '';
+
+  function chainSlugFromChainId(chainId: number): string {
+    switch (chainId) {
+      case 1:
+        return 'ethereum';
+      case 8453:
+        return 'base';
+      case 137:
+        return 'polygon';
+      case 42161:
+        return 'arbitrum';
+      case 10:
+        return 'optimism';
+      default:
+        return 'ethereum';
+    }
+  }
+
+  async function detectNftChain(): Promise<string> {
+    try {
+      const hex = (await evmProvider?.request({ method: 'eth_chainId' })) as unknown;
+      const chainIdHex = typeof hex === 'string' ? hex : '';
+      const chainId = Number.parseInt(chainIdHex, 16);
+      if (!Number.isFinite(chainId)) return 'ethereum';
+      return chainSlugFromChainId(chainId);
+    } catch {
+      return 'ethereum';
+    }
+  }
 
   const [nftImageUrl, setNftImageUrl] = useState<string>('');
   const [nftInput, setNftInput] = useState<string>('');
@@ -124,20 +189,84 @@ export default function ProfilePage() {
     return () => { mounted = false; };
   }, []);
 
+  // Resume any deferred action that required auth.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const eth = (window as any).ethereum;
-    if (!eth) return;
-    eth.request({ method: 'eth_accounts' })
-      .then((accounts: string[]) => {
-        if (Array.isArray(accounts) && accounts.length > 0) {
-          setWalletAddress(accounts[0]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const a = consumeDeferredAction();
+        if (!a) return;
+
+        // Execute best-effort; failures should not block the profile.
+        if (a.type === 'followWallet') {
+          const resp = await fetch('/api/follow-wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ chain: a.chain, address: a.address }),
+          });
+          if (!cancelled && resp.ok) setToast('Follow saved.');
+          return;
         }
-      })
-      .catch(() => {
+
+        if (a.type === 'flagWallet') {
+          const resp = await fetch('/api/flags', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ address: a.address, chain: a.chain, reason: a.reason, comment: a.comment }),
+          });
+          if (!cancelled && resp.ok) setToast('Flag submitted.');
+          return;
+        }
+
+        if (a.type === 'rateWallet') {
+          const resp = await fetch('/api/ratings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ address: a.address, chain: a.chain, rating: a.rating, text: a.text || '' }),
+          });
+          if (!cancelled && resp.ok) setToast('Rating submitted.');
+          return;
+        }
+
+        if (a.type === 'submitReport') {
+          const resp = await fetch('/api/reports', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ providerId: a.providerId || null, suspectAddress: a.suspectAddress, chain: a.chain, evidence: a.evidence || [] }),
+          });
+          if (!cancelled && resp.ok) setToast('Report submitted.');
+          return;
+        }
+      } catch {
         // ignore
-      });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  // Keep the local wallet address + inferred chain in sync with the shared wallet provider.
+  useEffect(() => {
+    if (!connectedWalletAddress) return;
+    setWalletAddress(connectedWalletAddress);
+  }, [connectedWalletAddress]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isConnected) return;
+      const nextChain = await detectNftChain();
+      if (!cancelled) setNftChain(nextChain);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [evmProvider, isConnected]);
 
   useEffect(() => {
     (async () => {
@@ -245,42 +374,48 @@ export default function ProfilePage() {
 
   async function handleConnectWallet() {
     setNftError(null);
-    if (typeof window === 'undefined') return;
-    const eth = (window as any).ethereum;
-    if (!eth) {
-      // On mobile or when injected provider is absent, route to the login page
-      // where the user can connect via MetaMask deep link or Coinbase Wallet.
-      try {
-        router.push('/login');
-        return;
-      } catch {
-        setNftError('MetaMask not detected. Please install the extension or use a supported mobile wallet app.');
-        return;
-      }
-    }
     try {
       setConnectingWallet(true);
-      const accounts = (await eth.request({ method: 'eth_requestAccounts' })) as unknown;
-      const list = Array.isArray(accounts) ? (accounts as string[]) : [];
-      if (list.length > 0) {
-        const addr = list[0];
-        setWalletAddress(addr);
-        // Automatically fetch NFTs for the connected wallet
-        setNftsLoading(true);
-        setNftsError(null);
-        try {
-          const controller = new AbortController();
-          const items = await fetchUserNFTs(addr, controller.signal);
-          setNfts(items);
-        } catch (err) {
-          setNftsError((err as Error)?.message || 'Failed to load NFTs');
-        } finally {
-          setNftsLoading(false);
+      // Connect via the shared provider (wagmi-backed). If no injected wallet exists,
+      // fall back to /login where mobile deep links are available.
+      try {
+        await connectMetaMask();
+      } catch (e: any) {
+        const msg = String(e?.message || '');
+        if (msg.toLowerCase().includes('not detected') || msg.toLowerCase().includes('provider')) {
+          router.push('/login');
+          return;
         }
-        setToast('Wallet connected');
-      } else {
-        setNftError('No accounts returned from MetaMask.');
+        throw e;
       }
+
+      const signer = await getSigner();
+      const addr = await signer.getAddress();
+      if (!addr) throw new Error('No wallet address returned.');
+      setWalletAddress(addr);
+
+      const chain = await detectNftChain();
+      setNftChain(chain);
+
+      setNftsLoading(true);
+      setNftsError(null);
+      try {
+        const resp = await fetch(`/api/nfts/${encodeURIComponent(chain)}/${encodeURIComponent(addr)}`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const json = await resp.json().catch(() => ({} as any));
+        if (!resp.ok) throw new Error(json?.message || 'Failed to load NFTs');
+        const items = Array.isArray(json?.items) ? (json.items as UnifiedNftItem[]) : [];
+        setNfts(items);
+      } catch (err) {
+        setNftsError((err as Error)?.message || 'Failed to load NFTs');
+      } finally {
+        setNftsLoading(false);
+      }
+
+      setToast(`Wallet connected (${chain})`);
     } catch (err: any) {
       const msg = (err && (err.message as string | undefined)) || '';
       const lower = msg.toLowerCase();
@@ -407,6 +542,21 @@ export default function ProfilePage() {
             Edit profile
           </Link>
         </div>
+
+        {safeRedirectTo ? (
+          <div className="mb-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-slate-100 font-semibold">You’re signed in.</div>
+              <div className="text-xs text-slate-300 mt-1">You can return to where you left off anytime.</div>
+            </div>
+            <a
+              className="px-3 py-1.5 rounded bg-slate-800 text-slate-100 hover:bg-slate-700"
+              href={safeRedirectTo}
+            >
+              Return
+            </a>
+          </div>
+        ) : null}
         <div className="mb-4 flex gap-2 border-b border-slate-800/80 pb-2" role="tablist" aria-label="Profile tabs">
           <button
             className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-colors ${tab === 'profile' ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 hover:text-emerald-300'}`}
@@ -473,6 +623,11 @@ export default function ProfilePage() {
                     {walletAddress && (
                       <span className="text-[11px] font-mono px-3 py-1 rounded-full bg-black/40 border border-emerald-400/40" style={{ color: '#fef9c3' }}>
                         {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+                      </span>
+                    )}
+                    {walletAddress && (
+                      <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-black/40 border border-emerald-400/40" style={{ color: '#bbf7d0' }}>
+                        Network: {String(nftChain || 'ethereum')}
                       </span>
                     )}
                   </div>
@@ -558,7 +713,9 @@ export default function ProfilePage() {
             {walletAddress && (
               <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-semibold" style={{ color: '#fefce8' }}>Your NFTs</h2>
+                  <h2 className="text-sm font-semibold" style={{ color: '#fefce8' }}>
+                    Your NFTs <span className="text-xs text-slate-400">({String(nftChain || 'ethereum')})</span>
+                  </h2>
                   {nftsLoading && (
                     <span className="text-[11px]" style={{ color: '#e5e7eb' }}>Loading NFTs…</span>
                   )}
@@ -610,9 +767,34 @@ export default function ProfilePage() {
                 {me ? (me.displayName || '—') : <Skeleton className="h-4 w-32" />}
               </div>
               <div>
+                <span className="font-semibold">ENS / Base name:</span>
+                {' '}
+                {me ? (me.primaryName || me.ensName || me.baseName || '—') : <Skeleton className="h-4 w-40" />}
+              </div>
+              <div>
                 <span className="font-semibold">Trust score:</span>
                 {' '}
                 {me ? `${me.socialLinks?.trustScore ?? 0} / 100` : <Skeleton className="h-4 w-24" />}
+              </div>
+              <div>
+                <span className="font-semibold">Reputation:</span>
+                {' '}
+                {me?.reputation?.score != null ? (
+                  <span title={me?.reputation?.tooltip || ''} className="text-slate-100">
+                    {me.reputation.score} / 100 ({me.reputation.label})
+                  </span>
+                ) : (
+                  <span className="text-slate-400">—</span>
+                )}
+              </div>
+              <div>
+                <span className="font-semibold">Connected chains:</span>
+                {' '}
+                {me ? (
+                  <span className="text-slate-100">{(me.connectedChains || []).length ? (me.connectedChains || []).join(', ') : '—'}</span>
+                ) : (
+                  <Skeleton className="h-4 w-40" />
+                )}
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className="font-semibold">Wallet risk:</span>
@@ -622,6 +804,18 @@ export default function ProfilePage() {
                   <span className="text-xs text-slate-400">Loading…</span>
                 )}
               </div>
+              {me?.activity && me.activity.length > 0 && (
+                <div className="mt-2">
+                  <div className="font-semibold">Recent activity:</div>
+                  <ul className="mt-1 space-y-1 text-sm text-slate-200">
+                    {me.activity.slice(0, 5).map((a, idx) => (
+                      <li key={`${a.type}-${idx}`} className="text-slate-300">
+                        {a.summary}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             {featuredCharity && (
               <div

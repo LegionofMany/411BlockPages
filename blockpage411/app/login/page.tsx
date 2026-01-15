@@ -1,14 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import dynamic from 'next/dynamic';
 const WalletButtons = dynamic(() => import('./WalletButtons'));
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEvmWallet } from "../../components/EvmWalletProvider";
 
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const { address, isConnected, disconnect, getSigner } = useEvmWallet();
   const abortRef = useRef<AbortController | null>(null);
@@ -80,8 +89,12 @@ export default function LoginPage() {
       } catch {
         // ignore
       }
-      // On success, redirect or update UI as needed
-      router.push("/dashboard");
+      // On success, always land on /profile first (required), but preserve intent.
+      const redirectTo = searchParams?.get('redirectTo') || '';
+      const target = redirectTo
+        ? `/profile?redirectTo=${encodeURIComponent(redirectTo)}`
+        : '/profile';
+      router.push(target);
     } catch (err: any) {
       // If the user clicked Disconnect or otherwise cancelled, do not show an error.
       const isAbort =

@@ -3,6 +3,7 @@ import dbConnect from 'lib/db';
 import User from 'lib/userModel';
 import Wallet from 'lib/walletModel';
 import { computeTrustScore } from 'services/trustScoreService';
+import { resolveNames } from 'services/nameResolution';
 import jwt from 'jsonwebtoken';
 
 interface JwtPayload {
@@ -66,10 +67,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     verifiedLinksCount = entries.filter(([, v]) => !!v).length;
   }
   let flagsCount = 0;
+  let walletRiskScore: number | null = null;
+  let walletRiskCategory: string | null = null;
   try {
-    const walletDoc = await Wallet.findOne({ address: user.address.toLowerCase(), chain: 'eth' }).lean() as any;
+    const walletDoc = await Wallet.findOne({
+      address: user.address.toLowerCase(),
+      chain: { $in: ['eth', 'ethereum', 'base'] },
+    }).lean() as any;
     if (walletDoc?.flagsCount != null) flagsCount = walletDoc.flagsCount;
     else if (Array.isArray(walletDoc?.flags)) flagsCount = walletDoc.flags.length;
+
+    if (typeof walletDoc?.riskScore === 'number') walletRiskScore = walletDoc.riskScore;
+    if (typeof walletDoc?.riskCategory === 'string') walletRiskCategory = walletDoc.riskCategory;
   } catch {
     // ignore wallet lookup errors
   }
@@ -84,8 +93,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   else if (score >= 60) badge = 'Gold';
   else if (score >= 40) badge = 'Silver';
 
+  // Resolve human-friendly names (ENS / Base). Best-effort; do not block the request.
+  let names: { ensName: string | null; baseName: string | null; primaryName: string | null } = {
+    ensName: null,
+    baseName: null,
+    primaryName: null,
+  };
+  try {
+    names = await resolveNames(user.address);
+  } catch {
+    // ignore
+  }
+
+  // Reputation: 0..100 where higher is better. Avoid accusatory language.
+  const risk = typeof walletRiskScore === 'number' && Number.isFinite(walletRiskScore) ? Math.max(0, Math.min(100, Math.round(walletRiskScore))) : null;
+  const reputationScore = risk == null ? null : Math.max(0, Math.min(100, 100 - risk));
+  const reputationLabel =
+    reputationScore == null ? 'Unknown' :
+    reputationScore >= 80 ? 'Strong' :
+    reputationScore >= 60 ? 'Good' :
+    reputationScore >= 40 ? 'Mixed' :
+    reputationScore >= 20 ? 'Caution' :
+    'High risk signals';
+
+  const reputationTooltip =
+    'Automated signal based on on-chain patterns and community reports. This is informational and may be incomplete.';
+
+  // Lightweight activity feed (best-effort).
+  const followedWallets = Array.isArray((user as any).followedWallets) ? (user as any).followedWallets : [];
+  const activity = [...followedWallets]
+    .sort((a: any, b: any) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime())
+    .slice(0, 10)
+    .map((w: any) => ({
+      type: 'follow',
+      createdAt: w.createdAt || null,
+      chain: w.chain,
+      address: w.address,
+      summary: `Followed ${String(w.address || '').slice(0, 6)}...${String(w.address || '').slice(-4)} on ${w.chain}`,
+    }));
+
+  const connectedChains = Array.from(new Set(followedWallets.map((w: any) => String(w.chain || '')).filter(Boolean)));
+
   res.status(200).json({
     address: user.address,
+    ensName: names.ensName,
+    baseName: names.baseName,
+    primaryName: names.primaryName,
     email: (user as any).email,
     emailVerified: (user as any).emailVerified || false,
     displayName: user.displayName,
@@ -106,6 +159,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     activeEventId: (user as any).activeEventId,
     donationLink: (user as any).donationLink,
     donationWidgetEmbed: (user as any).donationWidgetEmbed,
+    followedWallets: (user as any).followedWallets || [],
+    connectedChains,
+    reputation: {
+      score: reputationScore,
+      label: reputationLabel,
+      tooltip: reputationTooltip,
+      riskScore: risk,
+      riskCategory: walletRiskCategory,
+    },
+    activity,
     verificationScore: score,
     verificationBadge: badge,
     createdAt: user.createdAt,

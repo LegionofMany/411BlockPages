@@ -16,6 +16,8 @@ import Footer from "../../../components/Footer";
 import { useRouter } from "next/navigation";
 import type { Flag, DonationRequest } from "../../../../lib/types";
 import useSWR from 'swr';
+import { openAuthModal } from "../../../components/auth/openAuthModal";
+import { setDeferredAction } from "../../../components/auth/deferredAction";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -23,6 +25,9 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   const { data, error, mutate } = useSWR(`/api/wallet/${chain}/${address}`, fetcher, { fallbackData: initialData });
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followed, setFollowed] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -32,6 +37,30 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
       setIsAdmin(isAdminWallet);
     }
   }, [address]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAuth() {
+      try {
+        const statusRes = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+        const status = await statusRes.json().catch(() => ({} as any));
+        if (cancelled) return;
+        setIsAuthenticated(Boolean(status?.authenticated));
+      } catch {
+        if (cancelled) return;
+        setIsAuthenticated(false);
+      }
+    }
+    function onAuthChanged() {
+      loadAuth();
+    }
+    loadAuth();
+    window.addEventListener('auth-changed', onAuthChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('auth-changed', onAuthChanged);
+    };
+  }, []);
 
   if (error) return <div className="text-center py-10 text-red-400">Failed to load wallet data.</div>;
   if (!data) return <div className="text-center py-10 text-cyan-200">Loading...</div>;
@@ -61,6 +90,68 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
             <UserProfile walletAddress={address} chain={chain} />
             <div className="text-sm text-slate-400 mt-2">Chain: {chain}</div>
           </div>
+
+          <div className="flex items-center gap-2 flex-wrap mb-4">
+            <button
+              type="button"
+              className="px-3 py-1.5 rounded bg-slate-800 text-slate-100 hover:bg-slate-700 disabled:opacity-60"
+              disabled={followLoading}
+              onClick={async () => {
+                setFollowLoading(true);
+                try {
+                  if (!isAuthenticated) {
+                    setDeferredAction({ type: 'followWallet', chain, address });
+                    openAuthModal({
+                      title: 'Sign in required',
+                      message: 'Following wallets is only available after wallet verification.',
+                      redirectTo: `/wallet/${encodeURIComponent(chain)}/${encodeURIComponent(address)}`,
+                    });
+                    return;
+                  }
+
+                  const resp = await fetch('/api/follow-wallet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ chain, address }),
+                  });
+                  if (resp.status === 401) {
+                    setDeferredAction({ type: 'followWallet', chain, address });
+                    openAuthModal({
+                      title: 'Sign in required',
+                      message: 'Following wallets is only available after wallet verification.',
+                      redirectTo: `/wallet/${encodeURIComponent(chain)}/${encodeURIComponent(address)}`,
+                    });
+                    return;
+                  }
+                  if (!resp.ok) {
+                    const j = await resp.json().catch(() => ({} as any));
+                    throw new Error(j?.message || resp.statusText || 'Follow failed');
+                  }
+                  setFollowed(true);
+                } catch {
+                  // swallow; user can retry
+                } finally {
+                  setFollowLoading(false);
+                }
+              }}
+            >
+              {followed ? 'Following' : followLoading ? 'Following…' : 'Follow'}
+            </button>
+            <button
+              type="button"
+              className="px-3 py-1.5 rounded bg-slate-800 text-slate-100 hover:bg-slate-700"
+              onClick={() => {
+                try {
+                  router.push('/follow-wallet');
+                } catch {
+                  // ignore
+                }
+              }}
+            >
+              My follows
+            </button>
+          </div>
           <div className="my-6">
             <WalletRiskPanel risk_score={data?.risk_score ?? data?.riskScore} risk_level={data?.risk_level ?? data?.riskCategory} flags={data?.flags || []} behavior_signals={data?.behavior_signals || {}} />
           </div>
@@ -89,6 +180,24 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
                   credentials: 'include'
                 });
                 if (!res.ok) {
+                  if (res.status === 401) {
+                    try {
+                      setDeferredAction({
+                        type: 'flagWallet',
+                        chain,
+                        address,
+                        reason,
+                        comment,
+                      });
+                    } catch {
+                      // ignore
+                    }
+                    openAuthModal({
+                      title: "Sign in required",
+                      message: "Flagging requires a verified wallet session.",
+                      redirectTo: `/wallet/${encodeURIComponent(chain)}/${encodeURIComponent(address)}`,
+                    });
+                  }
                   let body: unknown = null;
                   try { body = await res.json(); } catch {}
                   const obj = body as Record<string, unknown> | null;
@@ -108,11 +217,38 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
                 userRating={Number(data?.userRating || 0)}
                 verificationScore={data?.verificationScore}
                 onRate={async (score, text) => {
-                  await fetch("/api/ratings", {
+                  const resp = await fetch("/api/ratings", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ address, chain, rating: score, text })
+                    body: JSON.stringify({ address, chain, rating: score, text }),
+                    credentials: 'include'
                   });
+                  if (!resp.ok) {
+                    if (resp.status === 401) {
+                      try {
+                        setDeferredAction({
+                          type: 'rateWallet',
+                          chain,
+                          address,
+                          rating: Number(score),
+                          text,
+                        });
+                      } catch {
+                        // ignore
+                      }
+                      openAuthModal({
+                        title: "Sign in required",
+                        message: "Rating requires a verified wallet session.",
+                        redirectTo: `/wallet/${encodeURIComponent(chain)}/${encodeURIComponent(address)}`,
+                      });
+                    }
+                    let body: unknown = null;
+                    try { body = await resp.json(); } catch {}
+                    const obj = body as Record<string, unknown> | null;
+                    const err = new Error(obj && typeof obj.message === 'string' ? obj.message : 'Rating failed');
+                    (err as unknown as Record<string, unknown>).status = resp.status;
+                    throw err;
+                  }
                   mutate();
                 }}
               />
@@ -150,40 +286,7 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
           )}
 
           <div className="my-6 border-t border-blue-800"></div>
-          {data?.showBalance === false ? (
-            <div className="p-3 bg-yellow-900/20 border border-yellow-700 rounded-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-yellow-200">Assets hidden</h3>
-                  <div className="text-yellow-200 text-sm">
-                    Flags:
-                    <span className="font-mono">{data?.flagsCount || 0}</span>
-                    {" "}/
-                    <span className="font-mono">{data?.flagThreshold || data?.flagsRequired || 3}</span>
-                  </div>
-                  <p className="text-yellow-200 text-xs mt-1">
-                    For privacy, transaction history and balances stay hidden until this wallet reaches the required community flags.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className="px-3 py-1 rounded bg-yellow-700 text-white text-sm"
-                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                  >
-                    Flag
-                  </button>
-                  <button
-                    className="px-3 py-1 rounded bg-transparent border border-yellow-700 text-yellow-200 text-sm"
-                    onClick={() => mutate()}
-                  >
-                    Refresh
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <ShowTransactionsButton chain={chain} address={address} />
-          )}
+          <ShowTransactionsButton chain={chain} address={address} />
         </div>
       </main>
       <Footer />
@@ -204,6 +307,14 @@ function KYCRequestButton() {
           setError(null);
           try {
             const res = await fetch('/api/kyc-request', { method: 'POST', credentials: 'include' });
+            if (res.status === 401) {
+              openAuthModal({
+                title: 'Sign in required',
+                message: 'KYC/verification requires a verified wallet session.',
+              });
+              setLoading(false);
+              return;
+            }
             const result = await res.json();
             if (result.kycUrl) {
               window.open(result.kycUrl, '_blank');

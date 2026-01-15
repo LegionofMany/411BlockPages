@@ -2,6 +2,9 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
+  // Some integration teardown (e.g. MongoMemoryServer) can take >1s to fully exit.
+  // Bump the threshold to avoid noisy warnings while still surfacing real hangs.
+  openHandlesTimeout: 5000,
   moduleNameMapper: {
     '^lib/(.*)$': '<rootDir>/lib/$1',
   '^models/(.*)$': '<rootDir>/models/$1',

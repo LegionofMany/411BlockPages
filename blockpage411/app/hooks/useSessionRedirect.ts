@@ -1,13 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type AuthStatus = { authenticated?: boolean };
+
+const PROTECTED_PREFIXES = [
+  "/profile",
+  "/report",
+  "/flag",
+  "/rate",
+  "/follow-wallet",
+  "/admin",
+  "/dashboard",
+];
+
+function isProtectedPath(pathname: string) {
+  if (!pathname) return false;
+  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
 
 export function useSessionRedirect() {
   const pathname = usePathname() || "/";
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
 
@@ -46,13 +62,24 @@ export function useSessionRedirect() {
   useEffect(() => {
     if (!ready) return;
 
-    if (!authenticated && pathname !== "/login") {
-      router.replace("/login");
+    const redirectTo = searchParams?.get("redirectTo") || "";
+    const fullPath = (() => {
+      const qs = searchParams?.toString() || "";
+      return qs ? `${pathname}?${qs}` : pathname;
+    })();
+
+    if (!authenticated) {
+      if (pathname === "/login") return;
+      if (!isProtectedPath(pathname)) return;
+      const target = `/login?redirectTo=${encodeURIComponent(fullPath)}`;
+      router.replace(target);
       return;
     }
 
+    // Authenticated user sitting on /login: send them to /profile first.
     if (authenticated && pathname === "/login") {
-      router.replace("/dashboard");
+      const target = redirectTo ? `/profile?redirectTo=${encodeURIComponent(redirectTo)}` : "/profile";
+      router.replace(target);
     }
-  }, [authenticated, pathname, ready, router]);
+  }, [authenticated, pathname, ready, router, searchParams]);
 }

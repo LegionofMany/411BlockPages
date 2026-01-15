@@ -30,10 +30,10 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
   // navigation items - include all top-level routes and a couple useful legacy/admin links
   const navItems: Array<{ href: string; label: string; Icon?: React.FC; show?: boolean }> = [
     { href: '/', label: 'Home', Icon: IconHome },
-    { href: '/search', label: 'Search', Icon: IconSearch },
+    { href: '/wallet-analysis', label: 'Wallet Analysis', Icon: IconSearch },
     { href: '/charities', label: 'Charities', Icon: IconFund },
     { href: '/fundraisers', label: 'Fundraisers', Icon: IconFund },
-    { href: '/realtime-transactions', label: 'Live Feed', Icon: IconTrending },
+    { href: '/transactions/live', label: 'Live Feed', Icon: IconTrending },
     { href: '/profile', label: 'Profile', Icon: IconSignIn },
     { href: '/donate', label: 'Donate', Icon: IconDonate },
     { href: '/trending', label: 'Trending', Icon: IconTrending },

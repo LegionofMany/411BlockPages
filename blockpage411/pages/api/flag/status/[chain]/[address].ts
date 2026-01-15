@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const threshold = wallet?.flagThreshold ?? getBalanceFlagThreshold();
-  const showBalance = flagsCount >= threshold;
+  const showBalance = true;
   const isBlacklisted = !!wallet?.blacklisted;
   const lastFlagger = wallet?.lastFlagger || null;
 

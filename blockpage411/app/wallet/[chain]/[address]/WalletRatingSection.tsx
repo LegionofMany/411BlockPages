@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import StarRating from "../../../components/starrating2";
 import RatingBreakdown from "../../../components/ratingbreakdown2";
+import { openAuthModal } from "../../../components/auth/openAuthModal";
 
 interface WalletRatingSectionProps {
   address: string;
@@ -29,6 +30,15 @@ const WalletRatingSection: React.FC<WalletRatingSectionProps> = ({ address, chai
       setRateSuccess(true);
       setRateText("");
     } catch (err) {
+      if (err && typeof err === 'object' && 'status' in err && Number((err as Record<string, unknown>).status) === 401) {
+        setRateError('Sign in required to rate wallets.');
+        openAuthModal({
+          title: 'Sign in required',
+          message: 'Rating is only available after wallet verification.',
+          redirectTo: typeof window !== 'undefined' ? window.location.pathname + window.location.search : undefined,
+        });
+        return;
+      }
       if (err instanceof Error) {
         setRateError(err.message);
       } else {

@@ -19,7 +19,7 @@ export function ConnectWalletButton() {
       type="button"
       onClick={() => {
         try {
-          router.push(isConnected ? "/dashboard" : "/login");
+          router.push(isConnected ? "/profile" : "/login");
         } catch {
           // ignore
         }

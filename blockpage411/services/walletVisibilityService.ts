@@ -15,8 +15,8 @@ export function computeWalletVisibility(wallet: any, viewerAddress?: string | nu
 
   const heavilyFlagged = flagsCount >= heavyFlagThreshold;
 
-  // Visibility rules:
-  // - Owners always see their balances.
+  // Visibility rules (legacy semantics for canSeeBalance):
+  // - Owners always see balances.
   // - Non-owners see balances only if heavily flagged or wallet explicitly public/unlocked.
   const canSeeBalance = !!(
     isOwner ||
@@ -25,8 +25,14 @@ export function computeWalletVisibility(wallet: any, viewerAddress?: string | nu
     unlockLevel >= 1
   );
 
+  // New requirement: analysis pages should remain viewable read-only.
+  // This does not imply sensitive details should be hidden/shown; it’s a separate signal.
+  const canSeePublicAnalysis = true;
+
   return {
     canSeeBalance,
+    canSeeSensitiveDetails: canSeeBalance,
+    canSeePublicAnalysis,
     isOwner,
     heavilyFlagged,
     isPublic,

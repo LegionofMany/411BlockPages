@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from 'react';
 import "../styles/globals.css";
 import { Providers } from "./components/Providers";
 import Navbar from "./components/Navbar";
@@ -33,7 +34,9 @@ export default function RootLayout({
         }}
       >
           <Providers>
-            <AuthGate />
+            <Suspense fallback={null}>
+              <AuthGate />
+            </Suspense>
             {/* Accessible skip link: hidden until focused for keyboard users */}
             <a
               href="#content"

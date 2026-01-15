@@ -1,5 +1,14 @@
 // Jest setup: provide lightweight mocks for global modules used in tests
 // Keep this synchronous to ensure Jest applies mocks before tests run.
+
+// Disable Redis during tests to prevent ioredis sockets keeping the event loop alive
+// and causing "Jest did not exit one second after the test run has completed".
+try {
+  process.env.REDIS_URL = 'DISABLE_REDIS';
+} catch {
+  // ignore
+}
+
 try {
   // No-op DB connector for tests
   jest.doMock('lib/db', () => ({ __esModule: true, default: async () => ({}) }));

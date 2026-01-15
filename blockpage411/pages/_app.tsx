@@ -9,10 +9,10 @@ import React from 'react';
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <EvmWalletProvider>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <EvmWalletProvider>
         <Component {...pageProps} />
-      </QueryClientProvider>
-    </EvmWalletProvider>
+      </EvmWalletProvider>
+    </QueryClientProvider>
   );
 }

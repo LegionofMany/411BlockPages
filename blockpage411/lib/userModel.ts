@@ -64,6 +64,14 @@ const UserSchema = new Schema({
     widgetId: { type: String },
     charityId: { type: String },
   },
+
+  // v8: wallet follow list
+  followedWallets: [{
+    chain: { type: String },
+    address: { type: String },
+    createdAt: { type: Date, default: Date.now },
+  }],
+
   // v4 admin fields
   blacklisted: { type: Boolean, default: false },
   blacklistReason: { type: String },

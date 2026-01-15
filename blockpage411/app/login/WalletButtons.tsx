@@ -64,7 +64,7 @@ function buildTrustWalletDeepLink(currentUrl: string) {
 }
 
 export default function WalletButtons({ onError }: Props) {
-  const { connectMetaMask, connectCoinbase, connectTrustWallet, isConnecting } = useEvmWallet();
+  const { connectMetaMask, connectCoinbase, connectTrustWallet, connectBifrost, isConnecting } = useEvmWallet();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [showWalletBrowser, setShowWalletBrowser] = useState(false);
 
@@ -155,6 +155,27 @@ export default function WalletButtons({ onError }: Props) {
     }
   }
 
+  async function handleConnectBifrost() {
+    try {
+      setLoadingId('bifrost');
+
+      // Bifrost is typically injected in the wallet's browser.
+      // If we're on mobile and don't have an injected provider, offer the wallet-browser modal.
+      const isMobile = isMobileDevice();
+      const hasInjected = hasInjectedEthereum();
+      if (isMobile && !hasInjected) {
+        setShowWalletBrowser(true);
+        return;
+      }
+
+      await connectBifrost();
+    } catch (e) {
+      onError?.(e);
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <button
@@ -182,6 +203,15 @@ export default function WalletButtons({ onError }: Props) {
       >
         <span className="text-2xl">🛡️</span>
         <span className="font-bold">Trust Wallet</span>
+      </button>
+
+      <button
+        className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-sky-500 to-blue-600"
+        onClick={handleConnectBifrost}
+        disabled={isBusy}
+      >
+        <span className="text-2xl">🧊</span>
+        <span className="font-bold">Bifrost</span>
       </button>
 
       {/* Client request: explicit 'Open in wallet browser' entry point for mobile */}

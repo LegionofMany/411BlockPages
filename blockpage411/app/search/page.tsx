@@ -3,11 +3,8 @@ import React, { useState, useEffect } from 'react';
 import ProviderSelect from 'app/components/ProviderSelect';
 import AddProviderModal from 'app/components/AddProviderModal';
 import ReportModal from 'app/components/ReportModal';
-import { ethers } from 'ethers';
 import { useRouter } from 'next/navigation';
-
-// minimal EIP-1193-like provider typing
-type EthereumProvider = { request: (req: { method: string; params?: unknown[] | Record<string, unknown> }) => Promise<unknown> };
+import { openAuthModal } from '../components/auth/openAuthModal';
 
 type ProviderType = { _id?: string; name: string; website?: string; type?: string; rank?: number; status?: string };
 
@@ -35,49 +32,17 @@ export default function SearchPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [nftAvatarUrl, setNftAvatarUrl] = useState<string | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
 
   async function signAndVerify() {
-    setErrorMessage(null);
-    setStatusMessage(null);
-    if (!myWallet) { setErrorMessage('Enter your wallet address to verify'); return; }
-    try{
-      // request accounts
-        const win = window as unknown as { ethereum?: { request?: (...args: unknown[]) => Promise<unknown> } };
-        if (!win.ethereum || typeof win.ethereum.request !== 'function') { setErrorMessage('No web3 provider found'); return; }
-        await win.ethereum.request({ method: 'eth_requestAccounts' } as unknown);
-        const providerE = new ethers.BrowserProvider(win.ethereum as unknown as EthereumProvider);
-      const signer = await providerE.getSigner();
-      // auto-fill My Wallet with connected address to avoid mismatch
-  try{ const connected = await signer.getAddress(); if (connected) setMyWallet(connected); }catch{ /* ignore */ }
-
-      // First, perform nonce-based login to create an auth cookie (if not already logged in).
-      // 1) request nonce
-      const nonceResp = await fetch('/api/auth/nonce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: myWallet }) });
-      if (!nonceResp.ok) {
-        const j = await nonceResp.json().catch(()=>null);
-        setErrorMessage('Login nonce request failed: ' + (j?.message || nonceResp.statusText));
-        return;
-      }
-      const { nonce } = await nonceResp.json();
-
-      // 2) sign the login nonce and verify to get a session cookie
-      const loginMessage = `Login nonce: ${nonce}`;
-      const loginSignature = await signer.signMessage(loginMessage);
-      const verifyResp = await fetch('/api/auth/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: myWallet, signature: loginSignature }), credentials: 'include' });
-      if (!verifyResp.ok) {
-        const j = await verifyResp.json().catch(()=>null);
-        setErrorMessage('Login failed: ' + (j?.message || verifyResp.statusText));
-        return;
-      }
-
-      // 3) now create a verification proof for the wallet (attach signature to Wallet doc)
-      const proofMessage = `Verify ownership of ${myWallet} for Blockpage411 at ${Date.now()}`;
-      const proofSignature = await signer.signMessage(proofMessage);
-      setStatusMessage('Submitting verification...');
-      const resp = await fetch('/api/wallets/verify', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ address: myWallet, chain, message: proofMessage, signature: proofSignature }), credentials: 'include' });
-      if (!resp.ok) { const j = await resp.json().catch(()=>null); setErrorMessage('Verify failed: ' + (j?.message || resp.statusText)); setStatusMessage(null); return; }
-      setStatusMessage('Wallet verified successfully and session created');
-    } catch (err) { console.error(err); setErrorMessage('Signature failed'); }
+    // Unified flow: use the /login wallet-connection + nonce verification.
+    // This avoids dead buttons on mobile and keeps wallet auth in one place.
+    openAuthModal({
+      title: 'Verify wallet',
+      message: 'Verify your wallet to unlock reporting, flagging, rating, and follow actions.',
+      redirectTo: typeof window !== 'undefined' ? window.location.pathname + window.location.search : undefined,
+      ctaLabel: 'Continue to sign in',
+    });
   }
 
   // ensure main content is interactive (in case a leftover navbar mobile-drawer side-effect disabled it)
@@ -127,6 +92,7 @@ export default function SearchPage() {
       try {
         const statusRes = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
         const status = await statusRes.json().catch(() => ({} as any));
+        if (!cancelled) setAuthenticated(Boolean(status?.authenticated));
         if (!status?.authenticated) return;
 
         const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
@@ -308,7 +274,19 @@ export default function SearchPage() {
               <div className="flex flex-wrap items-center gap-3 pt-4 mt-2">
                 <button
                   type="button"
-                  onClick={() => { setErrorMessage(null); setStatusMessage(null); setOpenReportModal((v) => !v); }}
+                  onClick={() => {
+                    setErrorMessage(null);
+                    setStatusMessage(null);
+                    if (!authenticated) {
+                      openAuthModal({
+                        title: 'Sign in required',
+                        message: 'Reporting and flagging require wallet verification.',
+                        redirectTo: typeof window !== 'undefined' ? window.location.pathname + window.location.search : undefined,
+                      });
+                      return;
+                    }
+                    setOpenReportModal((v) => !v);
+                  }}
                   className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-2.5 text-sm md:text-base font-semibold text-slate-950 shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 transition-colors"
                 >
                   Flag / Report address

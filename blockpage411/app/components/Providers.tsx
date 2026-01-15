@@ -22,12 +22,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <EvmWalletProvider>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <EvmWalletProvider>
         <WalletProvider>
           {children}
         </WalletProvider>
-      </QueryClientProvider>
-    </EvmWalletProvider>
+      </EvmWalletProvider>
+    </QueryClientProvider>
   );
 }

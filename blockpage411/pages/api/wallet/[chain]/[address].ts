@@ -285,12 +285,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   providerLabel = { providerId: String(pw.providerId || ''), name: p?.name || undefined, note: pw.note || undefined };
     }
   }catch{ /* ignore */ }
-  // Privacy: hide balances until heavily flagged, using per-wallet or global threshold.
+  // Read-only requirement: wallet analysis should be visible to unauth viewers.
+  // Keep flags/threshold for informational UI, but do not hide assets/txs.
   const flagsCount = Array.isArray(wallet?.flags) ? wallet!.flags.length : 0;
   const threshold = (wallet as any)?.flagThreshold ?? getBalanceFlagThreshold();
-  const showBalance = (wallet as any)?.flagsCount != null
-    ? (wallet as any).flagsCount >= threshold
-    : flagsCount >= threshold;
+  const showBalance = true;
 
   // Compute a simple visibility object (owner/public/limited view semantics)
   const visibility = computeWalletVisibility(
@@ -303,9 +302,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     viewerAddress,
   );
 
-  // If balances should be hidden, hide the txs and nft count
-  const returnedTxs = showBalance ? txs : [];
-  const returnedNftCount = showBalance ? (wallet?.nftCount || 0) : 0;
+  const returnedTxs = txs;
+  const returnedNftCount = wallet?.nftCount || 0;
 
   // Pagination: compute slice for requested page
   const totalTxs = Array.isArray(returnedTxs) ? returnedTxs.length : 0;
@@ -338,7 +336,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     lastRefreshed: wallet?.lastRefreshed || null,
     statusTags: getStatusTags(wallet),
     visibility: {
-      canSeeBalance: visibility.canSeeBalance,
+      // Read-only requirement: wallet analysis is visible to all viewers.
+      canSeeBalance: true,
+      canSeeSensitiveDetails: (visibility as any).canSeeSensitiveDetails ?? visibility.canSeeBalance,
+      canSeePublicAnalysis: (visibility as any).canSeePublicAnalysis ?? true,
       isOwner: visibility.isOwner,
       heavilyFlagged: visibility.heavilyFlagged,
       isPublic: visibility.isPublic,

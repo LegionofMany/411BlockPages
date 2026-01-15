@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
+import { openAuthModal } from "../../../components/auth/openAuthModal";
 interface Flag {
   _id: string;
   user: string;
@@ -89,6 +90,15 @@ const WalletFlagSection: React.FC<WalletFlagSectionProps> = ({ flags, address, c
     } catch (err) {
   // rollback optimistic insert if present
   setLocalFlags(prev => prev.filter(f => !(f as LocalFlag).isTemp));
+      if (err && typeof err === 'object' && 'status' in err && Number((err as Record<string, unknown>).status) === 401) {
+        setFlagError('Sign in required to flag wallets.');
+        openAuthModal({
+          title: 'Sign in required',
+          message: 'Flagging is only available after wallet verification.',
+          redirectTo: typeof window !== 'undefined' ? window.location.pathname + window.location.search : undefined,
+        });
+        return;
+      }
       // surface friendly messages for rate limit
       if (err && typeof err === 'object' && 'status' in err && Number((err as Record<string, unknown>).status) === 429) {
         setFlagError('Flag limit reached for today. You can flag up to 5 times per day.');

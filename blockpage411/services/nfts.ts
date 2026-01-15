@@ -40,11 +40,20 @@ function normalizeNftKey(contractAddress: string, tokenId: string): string {
   return `${contractAddress.toLowerCase()}:${tokenId}`;
 }
 
-async function fetchFromOpenSea(owner: string, signal?: AbortSignal): Promise<UnifiedNftItem[]> {
-  const url = `https://api.opensea.io/api/v2/chain/ethereum/account/${owner}/nfts`;
+function normalizeOpenSeaChain(chain?: string): string {
+  const c = String(chain || '').toLowerCase();
+  if (!c) return 'ethereum';
+  // OpenSea chain slugs.
+  const allowed = new Set(['ethereum', 'base', 'polygon', 'arbitrum', 'optimism']);
+  return allowed.has(c) ? c : 'ethereum';
+}
+
+async function fetchFromOpenSea(owner: string, opts?: { chain?: string; signal?: AbortSignal }): Promise<UnifiedNftItem[]> {
+  const chain = normalizeOpenSeaChain(opts?.chain);
+  const url = `https://api.opensea.io/api/v2/chain/${chain}/account/${owner}/nfts`;
   try {
     const res = await axios.get(url, {
-      signal,
+      signal: opts?.signal,
       timeout: 8000,
       headers: {
         Accept: 'application/json',
@@ -161,13 +170,21 @@ async function fetchFromUd(owner: string, signal?: AbortSignal): Promise<Unified
   }
 }
 
-export async function fetchUserNFTs(walletAddress: string, signal?: AbortSignal): Promise<UnifiedNftItem[]> {
+export async function fetchUserNFTs(
+  walletAddress: string,
+  arg2?: AbortSignal | { chain?: string; signal?: AbortSignal }
+): Promise<UnifiedNftItem[]> {
   if (!walletAddress) return [];
 
+  const opts =
+    arg2 && typeof (arg2 as any).aborted === 'boolean'
+      ? ({ signal: arg2 as AbortSignal } as { chain?: string; signal?: AbortSignal })
+      : ((arg2 as any) || ({} as any));
+
   const [fromOpenSea, fromRarible, fromUd] = await Promise.all([
-    fetchFromOpenSea(walletAddress, signal),
-    fetchFromRarible(walletAddress, signal),
-    fetchFromUd(walletAddress, signal),
+    fetchFromOpenSea(walletAddress, { chain: opts.chain, signal: opts.signal }),
+    fetchFromRarible(walletAddress, opts.signal),
+    fetchFromUd(walletAddress, opts.signal),
   ]);
 
   const all = [...fromOpenSea, ...fromRarible, ...fromUd];

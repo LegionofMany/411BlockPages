@@ -22,10 +22,18 @@ const nextConfig: NextConfig = {
 // reference but may not be published in all registries. These shims export safe empty objects
 // so the production build can proceed when those UI pieces are not required at runtime.
 const aliasWebpack = (config: any) => {
-  const aliases: Record<string, string> = {
+  const aliases: Record<string, any> = {
     '@base-org/account': path.resolve(__dirname, 'shims/base-org/account.js'),
     '@coinbase/wallet-sdk': path.resolve(__dirname, 'shims/coinbase/wallet-sdk.js'),
     '@metamask/sdk': path.resolve(__dirname, 'shims/metamask/sdk.js'),
+    // Optional wagmi connector peers we don't use in this app, but which may be imported
+    // by connector barrels during bundling.
+    '@walletconnect/ethereum-provider': false,
+    '@safe-global/safe-apps-sdk': false,
+    '@safe-global/safe-apps-provider': false,
+    '@gemini-wallet/core': false,
+    'porto': false,
+    'porto/internal': false,
     'motion-dom': path.resolve(__dirname, 'shims/motion-dom/index.js'),
     // Fix interop for vanilla-extract sprinkles createUtils when it's published as CJS
     '@vanilla-extract/sprinkles/createUtils': path.resolve(__dirname, 'shims/vanilla-extract/createUtils.mjs'),

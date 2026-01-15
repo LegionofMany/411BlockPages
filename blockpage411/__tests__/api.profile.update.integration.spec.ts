@@ -29,8 +29,28 @@ describe('integration: /api/profile/update', () => {
     await mongoose.connect(process.env.MONGODB_URI!);
   });
   afterAll(async () => {
-    await mongoose.disconnect();
-    if (mongod) await mongod.stop();
+    // Ensure all mongoose connections are fully closed.
+    try {
+      await mongoose.connection.close(true);
+    } catch {
+      // ignore
+    }
+    try {
+      await mongoose.disconnect();
+    } catch {
+      // ignore
+    }
+
+    // Ensure the mongod child process is cleaned up (this can otherwise keep Jest alive).
+    try {
+      await (mongod as any)?.stop?.({ doCleanup: true, force: true });
+    } catch {
+      try {
+        if (mongod) await mongod.stop();
+      } catch {
+        // ignore
+      }
+    }
   });
 
   it('mirrors updates to wallet.socials', async () => {
