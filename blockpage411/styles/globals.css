@@ -6,6 +6,15 @@
 /* Default readable text color for dark theme pages */
 html, body {
 	color: #f8fafc;
+	font-size: 16px;
+	line-height: 1.6;
+	-webkit-text-size-adjust: 100%;
+	text-rendering: optimizeLegibility;
+}
+
+/* Ensure form controls stay >=16px on mobile (prevents iOS zoom). */
+input, textarea, select, button {
+	font-size: 16px;
 }
 
 /* Custom blockchain design system */
@@ -27,6 +36,8 @@ html, body {
 	--glass-blur: 8px;
 	--glass-bg: rgba(15, 23, 42, 0.6);
 	--muted-text: #9ca3af;
+	--text-neutral: #e2e8f0;
+	--focus-ring: rgba(34, 211, 238, 0.40);
 }
 
 .bg-blockchain-gradient {
@@ -110,8 +121,13 @@ html, body {
 
 /* Accessible focus outlines */
 :focus {
-	outline: 3px solid rgba(124,58,237,0.18);
+	outline: 3px solid var(--focus-ring);
 	outline-offset: 3px;
+}
+
+/* Accent text should not default to purple/violet (reserved for links/badges/risk). */
+.accent-text {
+	color: var(--text-neutral);
 }
 
 /* Reveal helper - default hidden, will be animated in via JS */

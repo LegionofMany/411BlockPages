@@ -16,6 +16,17 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+
+  async rewrites() {
+    return [
+      // Keep the public URL /wallet/:address, but serve it from a non-conflicting
+      // route so we can also support /wallet/:chain/:address.
+      {
+        source: '/wallet/:address',
+        destination: '/wallet/address/:address',
+      },
+    ];
+  },
 };
 
 // Add webpack aliases to shim missing optional UI packages that some wallet/connect libraries

@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { Button } from "app/components/ui/Button";
+import WalletSearchBar from "../WalletSearchBar";
 
 export default function Hero() {
   const router = useRouter();
@@ -44,6 +45,10 @@ export default function Hero() {
             risk signals for any address – all in a single, transparent dashboard.
           </p>
         </div>
+
+		<div className="mx-auto w-full max-w-2xl px-2 sm:px-0" aria-label="Primary wallet search">
+			<WalletSearchBar />
+		</div>
 
         {/* Spacer to create clear separation between card and buttons */}
         <div aria-hidden="true" className="w-full" style={{ height: "20px" }} />

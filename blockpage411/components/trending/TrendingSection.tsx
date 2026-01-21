@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import type { TrendingResponse } from "../../pages/api/trending";
+import { ReputationGauge } from "../../app/components/ui/ReputationGauge";
 
 type TrendingSectionProps = {
   title: string;
@@ -51,6 +52,9 @@ export type TrendingWalletCardProps = TrendingResponse["wallets"][number];
 export function TrendingWalletCard({ address, chain, ens, riskScore, flagsCount, searchCount }: TrendingWalletCardProps) {
   const [open, setOpen] = React.useState(false);
   const displayLabel = ens || address;
+  const reputationScore = typeof riskScore === 'number' && Number.isFinite(riskScore)
+    ? Math.max(0, Math.min(100, 100 - Math.round(riskScore)))
+    : null;
   return (
     <div
       className="group relative p-5 rounded-3xl backdrop-blur-2xl shadow-[0_18px_50px_rgba(0,0,0,0.88)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_70px_rgba(22,163,74,0.82)] border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-black/70 to-black"
@@ -72,6 +76,9 @@ export function TrendingWalletCard({ address, chain, ens, riskScore, flagsCount,
         </p>
         <p className="text-base font-semibold break-all mb-1" style={{ color: 'var(--section-text, #fefce8)' }}>{displayLabel}</p>
         <p className="text-xs text-slate-400 mb-3">Chain: {chain}</p>
+        <div className="mb-3">
+          <ReputationGauge score={reputationScore} variant="stars" />
+        </div>
         <div className="flex items-center justify-between text-xs text-slate-300">
           <span>Risk score: {riskScore}</span>
           <span>Flags: {flagsCount}</span>

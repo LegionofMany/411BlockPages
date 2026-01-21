@@ -12,6 +12,7 @@ import { getCache, setCache } from 'lib/redisCache';
 import redisRateLimit from 'lib/redisRateLimit';
 import { computeWalletVisibility } from 'services/walletVisibilityService';
 import jwt from 'jsonwebtoken';
+import { JsonRpcProvider, formatEther } from 'ethers';
 
 // Types for Wallet document
 type WalletDoc = {
@@ -57,6 +58,170 @@ async function fetchXrpTxs(address: string) {
 }
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY as string;
+
+function getRpcUrlForChain(chain: string): string | null {
+  const c = String(chain || '').toLowerCase();
+  if (c === 'ethereum' || c === 'eth') return process.env.ETH_RPC_URL || process.env.NEXT_PUBLIC_ETH_RPC_URL || 'https://cloudflare-eth.com';
+  if (c === 'base') return process.env.BASE_RPC_URL || process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
+  if (c === 'polygon') return process.env.POLYGON_RPC_URL || process.env.NEXT_PUBLIC_POLYGON_RPC_URL || 'https://polygon-rpc.com';
+  if (c === 'bsc') return process.env.BSC_RPC_URL || process.env.NEXT_PUBLIC_BSC_RPC_URL || 'https://bsc-dataseed.binance.org';
+  return null;
+}
+
+function getNativeTokenIdForChain(chain: string): { coingeckoId: string; symbol: string } | null {
+  const c = String(chain || '').toLowerCase();
+  if (c === 'ethereum' || c === 'eth') return { coingeckoId: 'ethereum', symbol: 'ETH' };
+  if (c === 'base') return { coingeckoId: 'ethereum', symbol: 'ETH' };
+  if (c === 'polygon') return { coingeckoId: 'matic-network', symbol: 'MATIC' };
+  if (c === 'bsc') return { coingeckoId: 'binancecoin', symbol: 'BNB' };
+  return null;
+}
+
+async function fetchUsdPrice(coingeckoId: string): Promise<number | null> {
+  const id = String(coingeckoId || '').trim();
+  if (!id) return null;
+  const cacheKey = `price:cg:v1:${id}`;
+  try {
+    const cached = await getCache(cacheKey);
+    const n = typeof cached === 'number' ? cached : typeof cached === 'string' ? Number(cached) : NaN;
+    if (Number.isFinite(n) && n > 0) return n;
+  } catch {
+    // ignore
+  }
+
+  try {
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd`;
+    const { data } = await axios.get(url, { timeout: 6500 });
+    const usd = data && data[id] && typeof data[id].usd === 'number' ? data[id].usd : null;
+    if (typeof usd === 'number' && Number.isFinite(usd) && usd > 0) {
+      try {
+        await setCache(cacheKey, usd, 60);
+      } catch {
+        // ignore
+      }
+      return usd;
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+async function fetchEvmNativeBalance(chain: string, address: string): Promise<{ amountNative: number; symbol: string; priceUsd: number | null; amountUsd: number | null } | null> {
+  const rpcUrl = getRpcUrlForChain(chain);
+  const token = getNativeTokenIdForChain(chain);
+  if (!rpcUrl || !token) return null;
+
+  try {
+    const provider = new JsonRpcProvider(rpcUrl);
+    const balWei = await provider.getBalance(address);
+    const amountNative = Number(formatEther(balWei));
+    const priceUsd = await fetchUsdPrice(token.coingeckoId);
+    const amountUsd = typeof priceUsd === 'number' ? amountNative * priceUsd : null;
+    return { amountNative, symbol: token.symbol, priceUsd, amountUsd };
+  } catch {
+    return null;
+  }
+}
+
+type ConnectedWalletSummary = {
+  address: string;
+  txCount: number;
+  direction: 'in' | 'out' | 'mixed';
+  totalValueNative: number;
+  risk?: { category: 'green' | 'yellow' | 'red'; score?: number | null };
+};
+
+function riskToCategory(score: number | null | undefined): 'green' | 'yellow' | 'red' {
+  const n = typeof score === 'number' && Number.isFinite(score) ? score : 0;
+  if (n > 60) return 'red';
+  if (n > 25) return 'yellow';
+  return 'green';
+}
+
+function analyzeConnectedWallets(chain: string, target: string, txs: any[]): { connected: ConnectedWalletSummary[]; graph: { nodes: any[]; edges: any[] } | null; heuristics: Array<{ id: string; level: 'low' | 'medium' | 'high'; title: string; summary: string }> } {
+  const addr = String(target || '').toLowerCase();
+  const counts = new Map<string, { in: number; out: number; totalNative: number }>();
+
+  const nativeDecimals = 18;
+  const parseNative = (tx: any): number => {
+    try {
+      const v = tx?.value ?? tx?.valueWei ?? '0';
+      const asBig = BigInt(typeof v === 'string' && v.startsWith('0x') ? v : BigInt(String(v)).toString());
+      const divisor = 10n ** BigInt(nativeDecimals);
+      return Number(asBig) / Number(divisor);
+    } catch {
+      const n = Number(tx?.value || 0);
+      return Number.isFinite(n) ? n : 0;
+    }
+  };
+
+  for (const t of Array.isArray(txs) ? txs.slice(0, 250) : []) {
+    const from = String(t?.from || '').toLowerCase();
+    const to = String(t?.to || '').toLowerCase();
+    if (!from || !to) continue;
+    if (from !== addr && to !== addr) continue;
+
+    const counterparty = from === addr ? to : from;
+    if (!counterparty) continue;
+
+    const prev = counts.get(counterparty) || { in: 0, out: 0, totalNative: 0 };
+    const native = parseNative(t);
+    if (to === addr) prev.in += 1;
+    if (from === addr) prev.out += 1;
+    prev.totalNative += native;
+    counts.set(counterparty, prev);
+  }
+
+  const connected = Array.from(counts.entries())
+    .map(([address, s]) => {
+      const direction: ConnectedWalletSummary['direction'] = s.in > 0 && s.out > 0 ? 'mixed' : s.in > 0 ? 'in' : 'out';
+      return { address, txCount: s.in + s.out, direction, totalValueNative: s.totalNative } as ConnectedWalletSummary;
+    })
+    .sort((a, b) => b.txCount - a.txCount)
+    .slice(0, 12);
+
+  const nodes = [{ id: addr, kind: 'target' }, ...connected.map((c) => ({ id: c.address, kind: 'counterparty' }))];
+  const edges = connected.map((c) => ({ source: addr, target: c.address, weight: Math.max(1, c.txCount) }));
+  const graph = connected.length ? { nodes, edges } : null;
+
+  // Simple heuristics (non-accusatory)
+  const uniqueIn = connected.filter((c) => c.direction === 'in' || c.direction === 'mixed').length;
+  const uniqueOut = connected.filter((c) => c.direction === 'out' || c.direction === 'mixed').length;
+  const heuristics: Array<{ id: string; level: 'low' | 'medium' | 'high'; title: string; summary: string }> = [];
+
+  // Fan-in funnel: many inbound counterparties and few outbound (or vice versa)
+  if (uniqueIn >= 10 && uniqueOut <= 2) {
+    heuristics.push({
+      id: 'funnel-in',
+      level: uniqueIn >= 25 ? 'high' : 'medium',
+      title: 'Funnel-like inbound pattern',
+      summary: 'Receives from many wallets and sends out to very few. This can be normal (exchange/treasury), but it can also indicate aggregation behavior.',
+    });
+  }
+
+  if (uniqueOut >= 10 && uniqueIn <= 2) {
+    heuristics.push({
+      id: 'funnel-out',
+      level: uniqueOut >= 25 ? 'high' : 'medium',
+      title: 'Hub-like outbound pattern',
+      summary: 'Sends to many wallets with limited inbound sources. This can be normal (airdrop/treasury), but it may warrant review depending on context.',
+    });
+  }
+
+  // Rapid hops is handled elsewhere when timestamps are available; provide neutral placeholder.
+  if (connected.length >= 8) {
+    heuristics.push({
+      id: 'network-density',
+      level: connected.length >= 20 ? 'high' : 'low',
+      title: 'High counterparty diversity',
+      summary: 'Interacts with many unique counterparties. Context matters; this is an informational signal only.',
+    });
+  }
+
+  return { connected, graph, heuristics };
+}
 
 
 // Map supported chain slugs to Etherscan V2 chain IDs
@@ -314,6 +479,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const payload = {
     address: wallet?.address || address,
     chain: wallet?.chain || chain,
+    balance: CHAIN_IDS[chainStr] ? await fetchEvmNativeBalance(chainStr, addr) : null,
     riskScore: (wallet as any)?.riskScore ?? null,
     riskCategory: (wallet as any)?.riskCategory ?? null,
     providerLabel,
@@ -348,6 +514,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // pagination meta
     pagination: { total: totalTxs, page, pageSize, hasMore },
   };
+
+  // Add connected wallets + basic graph + heuristics (best-effort, do not block response)
+  try {
+    if (CHAIN_IDS[chainStr] && Array.isArray(txs)) {
+      const { connected, graph, heuristics } = analyzeConnectedWallets(chainStr, addr, txs);
+
+      // Attach basic risk color for each connected wallet based on existing DB info (fast path).
+      const connAddrs = connected.map((c) => c.address.toLowerCase());
+      let known: Array<{ address: string; riskScore?: number | null }> = [];
+      try {
+        known = (await Wallet.find({ chain: chainStr, address: { $in: connAddrs } }).select('address riskScore').lean()) as any;
+      } catch {
+        known = [];
+      }
+      const byAddr = new Map<string, number>();
+      for (const k of known) {
+        const a = String((k as any)?.address || '').toLowerCase();
+        const s = (k as any)?.riskScore;
+        if (a && typeof s === 'number') byAddr.set(a, s);
+      }
+
+      const enriched = connected.map((c) => {
+        const s = byAddr.get(c.address.toLowerCase());
+        const score = typeof s === 'number' ? s : null;
+        return {
+          ...c,
+          risk: { category: riskToCategory(score), score },
+        };
+      });
+
+      (payload as any).connectedWallets = enriched;
+      (payload as any).followTheMoneyGraph = graph;
+      (payload as any).heuristicIndicators = heuristics;
+    } else {
+      (payload as any).connectedWallets = [];
+      (payload as any).followTheMoneyGraph = null;
+      (payload as any).heuristicIndicators = [];
+    }
+  } catch {
+    (payload as any).connectedWallets = [];
+    (payload as any).followTheMoneyGraph = null;
+    (payload as any).heuristicIndicators = [];
+  }
 
   // write page-specific cache (short TTL)
   try { await setCache(cacheKey, payload, 60); } catch {}

@@ -1,6 +1,9 @@
 "use client";
-import React, { memo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import type { NormalizedTransaction } from '../../services/liveFeed/normalizeTransaction';
+import { useRouter } from 'next/navigation';
+import { useWalletReputation } from '../../app/hooks/useWalletReputation';
+import { ReputationGauge } from '../../app/components/ui/ReputationGauge';
 
 interface Props {
   tx: NormalizedTransaction;
@@ -33,6 +36,8 @@ function valueColor(tx: NormalizedTransaction): string {
 }
 
 function TransactionItem({ tx }: Props) {
+  const router = useRouter();
+  const [showReputation, setShowReputation] = useState(false);
   const explorerBase =
     tx.network === 'ethereum'
       ? 'https://etherscan.io/tx/'
@@ -51,9 +56,39 @@ function TransactionItem({ tx }: Props) {
 
   const label = tx.label || (tx.kind === 'large-transfer' ? '🔥 Whale Transfer Detected' : undefined);
 
+  const defaultWallet = tx.from;
+
+  const reputationChain = useMemo(() => tx.network, [tx.network]);
+  const { reputationScore } = useWalletReputation({
+    chain: reputationChain,
+    address: defaultWallet,
+    enabled: showReputation,
+  });
+
   return (
     <div
       className="flex items-stretch gap-3 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/70 via-slate-950/80 to-slate-950/75 px-3 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.75)]"
+      role="button"
+      tabIndex={0}
+      onMouseEnter={() => setShowReputation(true)}
+      onFocus={() => setShowReputation(true)}
+      onClick={() => {
+        try {
+          router.push(`/wallet/${encodeURIComponent(tx.network)}/${encodeURIComponent(defaultWallet)}`);
+        } catch {
+          // ignore
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          try {
+            router.push(`/wallet/${encodeURIComponent(tx.network)}/${encodeURIComponent(defaultWallet)}`);
+          } catch {
+            // ignore
+          }
+        }
+      }}
     >
       <div className={`mt-0.5 inline-flex h-7 items-center rounded-full px-2 text-[10px] font-semibold uppercase tracking-[0.16em] ${networkBadgeColor(tx.network)}`}>
         {networkLabel(tx.network)}
@@ -61,15 +96,48 @@ function TransactionItem({ tx }: Props) {
       <div className="flex-1 min-w-0 flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-300">
-            <span className="font-mono truncate max-w-[7rem]">{fromShort}</span>
+            <button
+              type="button"
+              className="font-mono truncate max-w-[7rem] text-slate-200 hover:text-slate-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                try {
+                  router.push(`/wallet/${encodeURIComponent(tx.network)}/${encodeURIComponent(tx.from)}`);
+                } catch {
+                  // ignore
+                }
+              }}
+              aria-label="Open sender wallet"
+            >
+              {fromShort}
+            </button>
             <span className="text-slate-500">→</span>
-            <span className="font-mono truncate max-w-[7rem]">{toShort}</span>
+            <button
+              type="button"
+              className="font-mono truncate max-w-[7rem] text-slate-200 hover:text-slate-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                try {
+                  router.push(`/wallet/${encodeURIComponent(tx.network)}/${encodeURIComponent(tx.to)}`);
+                } catch {
+                  // ignore
+                }
+              }}
+              aria-label="Open recipient wallet"
+            >
+              {toShort}
+            </button>
           </div>
           <div className={`text-xs font-semibold ${valueColor(tx)}`}>
             {tx.valueNative.toFixed(4)} {tx.symbol}
             {usdStr && <span className="ml-1 text-[10px] text-amber-200/80">({usdStr})</span>}
           </div>
         </div>
+        {showReputation && (
+          <div className="text-[10px] text-slate-300">
+            <ReputationGauge score={reputationScore} variant="stars" />
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400">
           <div className="flex items-center gap-2 min-w-0">
             <a

@@ -13,6 +13,9 @@ module.exports = {
   '^\.\./\.\./pages/(.*)$': '<rootDir>/pages/$1',
     '^pages/(.*)$': '<rootDir>/pages/$1'
   },
-  setupFiles: ['<rootDir>/jest.setup.js'],
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.jest.json' }],
+  },
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/e2e/'],
 };

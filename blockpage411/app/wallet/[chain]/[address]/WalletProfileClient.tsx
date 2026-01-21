@@ -18,6 +18,7 @@ import type { Flag, DonationRequest } from "../../../../lib/types";
 import useSWR from 'swr';
 import { openAuthModal } from "../../../components/auth/openAuthModal";
 import { setDeferredAction } from "../../../components/auth/deferredAction";
+import { ReputationGauge } from '../../../components/ui/ReputationGauge';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -70,6 +71,17 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   // Support both legacy and new API shapes (`riskScore` vs `risk_score`).
   const riskScore: number | null = typeof data?.risk_score === 'number' ? data.risk_score : (typeof data?.riskScore === 'number' ? data.riskScore : null);
   const riskCategory = (data?.risk_level || data?.riskCategory || null) as 'low' | 'medium' | 'high' | null;
+  const reputationScore = typeof riskScore === 'number' ? Math.max(0, Math.min(100, 100 - Math.round(riskScore))) : null;
+
+  const connectedWallets = Array.isArray(data?.connectedWallets) ? data.connectedWallets : [];
+  const heuristics = Array.isArray(data?.heuristicIndicators) ? data.heuristicIndicators : [];
+  const graph = data?.followTheMoneyGraph || null;
+
+  function riskPillClass(category?: string) {
+    if (category === 'red') return 'bg-red-500/20 text-red-100 border-red-400/40';
+    if (category === 'yellow') return 'bg-amber-500/20 text-amber-100 border-amber-400/40';
+    return 'bg-emerald-500/20 text-emerald-100 border-emerald-400/40';
+  }
 
   const visibilityLabel = (() => {
     const vis = data?.visibility as
@@ -90,6 +102,142 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
             <UserProfile walletAddress={address} chain={chain} />
             <div className="text-sm text-slate-400 mt-2">Chain: {chain}</div>
           </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <section className="rounded-xl border border-white/10 bg-black/40 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Balance</div>
+              {data?.balance ? (
+                <div className="mt-2">
+                  <div className="text-xl font-semibold text-slate-100">
+                    {Number(data.balance.amountNative || 0).toLocaleString(undefined, { maximumFractionDigits: 6 })} {data.balance.symbol || 'NATIVE'}
+                  </div>
+                  <div className="text-sm text-slate-300 mt-1">
+                    {typeof data.balance.amountUsd === 'number'
+                      ? `$${data.balance.amountUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                      : 'USD value unavailable'}
+                  </div>
+                  {typeof data.balance.priceUsd === 'number' ? (
+                    <div className="text-[11px] text-slate-400 mt-1">
+                      Price ~ ${data.balance.priceUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}/{data.balance.symbol || 'token'}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-2 text-sm text-slate-400">Balance unavailable for this chain.</div>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-white/10 bg-black/40 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Reputation</div>
+              <div className="mt-2">
+                <ReputationGauge score={reputationScore} />
+                <div className="mt-2 text-[11px] text-slate-400">
+                  Informational signal based on on-chain patterns and community reports.
+                </div>
+              </div>
+            </section>
+          </div>
+
+          {(connectedWallets.length > 0 || heuristics.length > 0 || graph) && (
+            <div className="mt-6 grid grid-cols-1 gap-4">
+              {connectedWallets.length > 0 && (
+                <section className="rounded-xl border border-white/10 bg-black/40 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-slate-100">Connected wallets</div>
+                    <div className="text-[11px] text-slate-400">Top counterparties (best-effort)</div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {connectedWallets.slice(0, 10).map((w: any) => (
+                      <button
+                        key={w.address}
+                        type="button"
+                        className="w-full text-left rounded-lg border border-white/10 bg-slate-950/30 px-3 py-2 hover:bg-slate-950/50"
+                        onClick={() => {
+                          try {
+                            router.push(`/wallet/${encodeURIComponent(chain)}/${encodeURIComponent(w.address)}`);
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-mono text-xs text-slate-100 truncate">{String(w.address || '').slice(0, 10)}…{String(w.address || '').slice(-6)}</div>
+                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${riskPillClass(w?.risk?.category)}`}>
+                            {w?.risk?.category || 'green'}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-400">
+                          {w.txCount} tx · {w.direction} · {Number(w.totalValueNative || 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {graph?.nodes && graph?.edges && (
+                <section className="rounded-xl border border-white/10 bg-black/40 p-4">
+                  <div className="text-sm font-semibold text-slate-100">Follow-the-money graph</div>
+                  <div className="mt-3 overflow-hidden rounded-lg border border-white/5 bg-slate-950/30 p-3">
+                    {/* Minimal graph: center node + orbit nodes for readability and zero deps */}
+                    <svg viewBox="0 0 320 180" className="w-full h-[180px]">
+                      {(() => {
+                        const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+                        const edges = Array.isArray(graph.edges) ? graph.edges : [];
+                        const center = { x: 160, y: 90 };
+                        const others = nodes.filter((n: any) => n?.kind !== 'target').slice(0, 10);
+                        const placed = others.map((n: any, i: number) => {
+                          const angle = (i / Math.max(1, others.length)) * Math.PI * 2;
+                          return { id: n.id, x: center.x + Math.cos(angle) * 70, y: center.y + Math.sin(angle) * 55 };
+                        });
+                        const pos = new Map<string, { x: number; y: number }>();
+                        pos.set(String(nodes.find((n: any) => n?.kind === 'target')?.id || ''), center);
+                        placed.forEach((p) => pos.set(String(p.id), { x: p.x, y: p.y }));
+                        return (
+                          <>
+                            {edges.slice(0, 14).map((e: any, idx: number) => {
+                              const a = pos.get(String(e.source));
+                              const b = pos.get(String(e.target));
+                              if (!a || !b) return null;
+                              return <line key={idx} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="rgba(148,163,184,0.35)" strokeWidth={1} />;
+                            })}
+                            <circle cx={center.x} cy={center.y} r={12} fill="rgba(16,185,129,0.95)" />
+                            {placed.map((p) => (
+                              <circle key={p.id} cx={p.x} cy={p.y} r={8} fill="rgba(56,189,248,0.85)" />
+                            ))}
+                          </>
+                        );
+                      })()}
+                    </svg>
+                    <div className="text-[11px] text-slate-400">Graph is an approximation of top counterparties.</div>
+                  </div>
+                </section>
+              )}
+
+              {heuristics.length > 0 && (
+                <section className="rounded-xl border border-white/10 bg-black/40 p-4">
+                  <div className="text-sm font-semibold text-slate-100">Pattern indicators</div>
+                  <div className="mt-3 grid grid-cols-1 gap-2">
+                    {heuristics.slice(0, 6).map((h: any) => {
+                      const level = String(h.level || 'low');
+                      const badge = level === 'high' ? 'bg-red-500/20 text-red-100 border-red-400/40'
+                        : level === 'medium' ? 'bg-amber-500/20 text-amber-100 border-amber-400/40'
+                        : 'bg-slate-500/20 text-slate-100 border-slate-400/30';
+                      return (
+                        <div key={h.id} className="rounded-lg border border-white/10 bg-slate-950/30 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm font-semibold text-slate-100">{h.title}</div>
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badge}`}>{level}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-slate-300">{h.summary}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 flex-wrap mb-4">
             <button

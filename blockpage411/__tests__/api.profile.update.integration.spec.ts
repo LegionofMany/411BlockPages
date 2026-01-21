@@ -16,11 +16,19 @@ function makeRes() {
 }
 
 describe('integration: /api/profile/update', () => {
-  jest.setTimeout(30_000);
+  jest.setTimeout(120_000);
   let mongod: MongoMemoryServer;
   let handler: any;
   beforeAll(async () => {
-    mongod = await MongoMemoryServer.create();
+    // On some Windows machines the in-memory mongod process can take >10s to start.
+    process.env.MONGOMS_STARTUP_TIMEOUT = process.env.MONGOMS_STARTUP_TIMEOUT || '60000';
+    mongod = await MongoMemoryServer.create({
+      instance: {
+        // mongodb-memory-server defaults to 10s which can be too tight on Windows.
+        // Keep Jest timeout at 30s and give the child process enough time to start.
+        launchTimeout: 30_000,
+      } as any,
+    } as any);
     process.env.MONGODB_URI = mongod.getUri();
     process.env.JWT_SECRET = 'integration-secret';
     // Import after env var is set so lib/db picks up MONGODB_URI

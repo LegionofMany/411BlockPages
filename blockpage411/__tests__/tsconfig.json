@@ -2,11 +2,16 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "types": ["jest", "node"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
     "noEmit": true
   },
   "include": [
-    "deferredAction.spec.ts",
-    "middleware.auth.spec.ts"
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ],
   "exclude": ["../node_modules"]
 }

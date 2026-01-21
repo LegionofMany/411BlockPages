@@ -32,6 +32,7 @@ export interface UserProfile {
   address: string;
   displayName?: string;
   avatarUrl?: string;
+  udDomain?: string;
   bio?: string;
   telegram?: string;
   twitter?: string;

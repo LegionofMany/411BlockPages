@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { resolveWalletInput } from 'services/resolveWalletInput';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -14,6 +15,8 @@ const ProfileUpdateSchema = z.object({
   displayName: z.string().max(64).optional(),
   avatarUrl: z.string().url().optional(),
   nftAvatarUrl: z.string().url().optional(),
+  udDomain: z.string().max(255).optional(),
+  directoryOptIn: z.boolean().optional(),
   bio: z.string().max(500).optional(),
   telegram: z.string().optional(),
   twitter: z.string().optional(),
@@ -51,6 +54,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const update = { ...parsed.data } as any;
   delete update.walletAddress;
+
+  // UD domain validation + ownership verification (best-effort, but must match if provided)
+  if (typeof update.udDomain === 'string') {
+    const raw = update.udDomain.trim();
+    if (!raw) {
+      update.udDomain = undefined;
+    } else {
+      const lower = raw.toLowerCase();
+      const isUd = /\.(crypto|nft|x|wallet|dao|blockchain|bitcoin|888)$/i.test(lower);
+      if (!isUd) {
+        return res.status(400).json({ message: 'Invalid UD domain. Supported TLDs: .crypto .nft .x .wallet .dao .blockchain .bitcoin .888' });
+      }
+      try {
+        const resolved = await resolveWalletInput(lower);
+        if (!resolved || !resolved.address) {
+          return res.status(400).json({ message: 'Unable to resolve UD domain to an address.' });
+        }
+        if (String(resolved.address).toLowerCase() !== walletAddress.toLowerCase()) {
+          return res.status(400).json({ message: 'UD domain does not resolve to your wallet. Please verify ownership and try again.' });
+        }
+        update.udDomain = lower;
+      } catch {
+        return res.status(400).json({ message: 'Unable to verify UD domain right now. Please try again later.' });
+      }
+    }
+  }
 
   update.updatedAt = new Date();
 

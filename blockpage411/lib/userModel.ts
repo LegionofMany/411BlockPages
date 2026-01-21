@@ -8,6 +8,10 @@ const UserSchema = new Schema({
   displayName: { type: String },
   avatarUrl: { type: String },
   nftAvatarUrl: { type: String },
+  // Unstoppable Domain (UD) handle (ownership verified via resolution during update)
+  udDomain: { type: String },
+  // Phone Book directory listing opt-in
+  directoryOptIn: { type: Boolean, default: false },
   bio: { type: String },
   telegram: { type: String },
   twitter: { type: String },

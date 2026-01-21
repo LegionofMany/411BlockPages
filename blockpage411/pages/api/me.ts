@@ -144,6 +144,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     nftAvatarUrl: (user as any).nftAvatarUrl,
+    udDomain: (user as any).udDomain,
+    directoryOptIn: Boolean((user as any).directoryOptIn),
     bio: user.bio,
     telegram: user.telegram,
     twitter: user.twitter,

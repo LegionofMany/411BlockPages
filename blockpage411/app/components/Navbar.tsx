@@ -7,9 +7,10 @@ import Link from "next/link";
 import NavLinkItem from './NavLinkItem';
 import { ConnectWalletButton } from './ConnectWalletButton';
 import { useEvmWallet } from '../../components/EvmWalletProvider';
+import WalletSearchBar from './WalletSearchBar';
 import {
   IconHome, IconSearch, IconFund, IconDonate, IconTrending,
-  IconAdmin, IconActions, IconSignIn, IconMenuSpecial
+  IconAdmin, IconActions, IconSignIn, IconMenuSpecial, IconPhoneBook
 } from './NavbarIcons';
 
 // Icon and NavLinkItem extracted to separate modules (NavbarIcons.tsx and NavLinkItem.tsx)
@@ -31,6 +32,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
   const navItems: Array<{ href: string; label: string; Icon?: React.FC; show?: boolean }> = [
     { href: '/', label: 'Home', Icon: IconHome },
     { href: '/wallet-analysis', label: 'Wallet Analysis', Icon: IconSearch },
+    { href: '/phone-book', label: 'Phone Book', Icon: IconPhoneBook },
     { href: '/charities', label: 'Charities', Icon: IconFund },
     { href: '/fundraisers', label: 'Fundraisers', Icon: IconFund },
     { href: '/transactions/live', label: 'Live Feed', Icon: IconTrending },
@@ -203,6 +205,10 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
               );
             })}
           </ul>
+
+			<div className="w-[22rem] max-w-[28vw]">
+				<WalletSearchBar size="sm" />
+			</div>
           <ConnectWalletButton />
           {/* Sign in / Sign out */}
           <div>
@@ -374,6 +380,9 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
+                </div>
+                <div className="px-4 pb-3">
+                  <WalletSearchBar size="sm" />
                 </div>
                 <nav className="px-4 py-3" role="menu">
                   <ul className="flex flex-col gap-2">

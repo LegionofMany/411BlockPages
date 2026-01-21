@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { BrowserProvider, getAddress } from "ethers";
 import { WagmiProvider, useAccount, useConnect, useDisconnect, useReconnect } from 'wagmi';
-import { coinbaseConnector, injectedConnector, wagmiConfig } from './wagmi/config';
+import { coinbaseConnector, injectedConnector, walletConnectConnector, wagmiConfig } from './wagmi/config';
 
 type JsonRpcRequest = { method: string; params?: unknown[] | Record<string, unknown> };
 
@@ -41,6 +41,7 @@ type EvmWalletContextValue = {
   connectTrustWallet: () => Promise<void>;
   connectBifrost: () => Promise<void>;
   connectCoinbase: () => Promise<void>;
+  connectUniswapWallet: () => Promise<void>;
   reconnect: (opts?: { requestAccountsIfNeeded?: boolean }) => Promise<boolean>;
   disconnect: () => Promise<void>;
   getSigner: () => Promise<Awaited<ReturnType<BrowserProvider["getSigner"]>>>;
@@ -179,6 +180,25 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
     }
   }, [connectAsync, persistProviderChoice]);
 
+  const connectUniswapWallet = useCallback(async () => {
+    setError(null);
+    if (!walletConnectConnector) {
+      const err = new Error('WalletConnect is not configured. Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID.');
+      setError(err.message);
+      throw err;
+    }
+    try {
+      const result = await connectAsync({ connector: walletConnectConnector });
+      const nextAddr = normalizeAddress(result.accounts?.[0]);
+      // WalletConnect may connect to multiple chains; treat as injected-style for UI.
+      setProviderType('injected');
+      if (nextAddr) persistProviderChoice('injected', nextAddr);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to connect');
+      throw e;
+    }
+  }, [connectAsync, persistProviderChoice]);
+
   const reconnect = useCallback(
     async (opts?: { requestAccountsIfNeeded?: boolean }) => {
       const requestAccountsIfNeeded = Boolean(opts?.requestAccountsIfNeeded);
@@ -261,6 +281,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
       connectTrustWallet,
       connectBifrost,
       connectCoinbase,
+      connectUniswapWallet,
       reconnect,
       disconnect,
       getSigner,
@@ -271,6 +292,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
       connectMetaMask,
       connectTrustWallet,
       connectBifrost,
+      connectUniswapWallet,
       disconnect,
       error,
       getSigner,

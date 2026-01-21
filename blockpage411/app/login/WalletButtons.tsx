@@ -64,9 +64,10 @@ function buildTrustWalletDeepLink(currentUrl: string) {
 }
 
 export default function WalletButtons({ onError }: Props) {
-  const { connectMetaMask, connectCoinbase, connectTrustWallet, connectBifrost, isConnecting } = useEvmWallet();
+  const { connectMetaMask, connectCoinbase, connectTrustWallet, connectUniswapWallet, isConnecting } = useEvmWallet();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [showWalletBrowser, setShowWalletBrowser] = useState(false);
+  const hasWalletConnect = !!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
   const isBusy = useMemo(() => isConnecting || !!loadingId, [isConnecting, loadingId]);
 
@@ -155,20 +156,10 @@ export default function WalletButtons({ onError }: Props) {
     }
   }
 
-  async function handleConnectBifrost() {
+  async function handleConnectUniswapWallet() {
     try {
-      setLoadingId('bifrost');
-
-      // Bifrost is typically injected in the wallet's browser.
-      // If we're on mobile and don't have an injected provider, offer the wallet-browser modal.
-      const isMobile = isMobileDevice();
-      const hasInjected = hasInjectedEthereum();
-      if (isMobile && !hasInjected) {
-        setShowWalletBrowser(true);
-        return;
-      }
-
-      await connectBifrost();
+      setLoadingId('uniswap');
+      await connectUniswapWallet();
     } catch (e) {
       onError?.(e);
     } finally {
@@ -206,12 +197,14 @@ export default function WalletButtons({ onError }: Props) {
       </button>
 
       <button
-        className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-sky-500 to-blue-600"
-        onClick={handleConnectBifrost}
-        disabled={isBusy}
+        className="w-full btn-primary flex items-center justify-center gap-3 bg-gradient-to-r from-pink-500 to-fuchsia-600"
+        onClick={handleConnectUniswapWallet}
+        disabled={isBusy || !hasWalletConnect}
+        title={!hasWalletConnect ? 'WalletConnect is not configured (set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID).' : undefined}
       >
-        <span className="text-2xl">🧊</span>
-        <span className="font-bold">Bifrost</span>
+        <span className="text-2xl">🦄</span>
+        <span className="font-bold">Uniswap Wallet</span>
+        {!hasWalletConnect && <span className="ml-2 text-[11px] font-semibold text-slate-200/90">(setup needed)</span>}
       </button>
 
       {/* Client request: explicit 'Open in wallet browser' entry point for mobile */}

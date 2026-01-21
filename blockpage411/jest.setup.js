@@ -9,6 +9,14 @@ try {
   // ignore
 }
 
+// React 18/19: tell React this is an act()-aware test environment (removes noisy warnings)
+try {
+  // @ts-expect-error allow setting global for React act environment
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+} catch {
+  // ignore
+}
+
 try {
   // No-op DB connector for tests
   jest.doMock('lib/db', () => ({ __esModule: true, default: async () => ({}) }));
@@ -123,10 +131,42 @@ try {
       } catch (e) {
         // ignore
       }
+
+      // Close Node's fetch/undici global dispatcher if present.
+      // This can otherwise keep sockets/timers alive for a few seconds and trigger
+      // the "Jest did not exit ..." warning even when tests are clean.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const undici = require('undici');
+        const dispatcher = undici?.getGlobalDispatcher?.();
+        if (dispatcher && typeof dispatcher.close === 'function') {
+          await dispatcher.close();
+        } else if (dispatcher && typeof dispatcher.destroy === 'function') {
+          dispatcher.destroy();
+        }
+      } catch (e) {
+        // ignore
+      }
+
       try {
         // clear any timers left running
         // @ts-expect-error setImmediate may not be present
         if (typeof clearImmediate === 'function') clearImmediate();
+      } catch {}
+
+      // Optional debugging: print active handles if Jest still hangs.
+      // Run with: $env:JEST_DEBUG_HANDLES='1'; npm test
+      try {
+        if (process.env.JEST_DEBUG_HANDLES === '1') {
+          // eslint-disable-next-line no-console
+          console.log('[jest.setup] active handles:',
+            (process._getActiveHandles?.() || []).map((h) => h?.constructor?.name || typeof h)
+          );
+          // eslint-disable-next-line no-console
+          console.log('[jest.setup] active requests:',
+            (process._getActiveRequests?.() || []).map((r) => r?.constructor?.name || typeof r)
+          );
+        }
       } catch {}
     });
   }

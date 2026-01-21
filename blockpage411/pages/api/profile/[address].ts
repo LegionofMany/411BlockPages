@@ -16,6 +16,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     address: user.address,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl || user.nftAvatarUrl,
+    udDomain: user.udDomain,
+    directoryOptIn: Boolean(user.directoryOptIn),
     bio: user.bio,
     socialLinks: user.socialLinks || {
       twitter: user.twitter,

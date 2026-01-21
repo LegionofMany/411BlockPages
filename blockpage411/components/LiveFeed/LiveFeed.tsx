@@ -27,8 +27,8 @@ export default function LiveFeed() {
     bsc: 'connecting',
     polygon: 'connecting',
   });
-  const [whalesOnly, setWhalesOnly] = useState(false);
-  const whalesOnlyRef = useRef(false);
+  const [whalesOnly, setWhalesOnly] = useState(true);
+  const whalesOnlyRef = useRef(true);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastScrollHeightRef = useRef<number>(0);
@@ -44,6 +44,41 @@ export default function LiveFeed() {
   });       
   const seenRef = useRef<Set<string>>(new Set());
   const pollingTimersRef = useRef<Record<string, ReturnType<typeof setInterval> | null>>({});
+
+  const pricesRef = useRef<Record<SupportedNetwork, number | undefined>>({
+    ethereum: undefined,
+    bsc: undefined,
+    polygon: undefined,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchPrices() {
+      try {
+        const url = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,matic-network&vs_currencies=usd';
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return;
+        const js = await res.json().catch(() => ({} as any));
+        if (cancelled) return;
+        const ethUsd = typeof js?.ethereum?.usd === 'number' ? js.ethereum.usd : undefined;
+        const bnbUsd = typeof js?.binancecoin?.usd === 'number' ? js.binancecoin.usd : undefined;
+        const maticUsd = typeof js?.['matic-network']?.usd === 'number' ? js['matic-network'].usd : undefined;
+        pricesRef.current.ethereum = ethUsd;
+        pricesRef.current.bsc = bnbUsd;
+        pricesRef.current.polygon = maticUsd;
+      } catch {
+        // ignore
+      }
+    }
+
+    fetchPrices();
+    const t = setInterval(fetchPrices, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
 
   useEffect(() => {
     whalesOnlyRef.current = whalesOnly;
@@ -184,8 +219,8 @@ export default function LiveFeed() {
               network,
               nativeSymbol: meta.symbol,
               nativeDecimals: meta.decimals,
-              usdPrice: undefined,
-              largeThresholdUsd: 10_000,
+              usdPrice: pricesRef.current[network],
+              largeThresholdUsd: 1_000_000,
             });
 
             if (whalesOnlyRef.current && normalized.label !== '🔥 Whale Transfer Detected') {
@@ -264,8 +299,8 @@ export default function LiveFeed() {
               network,
               nativeSymbol: meta.symbol,
               nativeDecimals: meta.decimals,
-              usdPrice: undefined,
-              largeThresholdUsd: 10_000,
+              usdPrice: pricesRef.current[network],
+              largeThresholdUsd: 1_000_000,
             });
             if (whalesOnlyRef.current && normalized.label !== '🔥 Whale Transfer Detected') continue;
             buffered.push(normalized);
@@ -331,8 +366,8 @@ export default function LiveFeed() {
           <h2 className="text-sm sm:text-base font-semibold" style={{ color: '#fefce8' }}>
             Live Whale Watch Feed
           </h2>
-          <p className="text-[11px] sm:text-xs" style={{ color: '#a5b4fc' }}>
-            Large and notable transactions across Ethereum, BNB Chain, and Polygon.
+          <p className="text-[11px] sm:text-xs" style={{ color: '#cbd5e1' }}>
+            Only transactions estimated above $1,000,000 USD.
           </p>
         </div>
         <div className="flex flex-col items-end gap-2 text-[11px]">
@@ -365,7 +400,7 @@ export default function LiveFeed() {
                 checked={whalesOnly}
                 onChange={(e) => setWhalesOnly(e.target.checked)}
               />
-              <span>Whale transfers only (≥ $10k)</span>
+              <span>Whale transfers only (≥ $1M)</span>
             </label>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-200 border border-emerald-400/40">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />

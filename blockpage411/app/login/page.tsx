@@ -140,7 +140,7 @@ function LoginPageInner() {
       <div className="max-w-md w-full bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-extrabold text-white">Connect Your Wallet</h1>
-          <p className="text-cyan-200 mt-2">to access your Web3 profile</p>
+          <p className="text-slate-200 mt-2">to access your Web3 profile</p>
         </div>
         {!isConnected ? (
           <div className="space-y-4">

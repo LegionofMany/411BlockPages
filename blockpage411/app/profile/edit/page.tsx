@@ -87,6 +87,8 @@ export default function EditProfilePage() {
         setValues({
           displayName: me.displayName || '',
           avatarUrl: me.avatarUrl || '',
+          udDomain: me.udDomain || '',
+          directoryOptIn: Boolean(me.directoryOptIn),
           bio: me.bio || '',
           telegram: me.telegram || '',
           twitter: me.twitter || '',
@@ -300,6 +302,38 @@ export default function EditProfilePage() {
                 placeholder="Short description for your public profile"
                 className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               />
+            </div>
+
+            <div className="grid gap-3">
+              <div>
+                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Unstoppable Domain (UD)</label>
+                <input
+                  value={String(values.udDomain ?? '')}
+                  onChange={e=>setValues({...values, udDomain: e.target.value})}
+                  placeholder="yourname.crypto"
+                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  We verify ownership by resolving the domain to your wallet on save.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded px-3 py-2">
+                <div>
+                  <div className="text-sm font-medium text-slate-100">List me in the Phone Book</div>
+                  <p className="text-xs text-slate-400">Allows others to discover your profile in the directory.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setValues({ ...values, directoryOptIn: !values.directoryOptIn })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${values.directoryOptIn ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                  aria-label="Toggle Phone Book listing"
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${values.directoryOptIn ? 'translate-x-5' : 'translate-x-1'}`}
+                  />
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Telegram</label>

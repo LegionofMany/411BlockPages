@@ -29,6 +29,8 @@ interface MeResponse {
   baseName?: string | null;
   primaryName?: string | null;
   displayName?: string;
+  udDomain?: string | null;
+  directoryOptIn?: boolean;
   nftAvatarUrl?: string;
   socialLinks?: {
     trustScore?: number;
@@ -770,6 +772,24 @@ function ProfilePageInner() {
                 <span className="font-semibold">ENS / Base name:</span>
                 {' '}
                 {me ? (me.primaryName || me.ensName || me.baseName || '—') : <Skeleton className="h-4 w-40" />}
+              </div>
+              <div>
+                <span className="font-semibold">UD:</span>
+                {' '}
+                {me ? (me.udDomain || '—') : <Skeleton className="h-4 w-40" />}
+              </div>
+              <div>
+                <span className="font-semibold">Phone Book:</span>
+                {' '}
+                {me ? (
+                  me.directoryOptIn ? (
+                    <span className="text-slate-100">Listed · <Link className="underline text-slate-200 hover:text-slate-100" href="/phone-book">View directory</Link></span>
+                  ) : (
+                    <span className="text-slate-400">Not listed</span>
+                  )
+                ) : (
+                  <Skeleton className="h-4 w-32" />
+                )}
               </div>
               <div>
                 <span className="font-semibold">Trust score:</span>
