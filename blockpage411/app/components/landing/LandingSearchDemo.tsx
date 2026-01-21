@@ -136,7 +136,9 @@ export default function LandingSearchDemo() {
                         router.push(`/wallet/${encodeURIComponent(r.chain)}/${encodeURIComponent(r.address)}`);
                       } else {
                         // Fallback: default-chain wallet route.
-                        router.push(`/wallet/${encodeURIComponent(r.address)}`);
+                        const dc = (process.env.NEXT_PUBLIC_DEFAULT_CHAIN || 'ethereum').toLowerCase();
+                        const chain = dc === 'eth' ? 'ethereum' : dc;
+                        router.push(`/wallet/${encodeURIComponent(chain)}/${encodeURIComponent(r.address)}`);
                       }
                     }}
                     role="button"
@@ -148,7 +150,9 @@ export default function LandingSearchDemo() {
                         if (r.chain) {
                           router.push(`/wallet/${encodeURIComponent(r.chain)}/${encodeURIComponent(r.address)}`);
                         } else {
-                          router.push(`/wallet/${encodeURIComponent(r.address)}`);
+                          const dc = (process.env.NEXT_PUBLIC_DEFAULT_CHAIN || 'ethereum').toLowerCase();
+                          const chain = dc === 'eth' ? 'ethereum' : dc;
+                          router.push(`/wallet/${encodeURIComponent(chain)}/${encodeURIComponent(r.address)}`);
                         }
                       }
                     }}
