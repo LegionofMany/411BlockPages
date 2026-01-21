@@ -208,7 +208,14 @@ export default function WalletSearchBar({
               // Delay closing so click events on suggestions can fire
               window.setTimeout(() => setSuggestionsOpen(false), 120);
             }}
-            className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-300/70 text-slate-50 ${
+            // Some global/UA styles (especially WebKit autofill/text-fill) can make typed text effectively invisible.
+            // Force the actual rendered text color + caret color here to keep it readable.
+            style={{
+              color: 'rgb(248 250 252)',
+              WebkitTextFillColor: 'rgb(248 250 252)' as any,
+              caretColor: 'rgb(248 250 252)',
+            }}
+            className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-300/70 !text-slate-50 caret-slate-50 ${
               inputClassName || ''
             }`}
             placeholder={placeholder}
