@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 
-import { Button } from "app/components/ui/Button";
 import { Card, CardBody } from "app/components/ui/Card";
 import { ChainPill } from "app/components/ui/ChainPill";
 import { RiskGauge } from "app/components/ui/RiskGauge";
@@ -27,12 +26,13 @@ type SearchResult = {
 };
 
 export default function LandingSearchDemo() {
-  const [q, setQ] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const router = useRouter();
+
+  const demoQuery = 'vitalik.eth';
 
   // core search function used by submit + debounce
   const runSearch = useCallback(
@@ -58,25 +58,10 @@ export default function LandingSearchDemo() {
     []
   );
 
-  // submit handler (explicit search)
-  const onSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    await runSearch(q);
-  };
-
-  // tiny debounce: auto-trigger suggestions when typing stops
   useEffect(() => {
-    if (!q.trim()) {
-      return;
-    }
-
-    const handle = setTimeout(() => {
-      // don't await here to avoid blocking typing; fire-and-forget
-      runSearch(q);
-    }, 400); // 400ms debounce window
-
-    return () => clearTimeout(handle);
-  }, [q, runSearch]);
+    // Auto-load a single example so the landing page doesn't render a second search bar.
+    void runSearch(demoQuery);
+  }, [runSearch]);
 
   const showEmptyMessage = hasSearched && !loading && !error && results.length === 0;
 
@@ -98,42 +83,10 @@ export default function LandingSearchDemo() {
       <CardBody className="space-y-4">
         <div className="flex flex-col gap-2">
           <h2 className="text-sm sm:text-base font-semibold" style={{ color: '#fff' }}>Quick wallet reputation check</h2>
-          <p className="text-xs sm:text-sm text-[var(--muted-text)]">Enter an address or ENS to see a concise trust summary — results are limited in this demo.</p>
+          <p className="text-xs sm:text-sm text-[var(--muted-text)]">
+            Example result for <span className="font-mono text-slate-200">{demoQuery}</span>. Use the search bar above to look up any wallet.
+          </p>
         </div>
-
-        <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row items-stretch" role="search" aria-label="Wallet search demo">
-          <div className="flex-1 flex items-center gap-2 rounded-2xl" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <span className="hidden sm:inline-flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold tracking-wide" style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--muted-text)', border: '1px solid rgba(255,255,255,0.03)' }}>
-              ENS
-            </span>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              aria-label="Search wallets by address or ENS name"
-              className="flex-1 bg-transparent text-sm focus:outline-none landing-search-input"
-              style={{
-                color: "#f8fafc",
-                caretColor: "#9ca3af",
-                outline: 'none'
-              }}
-              placeholder="Search by address or ENS (e.g. vitalik.eth)"
-              autoComplete="off"
-            />
-          </div>
-
-          <Button
-            type="submit"
-            size="md"
-            disabled={loading || !q.trim()}
-            className="w-full sm:w-auto text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed text-white"
-            style={{
-              backgroundColor: '#05d07a',
-              boxShadow: '0 26px 64px rgba(5,208,122,0.55)'
-            }}
-          >
-            {loading ? "Searching…" : "Search"}
-          </Button>
-        </form>
 
         <div className="mt-2 min-h-[4rem]" aria-live="polite" aria-busy={loading}>
           {error && (
@@ -144,7 +97,7 @@ export default function LandingSearchDemo() {
 
           {!error && !loading && !hasSearched && (
             <div className="text-xs text-[var(--muted-text)]">
-              Try something like <span className="font-mono text-[var(--color-info)]">vitalik.eth</span> or a known exchange deposit address.
+              Loading example…
             </div>
           )}
 
@@ -178,26 +131,25 @@ export default function LandingSearchDemo() {
                     key={i}
                     className="rounded-xl bg-[var(--color-bg-dark)]/70 p-3.5 sm:p-4 flex flex-col gap-1.5 cursor-pointer transition hover:scale-[1.01] hover:bg-[var(--color-bg-mid)]/85"
                     onClick={() => {
-                      if (r.address && r.chain) {
-                        router.push(`/wallet/${r.chain}/${encodeURIComponent(r.address)}`);
-                        return;
+                      if (!r.address) return;
+                      if (r.chain) {
+                        router.push(`/wallet/${encodeURIComponent(r.chain)}/${encodeURIComponent(r.address)}`);
+                      } else {
+                        // Fallback: default-chain wallet route.
+                        router.push(`/wallet/${encodeURIComponent(r.address)}`);
                       }
-                      const nextQuery = title;
-                      setQ(nextQuery);
-                      runSearch(nextQuery);
                     }}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        if (r.address && r.chain) {
-                          router.push(`/wallet/${r.chain}/${encodeURIComponent(r.address)}`);
-                          return;
+                        if (!r.address) return;
+                        if (r.chain) {
+                          router.push(`/wallet/${encodeURIComponent(r.chain)}/${encodeURIComponent(r.address)}`);
+                        } else {
+                          router.push(`/wallet/${encodeURIComponent(r.address)}`);
                         }
-                        const nextQuery = title;
-                        setQ(nextQuery);
-                        runSearch(nextQuery);
                       }
                     }}
                   >
