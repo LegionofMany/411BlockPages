@@ -24,7 +24,7 @@ type SearchResult = {
 type ResolveWalletResponse = {
   address: string;
   resolvedFrom: string;
-  chainHint?: 'ethereum' | 'base';
+  chainHint?: string;
 };
 
 type Props = {
@@ -41,6 +41,8 @@ function normalizeChain(chain?: string | null): string {
   const c = String(chain || '').toLowerCase();
   if (!c) return '';
   if (c === 'eth') return 'ethereum';
+  if (c === 'btc') return 'bitcoin';
+  if (c === 'sol') return 'solana';
   return c;
 }
 
