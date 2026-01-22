@@ -67,6 +67,7 @@ export default function CharitiesPage() {
           id="charities-page"
           className="flex-1 w-full max-w-6xl mx-auto rounded-3xl px-4 pb-10 pt-24 sm:px-6 lg:px-8"
           style={{
+            backgroundColor: '#020617',
             background:
               'radial-gradient(circle at top left, rgba(16,185,129,0.35), transparent 55%), radial-gradient(circle at bottom right, rgba(6,95,70,0.6), #020617 70%)',
           }}

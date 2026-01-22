@@ -28,6 +28,7 @@ export default function RootLayout({
         style={{
           fontFamily:
             '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+          backgroundColor: '#0a1020',
           background: 'radial-gradient(circle at top, #1a223a, #0a1020)',
           // reserve space for the fixed navbar
           paddingTop: '4rem'
@@ -37,6 +38,8 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <AuthGate />
             </Suspense>
+            {/* Ensure html[lang] is set for assistive tech and automated audits */}
+            <script dangerouslySetInnerHTML={{ __html: "if(!document.documentElement.lang)document.documentElement.lang='en';" }} />
             {/* Accessible skip link: hidden until focused for keyboard users */}
             <a
               href="#content"

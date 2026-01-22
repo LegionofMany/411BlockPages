@@ -1,4 +1,4 @@
-import { io, Socket } from 'socket.io-client';
+import ioClient from 'socket.io-client';
 import type { NormalizedTransaction, SupportedNetwork, RawWsTransaction } from './normalizeTransaction';
 import { normalizeTransaction } from './normalizeTransaction';
 import { getNativeTokenMetadata } from './parseTokenMetadata';
@@ -41,7 +41,7 @@ export function connectLiveFeed(config: LiveFeedConfig, callbacks: LiveFeedCallb
     (derivedFromEnvApp && !String(derivedFromEnvApp).includes('undefined') ? derivedFromEnvApp : null) ||
     derivedFromWindow;
 
-  let socket: Socket | null = null;
+  let socket: any = null;
 
   function setup() {
     if (!socketUrl) {
@@ -49,14 +49,14 @@ export function connectLiveFeed(config: LiveFeedConfig, callbacks: LiveFeedCallb
       return;
     }
 
-    socket = io(socketUrl, {
+    socket = ioClient(socketUrl, {
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
     });
 
-    socket.on('connect_error', (err) => {
+    socket.on('connect_error', (err: any) => {
       callbacks.onError?.(err as Error);
     });
 

@@ -52,7 +52,7 @@ export default function WalletTransactionsPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center">
-      <main className="flex-1 w-full max-w-3xl px-4 py-8 mt-16" style={{ width: '100%', maxWidth: '800px' }}>
+      <main className="flex-1 w-full max-w-3xl px-4 py-8 mt-8 sm:mt-16">
         <div className="bg-gray-900 rounded-xl shadow-md p-6 border border-slate-800" style={{ boxShadow: '0 6px 18px rgba(2,6,23,0.6)' }}>
           <h2 className="text-2xl font-semibold text-cyan-300 mb-4">Recent Transactions</h2>
           <TransactionList transactions={transactions} />

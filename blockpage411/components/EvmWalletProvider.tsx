@@ -130,7 +130,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const result = await connectAsync({ connector: injectedConnector });
-      const nextAddr = normalizeAddress(result.accounts?.[0]);
+      const nextAddr = normalizeAddress((result as any)?.accounts?.[0]);
       setProviderType('injected');
       if (nextAddr) persistProviderChoice('injected', nextAddr);
     } catch (e: any) {
@@ -144,7 +144,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
     try {
       // Trust Wallet is an injected provider in most environments.
       const result = await connectAsync({ connector: injectedConnector });
-      const nextAddr = normalizeAddress(result.accounts?.[0]);
+      const nextAddr = normalizeAddress((result as any)?.accounts?.[0]);
       setProviderType('injected');
       if (nextAddr) persistProviderChoice('injected', nextAddr);
     } catch (e: any) {
@@ -158,7 +158,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
     try {
       // Bifrost (and many mobile wallets) expose an injected provider.
       const result = await connectAsync({ connector: injectedConnector });
-      const nextAddr = normalizeAddress(result.accounts?.[0]);
+      const nextAddr = normalizeAddress((result as any)?.accounts?.[0]);
       setProviderType('injected');
       if (nextAddr) persistProviderChoice('injected', nextAddr);
     } catch (e: any) {
@@ -171,7 +171,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const result = await connectAsync({ connector: coinbaseConnector });
-      const nextAddr = normalizeAddress(result.accounts?.[0]);
+      const nextAddr = normalizeAddress((result as any)?.accounts?.[0]);
       setProviderType('coinbase');
       if (nextAddr) persistProviderChoice('coinbase', nextAddr);
     } catch (e: any) {
@@ -189,7 +189,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const result = await connectAsync({ connector: walletConnectConnector });
-      const nextAddr = normalizeAddress(result.accounts?.[0]);
+      const nextAddr = normalizeAddress((result as any)?.accounts?.[0]);
       // WalletConnect may connect to multiple chains; treat as injected-style for UI.
       setProviderType('injected');
       if (nextAddr) persistProviderChoice('injected', nextAddr);
@@ -207,7 +207,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
 
         // Silent reconnect should not trigger a permission popup.
         const result = await reconnectAsync();
-        const nextAddr = normalizeAddress(result?.accounts?.[0] || wagmiAddress);
+        const nextAddr = normalizeAddress((result as any)?.accounts?.[0] || wagmiAddress);
         if (nextAddr) return true;
 
         // If explicit user action is allowed, request accounts now.

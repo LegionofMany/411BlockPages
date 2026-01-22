@@ -36,7 +36,7 @@ export default withAdminAuth(async function handler(req: NextApiRequest, res: Ne
   // Send notification email to reporter if they have email on file
   try {
     if (report.reporterUserId) {
-      const user = await User.findOne({ address: String(report.reporterUserId).toLowerCase() }).lean();
+      const user = (await User.findOne({ address: String(report.reporterUserId).toLowerCase() }).lean()) as any;
       if (user && user.email) {
         const transporter = getTransporter();
         const from = process.env.MAIL_FROM || process.env.SMTP_USER || `no-reply@${(process.env.APP_URL || '').replace(/^https?:\/\//,'')}`;

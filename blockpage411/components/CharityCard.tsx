@@ -8,6 +8,7 @@ import { isTrustedGivingBlockEmbed } from '../utils/embed';
 export default function CharityCard({ charity }: { charity: Record<string, unknown> }) {
   const [showEmbed, setShowEmbed] = useState(false);
   const [showOpenNotice, setShowOpenNotice] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const safeTextStyle: React.CSSProperties = { overflowWrap: 'anywhere', wordBreak: 'break-word', maxWidth: '100%' };
 
@@ -17,9 +18,11 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
     try {
       const walletText = String(charity.wallet ?? '');
       await navigator.clipboard.writeText(walletText);
-      alert('Wallet address copied to clipboard');
+      setCopied(walletText);
+      setTimeout(() => setCopied(null), 1500);
     } catch {
-      alert('Copy failed — please select and copy manually');
+      setCopied('failed');
+      setTimeout(() => setCopied(null), 1500);
     }
   };
 
@@ -120,6 +123,9 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
             >
               Copy Wallet
             </button>
+            {copied ? (
+              <span className="ml-2 text-sm text-emerald-300">{copied === 'failed' ? 'Copy failed' : 'Copied'}</span>
+            ) : null}
             {(() => {
               const explorer = explorerUrlFor(String(charity.wallet ?? ''), String(charity.chain ?? ''));
               if (explorer) {

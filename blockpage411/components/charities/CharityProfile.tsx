@@ -108,28 +108,30 @@ export default function CharityProfile({ charity }: Props) {
         {(hasDirectWallet || hasGivingBlockEmbed) && (
           <div className="flex flex-col gap-2 sm:items-end">
             {hasDirectWallet && (
-              <button
-                type="button"
-                onClick={async () => {
-                  const charityKey = String(charity.givingBlockId || charity.charityId || charity._id || '');
-                  if (charityKey) {
-                    try {
-                      await fetch('/api/metrics', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ metric: 'charity_donate_click', charityId: charityKey }),
-                      });
-                    } catch {
-                      // ignore metrics errors
-                    }
-                  }
-                  setShowDonate(true);
-                }}
-                className="mt-2 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black shadow hover:from-emerald-300 hover:to-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-              >
-                Donate
-              </button>
-            )}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const charityKey = String(charity.givingBlockId || charity.charityId || charity._id || '');
+                      if (charityKey) {
+                        try {
+                          await fetch('/api/metrics', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ metric: 'charity_donate_click', charityId: charityKey }),
+                          });
+                        } catch {
+                          // ignore metrics errors
+                        }
+                      }
+                      // store currently focused element so modal can restore focus when closed
+                      (window as any).__bp_restore_focus = document.activeElement as HTMLElement | null;
+                      setShowDonate(true);
+                    }}
+                    className="mt-2 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black shadow hover:from-emerald-300 hover:to-emerald-500 focus:ring-2 focus:ring-emerald-400/60"
+                  >
+                    Donate
+                  </button>
+                )}
             {hasGivingBlockEmbed && (
               <a
                 href={charity.givingBlockEmbedUrl as string}

@@ -34,11 +34,11 @@ export default function DiscordWidget({ className = '' }: { className?: string }
 
   if (!serverId) {
     return (
-      <div className={className}>
-        <div className="text-xs text-slate-400">
+      <div className={className} style={{ backgroundColor: '#070812', padding: 6, borderRadius: 8 }}>
+        <div style={{ color: '#d1fae5' }} className="text-xs">
           Discord widget is not configured.
           {inviteUrl ? (
-            <a className="ml-2 underline hover:text-slate-200" href={inviteUrl} target="_blank" rel="noopener noreferrer">
+            <a className="ml-2 underline" style={{ color: '#9ae6b4' }} href={inviteUrl} target="_blank" rel="noopener noreferrer">
               Join via invite
             </a>
           ) : null}
@@ -85,9 +85,9 @@ export default function DiscordWidget({ className = '' }: { className?: string }
             style={{ border: 0 }}
           />
           {inviteUrl ? (
-            <div className="px-3 py-2 border-t border-slate-700 text-xs text-slate-300 flex items-center justify-between">
-              <span className="text-slate-400">If the widget is blocked, use the invite link.</span>
-              <a className="underline hover:text-slate-100" href={inviteUrl} target="_blank" rel="noopener noreferrer">
+            <div className="px-3 py-2 border-t border-slate-700 text-xs text-emerald-200 flex items-center justify-between">
+              <span className="text-emerald-200">If the widget is blocked, use the invite link.</span>
+              <a className="underline hover:text-emerald-100" href={inviteUrl} target="_blank" rel="noopener noreferrer">
                 Join Discord
               </a>
             </div>

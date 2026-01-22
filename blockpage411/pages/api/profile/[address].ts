@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = (await User.findOne({ address: norm }).lean()) as any;
   if (!user) return res.status(404).json({ message: 'Profile not found' });
   // return only public fields
-  const out = {
+  const out: any = {
     address: user.address,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl || user.nftAvatarUrl,

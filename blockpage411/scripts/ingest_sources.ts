@@ -78,7 +78,7 @@ async function ingestEtherscanLabels() {
 async function ingestOFAC() {
   try {
     const url = 'https://www.treasury.gov/ofac/downloads/sdn.csv';
-    const data = await fetch(url).then(r => r.text()).catch(() => null);
+    const data = await fetch(url).then((r: any) => r.text()).catch(() => null);
     if (!data) return;
     await Raw.create({ source: 'ofac', raw: data });
     // CSV parsing and Ethereum address extraction left intentionally minimal

@@ -17,7 +17,7 @@ export default function CharityGrid({ charities }: Props) {
   }
 
   return (
-    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div role="list" className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {charities.map((c) => (
         <div key={String(c._id || c.givingBlockId || c.charityId || c.name)} role="listitem">
           <CharityCard charity={c} />

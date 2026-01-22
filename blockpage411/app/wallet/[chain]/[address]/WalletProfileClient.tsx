@@ -70,7 +70,11 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   const avatarUrl: string | undefined = data?.nftAvatarUrl || data?.avatarUrl;
   // Support both legacy and new API shapes (`riskScore` vs `risk_score`).
   const riskScore: number | null = typeof data?.risk_score === 'number' ? data.risk_score : (typeof data?.riskScore === 'number' ? data.riskScore : null);
-  const riskCategory = (data?.risk_level || data?.riskCategory || null) as 'low' | 'medium' | 'high' | null;
+  const rawRisk: any = data?.risk_level ?? data?.riskCategory ?? null;
+  let riskCategory: 'green' | 'yellow' | 'red' | null = null;
+  if (rawRisk === 'low' || rawRisk === 'green') riskCategory = 'green';
+  else if (rawRisk === 'medium' || rawRisk === 'yellow') riskCategory = 'yellow';
+  else if (rawRisk === 'high' || rawRisk === 'red') riskCategory = 'red';
   const reputationScore = typeof riskScore === 'number' ? Math.max(0, Math.min(100, 100 - Math.round(riskScore))) : null;
 
   const connectedWallets = Array.isArray(data?.connectedWallets) ? data.connectedWallets : [];
@@ -186,7 +190,7 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
                         const edges = Array.isArray(graph.edges) ? graph.edges : [];
                         const center = { x: 160, y: 90 };
                         const others = nodes.filter((n: any) => n?.kind !== 'target').slice(0, 10);
-                        const placed = others.map((n: any, i: number) => {
+                        const placed: Array<{ id: any; x: number; y: number }> = others.map((n: any, i: number) => {
                           const angle = (i / Math.max(1, others.length)) * Math.PI * 2;
                           return { id: n.id, x: center.x + Math.cos(angle) * 70, y: center.y + Math.sin(angle) * 55 };
                         });

@@ -184,7 +184,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
 
   return (
     <>
-      <nav role="navigation" aria-label="Main" className="site-nav w-full flex items-center justify-between px-4 md:px-8 py-3">
+      <nav role="navigation" aria-label="Main" className="site-nav w-full flex items-center justify-between px-4 md:px-8 py-3" style={{ backgroundColor: '#070812' }}>
         <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-3 focus:outline-none" aria-label="Go to homepage">
             <Image src="/block411-logo.svg" alt="Blockpage411 Logo" width={36} height={36} priority />
