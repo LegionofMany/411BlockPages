@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import DiscordWidget from '../components/DiscordWidget';
+import DiscordCommunitySection from '../components/DiscordCommunitySection';
 
 type Entry = {
   address: string;
@@ -197,7 +197,7 @@ export default function PhoneBookPage() {
 
         <aside className="w-full md:w-[22rem] md:pt-10">
           <div className="rounded-2xl border border-slate-800 bg-black/40 p-4">
-            <DiscordWidget />
+            <DiscordCommunitySection compact />
             <div className="mt-4 text-xs text-slate-400">
               Want to appear here? Enable “List me in the Phone Book” in your profile settings.
             </div>

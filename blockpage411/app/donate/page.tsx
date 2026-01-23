@@ -188,7 +188,7 @@ export default function DonatePage() {
           <a href="https://twitter.com/blockpage411" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-300 text-xl">
             <Image src="/icons/twitter.svg" alt="Twitter" width={32} height={32} />
           </a>
-          <a href="https://discord.gg/blockpage411" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-300 text-xl">
+          <a href="https://discord.gg/z8MgDnHdR" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-300 text-xl">
             <Image src="/icons/discord.svg" alt="Discord" width={32} height={32} />
           </a>
           <a href="mailto:support@blockpage411.com" className="hover:text-cyan-300 text-xl">

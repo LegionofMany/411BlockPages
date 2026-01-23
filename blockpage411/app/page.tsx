@@ -12,6 +12,7 @@ import LandingSearchDemo from "./components/landing/LandingSearchDemo";
 import SocialProof from "./components/landing/SocialProof";
 import FAQ from "./components/landing/FAQ";
 import ThemeProvider from "./components/ThemeProvider";
+import DiscordCommunitySection from "./components/DiscordCommunitySection";
 
 export default function Page() {
   return (
@@ -34,6 +35,9 @@ export default function Page() {
           <SampleWallet />
           <Testimonials />
           <SocialProof />
+          <div className="w-full max-w-6xl mx-auto px-4 py-10">
+            <DiscordCommunitySection />
+          </div>
           <FAQ />
         </main>
         <Footer />

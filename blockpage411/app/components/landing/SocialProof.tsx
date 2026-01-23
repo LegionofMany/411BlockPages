@@ -4,7 +4,7 @@ export default function SocialProof() {
   const links = [
     { name: 'Twitter', href: 'https://twitter.com', symbol: '𝕏', count: '12.3k' },
     { name: 'GitHub', href: 'https://github.com', symbol: '⌘', count: '2.1k' },
-    { name: 'Discord', href: 'https://discord.com', symbol: '◎', count: '8.7k' },
+    { name: 'Discord', href: 'https://discord.gg/z8MgDnHdR', symbol: '◎', count: '8.7k' },
   ];
 
   return (
