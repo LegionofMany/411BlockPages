@@ -6,6 +6,20 @@ import Redis from 'ioredis';
 import { withAdminAuth } from '../../../lib/adminMiddleware';
 import { sanitizeDescription } from '../../../services/givingBlockService';
 
+function normalizeHttpUrl(urlLike?: string | null): string | undefined {
+  const raw = String(urlLike ?? '').trim();
+  if (!raw) return undefined;
+  const candidate = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) ? raw : `https://${raw.replace(/^\/\/+/, '')}`;
+  try {
+    const u = new URL(candidate);
+    const protocol = u.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') return undefined;
+    return u.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 // This endpoint seeds charities from The Giving Block API into the local DB.
 // Protected: in production it requires admin auth (via withAdminAuth). In development it can be called directly.
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -37,9 +51,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         givingBlockId: String(c.id ?? c.organization_id ?? ''),
         name,
         description: sanitizeDescription(String(c.mission ?? c.description ?? '')),
-        website: String(c.website ?? c.url ?? ''),
-        logo: String(c.logoUrl ?? c.logo ?? c.logo_url ?? ''),
-        givingBlockEmbedUrl: String(c.donationWidget ?? c.donation_widget ?? c.embed ?? ''),
+        website: normalizeHttpUrl(String(c.website ?? c.url ?? '')),
+        logo: normalizeHttpUrl(String(c.logoUrl ?? c.logo ?? c.logo_url ?? '')),
+        givingBlockEmbedUrl: normalizeHttpUrl(String(c.donationWidget ?? c.donation_widget ?? c.embed ?? '')),
         wallet: String(c.cryptoWalletAddress ?? c.wallet ?? '')
       };
 

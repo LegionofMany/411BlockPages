@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { CharityDocument } from '../models/Charity';
 
 const API_KEY = process.env.GIVINGBLOCK_API_KEY;
-const BASE_URL = process.env.GIVINGBLOCK_BASE_URL || 'https://public-api.sandbox.thegivingblock.com';
+const BASE_URL = (process.env.GIVINGBLOCK_BASE_URL || 'https://public-api.sandbox.thegivingblock.com').replace(/\/$/, '');
 const WEBHOOK_SECRET = process.env.GIVINGBLOCK_WEBHOOK_SECRET || '';
 const ENCRYPTION_KEY = process.env.GIVINGBLOCK_ENCRYPTION_KEY || '';
 const ENCRYPTION_IV = process.env.GIVINGBLOCK_ENCRYPTION_IV || '';
@@ -102,15 +102,18 @@ async function loginAndGetTokens(): Promise<{ accessToken: string; refreshToken:
   }
 
   const loginUrl = `${BASE_URL}/v1/login`;
-  // Non-sensitive debug to verify env wiring
-  // eslint-disable-next-line no-console
-  console.log('[GivingBlock] login debug', {
-    baseUrl: BASE_URL,
-    username: USERNAME,
-    passwordLength: PASSWORD.length,
-  });
 
-  const res = await fetch(loginUrl, {
+  // Optional non-sensitive debug to verify env wiring (do not log credentials).
+  if (process.env.GIVINGBLOCK_DEBUG === '1') {
+    // eslint-disable-next-line no-console
+    console.log('[GivingBlock] login debug', {
+      baseUrl: BASE_URL,
+      usernameConfigured: Boolean(USERNAME),
+      passwordConfigured: Boolean(PASSWORD),
+    });
+  }
+
+  const res = await fetchWithTimeout(loginUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // API expects fields named `login` and `password` for the Public API user
@@ -151,7 +154,7 @@ async function refreshTokens(): Promise<string> {
   }
 
   const refreshUrl = `${BASE_URL}/v1/refresh-tokens`;
-  const res = await fetch(refreshUrl, {
+  const res = await fetchWithTimeout(refreshUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken: cachedRefreshToken }),
@@ -197,7 +200,7 @@ async function authorizedGivingBlockFetch(path: string, init?: RequestInit): Pro
 
   // Legacy behavior: static API key if provided.
   if (API_KEY) {
-    return fetch(url, {
+    return fetchWithTimeout(url, {
       ...init,
       headers: { ...baseHeaders, Authorization: `Bearer ${API_KEY}` },
       cache: 'no-store',
@@ -210,7 +213,7 @@ async function authorizedGivingBlockFetch(path: string, init?: RequestInit): Pro
     throw new Error('GivingBlock access token is not available');
   }
 
-  let res = await fetch(url, {
+  let res = await fetchWithTimeout(url, {
     ...init,
     headers: { ...baseHeaders, Authorization: `Bearer ${token}` },
     cache: 'no-store',
@@ -218,14 +221,14 @@ async function authorizedGivingBlockFetch(path: string, init?: RequestInit): Pro
 
   if (res.ok) return res;
 
-  // If token expired, try refresh once based on error code.
+  // If token expired/invalid, try refresh once based on error code or status.
   try {
     const cloned = res.clone();
     const errBody = (await cloned.json().catch(() => null)) as any;
     const code = errBody && (errBody.code || errBody.errorCode || errBody.error);
-    if (code === 'EXPIREDJWTTOKEN') {
+    if (code === 'EXPIREDJWTTOKEN' || res.status === 401) {
       token = await refreshTokens();
-      res = await fetch(url, {
+      res = await fetchWithTimeout(url, {
         ...init,
         headers: { ...baseHeaders, Authorization: `Bearer ${token}` },
         cache: 'no-store',
@@ -238,17 +241,25 @@ async function authorizedGivingBlockFetch(path: string, init?: RequestInit): Pro
   return res;
 }
 
+function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
+  const timeoutMs = Math.max(1000, Number(process.env.GIVINGBLOCK_TIMEOUT_MS || '12000'));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeout));
+}
+
 export function normalizeCharity(apiCharity: GivingBlockCharityApi): NormalizedCharity {
   // The Public API and legacy endpoints use a variety of field names.
   // Normalize the common variants without assuming a single contract.
   const anyCharity = apiCharity as any;
-  const website: string | undefined =
+  const website: string | undefined = normalizeHttpUrl(
     anyCharity.website ||
-    anyCharity.url ||
-    anyCharity.websiteUrl ||
-    anyCharity.organizationUrl ||
-    anyCharity.organization_url ||
-    undefined;
+      anyCharity.url ||
+      anyCharity.websiteUrl ||
+      anyCharity.organizationUrl ||
+      anyCharity.organization_url ||
+      undefined,
+  );
 
   const donationAddress: string | undefined =
     anyCharity.walletAddress ||
@@ -256,24 +267,43 @@ export function normalizeCharity(apiCharity: GivingBlockCharityApi): NormalizedC
     anyCharity.wallet ||
     undefined;
 
-  const givingBlockEmbedUrl: string | undefined =
+  const givingBlockEmbedUrl: string | undefined = normalizeHttpUrl(
     anyCharity.donationWidget ||
-    anyCharity.donation_widget ||
-    anyCharity.donationWidgetUrl ||
-    anyCharity.embed ||
-    undefined;
+      anyCharity.donation_widget ||
+      anyCharity.donationWidgetUrl ||
+      anyCharity.embed ||
+      undefined,
+  );
+
+  const logo: string | undefined = normalizeHttpUrl(apiCharity.logo ?? undefined);
 
   return {
     charityId: apiCharity.id,
     name: apiCharity.name,
     description: sanitizeDescription(apiCharity.description ?? undefined),
-    logo: apiCharity.logo ?? undefined,
+    logo,
     website,
     donationAddress,
     givingBlockEmbedUrl,
     wallet: donationAddress,
     categories: apiCharity.categories ?? undefined,
   };
+}
+
+function normalizeHttpUrl(urlLike?: string | null): string | undefined {
+  const raw = String(urlLike ?? '').trim();
+  if (!raw) return undefined;
+
+  // Add scheme if missing.
+  const candidate = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) ? raw : `https://${raw.replace(/^\/\/+/, '')}`;
+  try {
+    const u = new URL(candidate);
+    const protocol = u.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') return undefined;
+    return u.toString();
+  } catch {
+    return undefined;
+  }
 }
 
 // Sanitize free-form HTML descriptions coming from external sources.

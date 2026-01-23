@@ -28,7 +28,7 @@ export default function CharityCard({ charity }: Props) {
     <Link
       href={href}
       aria-label={`Charity ${charity.name}`}
-      className="group relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-600/25 via-emerald-900/40 to-black/90 p-4 transition-transform duration-200 hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.45)] focus:ring-4 focus:ring-emerald-400/30"
+      className="group relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-600/25 via-emerald-900/40 to-black/90 p-4 no-underline transition-transform duration-200 hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.45)] focus:ring-4 focus:ring-emerald-400/30"
     >
       <div className="flex items-start gap-4">
         <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-black/40 border border-emerald-500/30 flex items-center justify-center">

@@ -37,6 +37,17 @@ export default function CharityProfile({ charity }: Props) {
   const [eventsLoading, setEventsLoading] = useState(false);
   const safeTextStyle: React.CSSProperties = { overflowWrap: "anywhere", wordBreak: "break-word", maxWidth: "100%" };
 
+  function normalizeExternalUrl(urlLike?: string): string | undefined {
+    const raw = String(urlLike ?? '').trim();
+    if (!raw) return undefined;
+
+    // If the URL already includes a scheme, keep it.
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw)) return raw;
+
+    // Common case: "www.example.org" or "example.org".
+    return `https://${raw.replace(/^\/\/+/, '')}`;
+  }
+
   const wallets: CharityWallet[] =
     charity.wallets ||
     (charity.donationAddress
@@ -47,6 +58,11 @@ export default function CharityProfile({ charity }: Props) {
 
   const hasDirectWallet = wallets.length > 0;
   const hasGivingBlockEmbed = typeof charity.givingBlockEmbedUrl === "string" && charity.givingBlockEmbedUrl.length > 0;
+
+  const websiteUrl = normalizeExternalUrl(charity.website);
+  const twitterUrl = normalizeExternalUrl(charity.socials?.twitter);
+  const facebookUrl = normalizeExternalUrl(charity.socials?.facebook);
+  const instagramUrl = normalizeExternalUrl(charity.socials?.instagram);
 
   useEffect(() => {
     if (!charity.givingBlockId && !charity.charityId) return;
@@ -180,9 +196,9 @@ export default function CharityProfile({ charity }: Props) {
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Official Links</h2>
           <ul className="mt-2 space-y-1 text-xs">
-            {charity.website ? (
+            {websiteUrl ? (
               <li>
-                <a href={charity.website} target="_blank" rel="noreferrer" className="text-emerald-200 hover:text-emerald-100" aria-label={`Open website for ${charity.name}`}>
+                <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-200 hover:text-emerald-100" aria-label={`Open website for ${charity.name}`}>
                   Visit Website
                 </a>
               </li>
@@ -191,12 +207,12 @@ export default function CharityProfile({ charity }: Props) {
                 <span className="text-emerald-300/60 text-sm">Website not provided by charity</span>
               </li>
             )}
-            {charity.socials?.twitter && (
+            {twitterUrl && (
               <li>
                 <a
-                  href={charity.socials.twitter}
+                  href={twitterUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-emerald-200 hover:text-emerald-100"
                   aria-label={`Open Twitter for ${charity.name}`}
                 >
@@ -204,12 +220,12 @@ export default function CharityProfile({ charity }: Props) {
                 </a>
               </li>
             )}
-            {charity.socials?.facebook && (
+            {facebookUrl && (
               <li>
                 <a
-                  href={charity.socials.facebook}
+                  href={facebookUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-emerald-200 hover:text-emerald-100"
                   aria-label={`Open Facebook for ${charity.name}`}
                 >
@@ -217,12 +233,12 @@ export default function CharityProfile({ charity }: Props) {
                 </a>
               </li>
             )}
-            {charity.socials?.instagram && (
+            {instagramUrl && (
               <li>
                 <a
-                  href={charity.socials.instagram}
+                  href={instagramUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-emerald-200 hover:text-emerald-100"
                   aria-label={`Open Instagram for ${charity.name}`}
                 >
@@ -235,7 +251,7 @@ export default function CharityProfile({ charity }: Props) {
                 <a
                   href={charity.givingBlockEmbedUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-emerald-200 hover:text-emerald-100"
                   aria-label={`Open Giving Block donate page for ${charity.name}`}
                 >
@@ -334,7 +350,7 @@ export default function CharityProfile({ charity }: Props) {
                 src={charity.givingBlockEmbedUrl}
                 className="w-full h-[70vh] max-h-[520px] min-h-[360px]"
                 style={{ border: "none" }}
-                sandbox="allow-forms allow-scripts allow-popups"
+                sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 loading="lazy"
                 referrerPolicy="no-referrer"
               />

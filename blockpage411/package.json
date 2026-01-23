@@ -23,7 +23,8 @@
     "migrate:pledge:index": "ts-node scripts/migrate_pledge_index.ts",
     "test:givingblock:webhook": "ts-node scripts/send_givingblock_webhook.ts",
     "postbuild": "next-sitemap",
-    "cleanup:avatars": "ts-node scripts/cleanup-avatars.ts"
+    "cleanup:avatars": "ts-node scripts/cleanup-avatars.ts",
+    "migrate:charities:normalize-urls": "ts-node -P tsconfig.scripts.json scripts/normalize_charity_urls.ts"
   },
   "cleanupConfig": {
     "avatarCleanupDays": 7

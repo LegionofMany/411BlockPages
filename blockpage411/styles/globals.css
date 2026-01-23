@@ -164,3 +164,18 @@ input, textarea, select, button {
 	word-break: break-word;
 	max-width: 100%;
 }
+
+/* Ensure embedded/HTML charity content never renders default blue links */
+.charity-safe-text a {
+	color: rgba(167, 243, 208, 0.95); /* emerald-200 */
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.charity-safe-text a:visited {
+	color: rgba(110, 231, 183, 0.95); /* emerald-300 */
+}
+
+.charity-safe-text a:hover {
+	color: rgba(209, 250, 229, 1); /* emerald-100 */
+}

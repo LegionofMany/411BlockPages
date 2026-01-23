@@ -5,6 +5,20 @@ import { sanitizeDescription } from '../../../services/givingBlockService';
 import { getCache, setCache } from '../../../lib/redisCache';
 import { withAdminAuth } from '../../../lib/adminMiddleware';
 
+function normalizeHttpUrl(urlLike?: string | null): string | undefined {
+  const raw = String(urlLike ?? '').trim();
+  if (!raw) return undefined;
+  const candidate = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) ? raw : `https://${raw.replace(/^\/\/+/, '')}`;
+  try {
+    const u = new URL(candidate);
+    const protocol = u.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') return undefined;
+    return u.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
   if (req.method === 'GET') {
@@ -83,13 +97,13 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
         const sanitizedDesc = sanitizeDescription(description ?? undefined);
         const created = await Charity.create({
           name,
-          website,
+          website: normalizeHttpUrl(website),
           description: sanitizedDesc,
-          logo,
+          logo: normalizeHttpUrl(logo),
           givingBlockId,
           charityId,
           donationAddress,
-          givingBlockEmbedUrl,
+          givingBlockEmbedUrl: normalizeHttpUrl(givingBlockEmbedUrl),
           tags: Array.isArray(tags) ? tags : undefined,
           categories: Array.isArray(categories) ? categories : undefined,
         });
@@ -102,15 +116,15 @@ async function baseHandler(req: NextApiRequest, res: NextApiResponse) {
       const sanitizedDesc = sanitizeDescription(description ?? undefined);
       const update: any = {
         name,
-        website,
+        website: normalizeHttpUrl(website),
         description: sanitizedDesc,
-        logo,
+        logo: normalizeHttpUrl(logo),
         givingBlockId,
         charityId,
       };
       if (Array.isArray(tags)) update.tags = tags;
       if (Array.isArray(categories)) update.categories = categories;
-      if (typeof givingBlockEmbedUrl === 'string') update.givingBlockEmbedUrl = givingBlockEmbedUrl;
+      if (typeof givingBlockEmbedUrl === 'string') update.givingBlockEmbedUrl = normalizeHttpUrl(givingBlockEmbedUrl);
       if (typeof donationAddress === 'string') update.donationAddress = donationAddress;
 
       const updated = await Charity.findByIdAndUpdate(

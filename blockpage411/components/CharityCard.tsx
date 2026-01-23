@@ -86,7 +86,7 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
                     src={String(charity.givingBlockEmbedUrl ?? '')}
                     style={{ width: '100%', height: 360, border: '1px solid rgba(255,255,255,0.06)' }}
                     // sandbox without allow-same-origin reduces risk; allow scripts/forms/popups for payment flows
-                    sandbox="allow-forms allow-scripts allow-popups"
+                    sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                     loading="lazy"
                     referrerPolicy="no-referrer"
                   />
