@@ -44,53 +44,65 @@ const FlaggedWalletsTable: React.FC<FlaggedWalletsTableProps> = ({ adminWallet }
   }, [adminWallet]);
 
   const handleDismiss = async (address: string, chain: string, flagIndex: number) => {
-    const res = await fetch("/api/admin/dismiss-wallet-flag", {
+    const res = await adminFetch("/api/admin/dismiss-wallet-flag", {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-address": adminWallet
       },
       body: JSON.stringify({ address, chain, flagIndex })
     });
     if (res.ok) {
-  setFlaggedWallets(prev => prev.map(ww => ww.address === address && ww.chain === chain ? { ...ww, flags: ww.flags.filter((_: Flag, idx: number) => idx !== flagIndex) } : ww).filter(ww => ww.flags.length > 0));
+      setFlaggedWallets(prev =>
+        prev
+          .map(ww =>
+            ww.address === address && ww.chain === chain
+              ? { ...ww, flags: ww.flags.filter((_: Flag, idx: number) => idx !== flagIndex) }
+              : ww
+          )
+          .filter(ww => ww.flags.length > 0)
+      );
     }
   };
 
   return (
-    <section>
-      <h2 className="text-xl font-semibold text-yellow-300 mb-4">Flagged Wallets</h2>
+    <section className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/10">
+        <h2 className="text-base sm:text-lg font-semibold text-slate-100">Flagged Wallets</h2>
+      </div>
       {loading ? (
-        <div className="text-yellow-200">Loading flagged wallets...</div>
+        <div className="px-4 py-4 text-slate-200">Loading flagged wallets...</div>
       ) : error ? (
-        <div className="text-red-400">{error}</div>
+        <div className="px-4 py-4 text-red-400">{error}</div>
       ) : flaggedWallets.length === 0 ? (
-        <div className="text-yellow-200">No flagged wallets found.</div>
+        <div className="px-4 py-4 text-slate-200">No flagged wallets found.</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
+          <table className="min-w-full text-xs sm:text-sm">
             <thead>
-              <tr className="bg-yellow-900 text-yellow-200">
-                <th className="py-2 px-4">Address</th>
-                <th className="py-2 px-4">Chain</th>
-                <th className="py-2 px-4"># Flags</th>
-                <th className="py-2 px-4">Flag Details</th>
+              <tr className="bg-white/5 text-slate-200">
+                <th className="py-2 px-4 text-left">Address</th>
+                <th className="py-2 px-4 text-left">Chain</th>
+                <th className="py-2 px-4 text-left"># Flags</th>
+                <th className="py-2 px-4 text-left">Flag Details</th>
               </tr>
             </thead>
             <tbody>
               {flaggedWallets.map(w => (
-                <tr key={w.address + w.chain} className="border-b border-yellow-800 hover:bg-yellow-950">
-                  <td className="py-2 px-4 font-mono text-yellow-300">{w.address}</td>
-                  <td className="py-2 px-4 text-yellow-200">{w.chain}</td>
-                  <td className="py-2 px-4 text-yellow-100">{w.flags.length}</td>
+                <tr key={w.address + w.chain} className="border-t border-white/10 hover:bg-white/5">
+                  <td className="py-2 px-4 font-mono text-slate-200 break-all">{w.address}</td>
+                  <td className="py-2 px-4 text-slate-200 whitespace-nowrap">{w.chain}</td>
+                  <td className="py-2 px-4 text-slate-200 whitespace-nowrap">{w.flags.length}</td>
                   <td className="py-2 px-4">
-                    <ul className="list-disc pl-4 space-y-1">
+                    <ul className="list-disc pl-4 space-y-2">
                       {w.flags.map((f, i) => (
-                        <li key={i} className="text-yellow-100 text-sm flex items-center gap-2">
-                          <span className="font-semibold">{f.user}</span>: {f.reason} <span className="text-xs text-yellow-400">({new Date(f.date).toLocaleString()})</span>
+                        <li key={i} className="text-slate-200 text-xs sm:text-sm flex flex-wrap items-center gap-2">
+                          <span className="font-semibold break-all">{f.user}</span>
+                          <span className="text-white/80 break-words">{f.reason}</span>
+                          <span className="text-xs text-white/50 whitespace-nowrap">({new Date(f.date).toLocaleString()})</span>
                           <button
-                            className="ml-2 px-2 py-0.5 rounded bg-yellow-700 text-white text-xs font-bold hover:bg-yellow-800"
+                            className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
                             onClick={() => handleDismiss(w.address, w.chain, i)}
+                            type="button"
                           >Dismiss</button>
                         </li>
                       ))}

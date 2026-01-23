@@ -39,7 +39,7 @@ const SystemSettingsPanel: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    const res = await fetch("/api/admin/system-settings", {
+    const res = await adminFetch("/api/admin/system-settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings)

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import adminFetch from "./adminFetch";
 
 interface RoleAdminControlsProps {
   address: string;
@@ -12,22 +13,24 @@ const RoleAdminControls: React.FC<RoleAdminControlsProps> = ({ address, chain, c
   const [error, setError] = useState<string | null>(null);
   const roles = ["user", "moderator", "admin"];
   return (
-    <div className="flex gap-1 mt-1">
+    <div className="flex flex-wrap gap-2">
       {roles.map((role) => (
         <button
           key={role}
-          className={`px-2 py-0.5 rounded text-xs font-bold border ${currentRole === role ? 'bg-blue-700 text-white' : 'bg-gray-800 text-blue-200'} ${loading ? 'opacity-60' : ''}`}
+          className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold border transition-colors ${
+            currentRole === role
+              ? 'bg-emerald-500/90 text-black border-emerald-400/60'
+              : 'bg-slate-900/40 text-slate-100 border-slate-600/70 hover:bg-slate-900/70'
+          } ${loading ? 'opacity-60' : ''}`}
           disabled={loading || currentRole === role}
           onClick={async () => {
             setLoading(true);
             setError(null);
             try {
-              const adminWallet = localStorage.getItem("wallet") || "";
-              const res = await fetch("/api/admin/role", {
+              const res = await adminFetch("/api/admin/role", {
                 method: "PATCH",
                 headers: {
                   "Content-Type": "application/json",
-                  "x-admin-address": adminWallet
                 },
                 body: JSON.stringify({ address, chain, role })
               });
@@ -47,7 +50,7 @@ const RoleAdminControls: React.FC<RoleAdminControlsProps> = ({ address, chain, c
           {role.charAt(0).toUpperCase() + role.slice(1)}
         </button>
       ))}
-      {error && <span className="ml-2 text-red-400 text-xs">{error}</span>}
+      {error && <span className="w-full text-red-400 text-xs">{error}</span>}
     </div>
   );
 };

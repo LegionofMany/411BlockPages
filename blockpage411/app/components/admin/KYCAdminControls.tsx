@@ -13,11 +13,15 @@ const KYCAdminControls: React.FC<KYCAdminControlsProps> = ({ address, chain, cur
   const [error, setError] = useState<string | null>(null);
   const statuses = ["verified", "pending", "rejected"];
   return (
-    <div className="flex gap-1 mt-1">
+    <div className="flex flex-wrap gap-2">
       {statuses.map((status) => (
         <button
           key={status}
-          className={`px-2 py-0.5 rounded text-xs font-bold border ${currentStatus === status ? 'bg-cyan-700 text-white' : 'bg-gray-800 text-cyan-200'} ${loading ? 'opacity-60' : ''}`}
+          className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold border transition-colors ${
+            currentStatus === status
+              ? 'bg-emerald-500/90 text-black border-emerald-400/60'
+              : 'bg-slate-900/40 text-slate-100 border-slate-600/70 hover:bg-slate-900/70'
+          } ${loading ? 'opacity-60' : ''}`}
           disabled={loading || currentStatus === status}
           onClick={async () => {
             setLoading(true);
@@ -51,7 +55,7 @@ const KYCAdminControls: React.FC<KYCAdminControlsProps> = ({ address, chain, cur
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </button>
       ))}
-      {error && <span className="ml-2 text-red-400 text-xs">{error}</span>}
+      {error && <span className="w-full text-red-400 text-xs">{error}</span>}
     </div>
   );
 };

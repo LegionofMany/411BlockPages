@@ -1,16 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import AdminLayout from "../../components/admin/AdminLayout";
-import useAdminWallet from "../../hooks/useAdminWallet";
+import AdminGate from "../../components/admin/AdminGate";
 import adminFetch from '../../components/admin/adminFetch';
 
 export default function KycReview() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const pathname = usePathname() || "/admin/kyc-review";
-  const { adminWallet } = useAdminWallet();
 
   useEffect(() => {
     (async () => {
@@ -95,22 +91,8 @@ export default function KycReview() {
     }
   }
 
-  if (loading)
-    return (
-      <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
-        <div className="text-sm text-slate-300">Loading pending social verifications…</div>
-      </AdminLayout>
-    );
-
-  if (error)
-    return (
-      <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
-        <div className="text-sm text-red-400">{error}</div>
-      </AdminLayout>
-    );
-
   return (
-    <AdminLayout currentPath={pathname} adminWallet={adminWallet}>
+    <AdminGate title="Admin — KYC Review">
       <section className="mb-6 max-w-5xl">
         <h2 className="text-xl md:text-2xl font-semibold text-emerald-100 mb-1">
           Pending Social Verifications
@@ -132,13 +114,21 @@ export default function KycReview() {
         </div>
       </section>
 
+      {loading ? (
+        <div className="text-sm text-slate-300">Loading pending social verifications…</div>
+      ) : null}
+
+      {error ? (
+        <div className="text-sm text-red-400">{error}</div>
+      ) : null}
+
       <section className="max-w-5xl">
-        {items.length === 0 ? (
+        {!loading && !error && items.length === 0 ? (
           <div className="rounded-3xl border border-slate-600/60 bg-black/60 px-4 py-6 text-sm text-slate-200">
             No pending items right now. New submissions will appear here in
             real-time.
           </div>
-        ) : (
+        ) : !loading && !error ? (
           <div className="space-y-4">
             {items.map((u, i) => (
               <div
@@ -190,8 +180,8 @@ export default function KycReview() {
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </section>
-    </AdminLayout>
+    </AdminGate>
   );
 }

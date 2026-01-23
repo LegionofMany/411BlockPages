@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from "react";
+import adminFetch from "./adminFetch";
 
 interface AdminAction {
   admin: string;
@@ -19,10 +20,11 @@ const AuditLogTable: React.FC<{ adminWallet: string }> = ({ adminWallet }) => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/admin/audit-logs?page=${page}&pageSize=${pageSize}` , {
-      headers: { "x-admin-address": adminWallet }
-    })
-      .then(res => res.json())
+    adminFetch(`/api/admin/audit-logs?page=${page}&pageSize=${pageSize}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         // map server AuditLog to UI shape
         const items = (data.logs || []).map((l: any) => ({
@@ -39,7 +41,7 @@ const AuditLogTable: React.FC<{ adminWallet: string }> = ({ adminWallet }) => {
         setError("Failed to load audit log");
         setLoading(false);
       });
-  }, [adminWallet]);
+  }, [adminWallet, page]);
 
   return (
     <section className="mb-12">

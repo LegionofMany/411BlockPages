@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import RiskBadge from "../../../components/RiskBadge";
-import AdminLayout from "../../components/admin/AdminLayout";
+import AdminGate from "../../components/admin/AdminGate";
+import adminFetch from "../../components/admin/adminFetch";
 
 type RiskCategory = "green" | "yellow" | "red";
 
@@ -22,13 +22,12 @@ export default function AdminRiskPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
-  const pathname = usePathname() || "/admin/risk";
 
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
-        const res = await fetch("/api/admin/risk-wallets");
+        const res = await adminFetch("/api/admin/risk-wallets");
         if (!res.ok) {
           throw new Error(`Failed to load wallets (${res.status})`);
         }
@@ -51,7 +50,7 @@ export default function AdminRiskPage() {
 
     try {
       setSaving(`${chain}:${address}`);
-      const res = await fetch("/api/admin/risk-wallets", {
+      const res = await adminFetch("/api/admin/risk-wallets", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, chain, riskScore: score, riskCategory: category }),
@@ -75,7 +74,7 @@ export default function AdminRiskPage() {
   }
 
   return (
-    <AdminLayout currentPath={pathname} adminWallet={""}>
+    <AdminGate title="Admin — Wallet Risk Scores">
       <section className="mb-6 max-w-6xl">
         <h2 className="text-xl md:text-2xl font-semibold text-amber-100 mb-1">
           Wallet Risk Overrides
@@ -143,7 +142,11 @@ export default function AdminRiskPage() {
                       <td className="px-3 py-2 align-top">
                         <form
                           className="flex flex-col gap-2 text-xs text-cyan-100"
-                          action={formData => handleOverride(w.address, w.chain, formData)}
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            handleOverride(w.address, w.chain, formData);
+                          }}
                         >
                           <div className="flex gap-2">
                             <input
@@ -182,6 +185,6 @@ export default function AdminRiskPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </AdminGate>
   );
 }

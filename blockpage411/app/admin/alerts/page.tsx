@@ -1,68 +1,90 @@
-import React from 'react';
-import { headers } from 'next/headers';
-import AdminLayout from '../../components/admin/AdminLayout';
-import { redirect } from 'next/navigation';
+"use client";
 
-async function getAlerts(forwardedHeaders: Record<string, string | undefined>) {
-  const base = process.env.NEXT_PUBLIC_APP_URL || '';
-  const res = await fetch(`${base}/api/admin/alerts`, {
-    cache: 'no-store',
-    headers: {
-      Accept: 'application/json',
-      // forward authorization/admin header if present
-      Authorization: forwardedHeaders['authorization'] ?? '',
-      'x-admin-wallet': forwardedHeaders['x-admin-wallet'] ?? '',
-    },
-  });
-  if (res.status === 403) return { ok: false, forbidden: true, alerts: [] };
-  if (!res.ok) return { ok: false, forbidden: false, alerts: [] };
-  const json = await res.json();
-  return { ok: true, forbidden: false, alerts: json.alerts ?? [] };
-}
+import React, { useEffect, useState } from 'react';
+import AdminGate from '../../components/admin/AdminGate';
+import adminFetch from '../../components/admin/adminFetch';
 
-async function getAlertsHealth(forwardedHeaders: Record<string, string | undefined>) {
-  const base = process.env.NEXT_PUBLIC_APP_URL || '';
-  const res = await fetch(`${base}/api/admin/alerts/health`, {
-    cache: 'no-store',
-    headers: {
-      Accept: 'application/json',
-      Authorization: forwardedHeaders['authorization'] ?? '',
-      'x-admin-wallet': forwardedHeaders['x-admin-wallet'] ?? '',
-    },
-  });
-  if (!res.ok) return { ok: false, counts: { pending: 0, failed: 0, total: 0 } };
-  const j = await res.json();
-  return { ok: !!j.ok, counts: j.counts ?? { pending: 0, failed: 0, total: 0 } };
-}
+type AlertItem = {
+  _id: string;
+  level?: string;
+  fundraiserTitle?: string;
+  fundraiserId?: string;
+  txHash?: string;
+  message?: string;
+  status?: string;
+  attempts?: number;
+  createdAt?: string | number | Date;
+};
 
-export default async function Page() {
-  const h = await headers();
-  const forwarded: Record<string, string | undefined> = {
-    authorization: h.get('authorization') ?? undefined,
-    'x-admin-wallet': h.get('x-admin-wallet') ?? undefined,
-  };
-  const result = await getAlerts(forwarded);
-  const health = await getAlertsHealth(forwarded);
-  if (result.forbidden) {
-    // fallback: send non-admins to main admin gate, which already has
-    // a friendly access denied screen
-    redirect('/admin');
+type HealthCounts = { pending: number; failed: number; total: number };
+
+export default function Page() {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [health, setHealth] = useState<HealthCounts>({ pending: 0, failed: 0, total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const [alertsRes, healthRes] = await Promise.all([
+        adminFetch('/api/admin/alerts'),
+        adminFetch('/api/admin/alerts/health'),
+      ]);
+
+      if (alertsRes.status === 403 || healthRes.status === 403) {
+        setError('Not authorized');
+        setAlerts([]);
+        setHealth({ pending: 0, failed: 0, total: 0 });
+        return;
+      }
+
+      if (!alertsRes.ok) throw new Error(`Alerts request failed (${alertsRes.status})`);
+      if (!healthRes.ok) throw new Error(`Health request failed (${healthRes.status})`);
+
+      const alertsJson = await alertsRes.json();
+      const healthJson = await healthRes.json();
+      setAlerts(Array.isArray(alertsJson.alerts) ? alertsJson.alerts : []);
+      setHealth(healthJson.counts ?? { pending: 0, failed: 0, total: 0 });
+    } catch (e) {
+      console.error(e);
+      setError('Failed to load alerts');
+    } finally {
+      setLoading(false);
+    }
   }
-  type AlertItem = {
-    _id: string;
-    level?: string;
-    fundraiserTitle?: string;
-    fundraiserId?: string;
-    txHash?: string;
-    message?: string;
-    status?: string;
-    attempts?: number;
-    createdAt?: string | number | Date;
-  };
-  const alerts = result.alerts as AlertItem[];
-  // adminWallet not surfaced from headers here; show placeholder in shell
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function retry() {
+    setRetrying(true);
+    setError(null);
+    try {
+      const res = await adminFetch('/api/admin/alerts/retry');
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        setError('Not authorized');
+        return;
+      }
+      if (!res.ok) {
+        setError(json?.error || 'Retry failed');
+        return;
+      }
+      await load();
+    } catch (e) {
+      console.error(e);
+      setError('Retry failed');
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   return (
-    <AdminLayout currentPath="/admin/alerts" adminWallet="">
+    <AdminGate title="Admin — Alerts">
       <section className="mb-6 max-w-6xl">
         <h2 className="text-xl md:text-2xl font-semibold text-amber-100 mb-1">Alerts & Delivery Health</h2>
         <p className="text-sm text-slate-300/90">
@@ -71,20 +93,45 @@ export default async function Page() {
         </p>
       </section>
 
+      {error ? (
+        <div className="max-w-6xl rounded-3xl border border-red-500/40 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
+
+      <section className="max-w-6xl flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="inline-flex items-center rounded-full border border-slate-600/70 bg-slate-900/50 px-4 py-2 text-xs font-semibold text-slate-100 hover:bg-slate-900/80 transition-colors disabled:opacity-60"
+          onClick={load}
+          disabled={loading}
+        >
+          Refresh
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center rounded-full bg-amber-500/90 px-4 py-2 text-xs font-semibold text-black hover:bg-amber-400 transition-colors disabled:opacity-60"
+          onClick={retry}
+          disabled={retrying}
+        >
+          {retrying ? 'Retrying…' : 'Retry pending/failed'}
+        </button>
+      </section>
+
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-6xl mb-6">
         <div className="rounded-3xl bg-black/70 border border-amber-400/30 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4 text-sm">
           <div className="text-xs uppercase tracking-[0.16em] text-amber-200/90 mb-1">Pending</div>
-          <div className="text-2xl font-semibold text-amber-100">{health.counts.pending}</div>
+          <div className="text-2xl font-semibold text-amber-100">{health.pending}</div>
           <p className="mt-1 text-[11px] text-amber-100/80">Alerts queued for processing.</p>
         </div>
         <div className="rounded-3xl bg-black/70 border border-red-500/40 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4 text-sm">
           <div className="text-xs uppercase tracking-[0.16em] text-red-200/90 mb-1">Failed</div>
-          <div className="text-2xl font-semibold text-red-100">{health.counts.failed}</div>
+          <div className="text-2xl font-semibold text-red-100">{health.failed}</div>
           <p className="mt-1 text-[11px] text-red-100/80">Alerts that need admin review.</p>
         </div>
         <div className="rounded-3xl bg-black/70 border border-emerald-500/30 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4 text-sm">
           <div className="text-xs uppercase tracking-[0.16em] text-emerald-200/90 mb-1">Total</div>
-          <div className="text-2xl font-semibold text-emerald-100">{health.counts.total}</div>
+          <div className="text-2xl font-semibold text-emerald-100">{health.total}</div>
           <p className="mt-1 text-[11px] text-emerald-100/80">Alerts observed in the current window.</p>
         </div>
       </section>
@@ -127,6 +174,6 @@ export default async function Page() {
           </div>
         </div>
       </section>
-    </AdminLayout>
+    </AdminGate>
   );
 }

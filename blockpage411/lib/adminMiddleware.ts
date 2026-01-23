@@ -16,7 +16,9 @@ export function withAdminAuth(handler: NextApiHandler) {
       return res.status(500).json({ error: 'server_misconfigured', message: 'admin wallets not configured' });
     }
 
-    const admin = req.headers['x-admin-address']?.toString().toLowerCase();
+    const admin = (req.headers['x-admin-address'] || req.headers['x-admin-wallet'])
+      ?.toString()
+      .toLowerCase();
     if (!admin || !ADMIN_WALLETS.includes(admin)) {
       console.warn('[withAdminAuth] Access denied for', admin, 'allowed:', ADMIN_WALLETS);
       return res.status(403).json({ message: 'Not authorized' });

@@ -58,7 +58,7 @@ const AdminWalletsTable: React.FC = () => {
 
   const handleDelete = async (address: string, chain: string) => {
     if (!window.confirm("Are you sure you want to delete this account?")) return;
-    setDeleting(address);
+    setDeleting(`${chain}:${address}`);
     try {
       const res = await adminFetch("/api/admin/delete-wallet", {
         method: "POST",
@@ -80,7 +80,7 @@ const AdminWalletsTable: React.FC = () => {
   };
 
   const handleBlacklist = async (address: string, chain: string, blacklisted: boolean) => {
-    setBlacklisting(address);
+    setBlacklisting(`${chain}:${address}`);
     try {
       const res = await adminFetch("/api/admin/blacklist-wallet", {
         method: "POST",
@@ -103,71 +103,108 @@ const AdminWalletsTable: React.FC = () => {
 
   return (
     <section className="mb-0">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-cyan-200">All Wallets</h2>
-      </div>
-      {loading ? (
-        <div className="text-cyan-200">Loading wallets...</div>
-      ) : error ? (
-        <div className="text-red-400">{error}</div>
-      ) : (
-        <div className="-mx-4 sm:mx-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
-            <thead>
-              <tr className="bg-blue-900 text-cyan-200">
-                <th className="py-2 px-4">Address</th>
-                <th className="py-2 px-4">Chain</th>
-                <th className="py-2 px-4">KYC</th>
-                <th className="py-2 px-4">Flags</th>
-                <th className="py-2 px-4">Blacklisted</th>
-                <th className="py-2 px-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {wallets.map(w => (
-                <tr key={w.address + w.chain} className="border-b border-blue-800 hover:bg-blue-950">
-                  <td className="py-2 px-4 font-mono text-green-300">{w.address}</td>
-                  <td className="py-2 px-4 text-cyan-200">{w.chain}</td>
-                  <td className="py-2 px-4 text-cyan-100">
-                    <span>{w.kycStatus || "-"}</span>
-                    <KYCAdminControls address={w.address} chain={w.chain} currentStatus={w.kycStatus || ""} onUpdate={status => handleUpdateKYC(w.address, w.chain, status)} />
-                    <button
-                      className="ml-2 px-2 py-0.5 rounded bg-cyan-800 text-white text-xs font-bold hover:bg-cyan-900"
-                      onClick={() => setKycModal({ open: true, wallet: w })}
-                    >View KYC Details</button>
-                  </td>
-                  <td className="py-2 px-4 text-blue-200">
-                    <span>{w.role || "user"}</span>
-                    <RoleAdminControls address={w.address} chain={w.chain} currentRole={w.role || "user"} onUpdate={role => handleUpdateRole(w.address, w.chain, role)} />
-                  </td>
-                  <td className="py-2 px-4 text-yellow-200">{w.flags?.length || 0}</td>
-                  <td className="py-2 px-4 text-red-400">{w.blacklisted ? "Yes" : "No"}</td>
-                  <td className="py-2 px-4 flex gap-2">
-                    <button
-                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded disabled:opacity-60"
-                      disabled={deleting === w.address}
-                      onClick={() => handleDelete(w.address, w.chain)}
-                    >
-                      {deleting === w.address ? "Deleting..." : "Delete"}
-                    </button>
-                    <button
-                      className={`py-1 px-3 rounded font-bold disabled:opacity-60 ${w.blacklisted ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'bg-gray-700 hover:bg-green-700 text-green-200'}`}
-                      disabled={blacklisting === w.address}
-                      onClick={() => handleBlacklist(w.address, w.chain, w.blacklisted!)}
-                    >
-                      {blacklisting === w.address
-                        ? (w.blacklisted ? 'Un-blacklisting...' : 'Blacklisting...')
-                        : (w.blacklisted ? 'Un-blacklist' : 'Blacklist')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+      <div className="rounded-3xl border border-slate-700/70 bg-black/70 shadow-[0_18px_45px_rgba(0,0,0,0.9)] overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-700/70 flex items-center justify-between text-xs text-slate-200">
+          <span>All wallets</span>
+          <span className="text-slate-400">{wallets.length} item(s)</span>
         </div>
-      )}
+
+        {loading ? (
+          <div className="p-4 text-sm text-slate-300">Loading wallets…</div>
+        ) : error ? (
+          <div className="p-4 text-sm text-red-400">{error}</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs">
+              <thead className="bg-slate-900/80 text-slate-200">
+                <tr>
+                  <th className="py-2 px-3 text-left">Address</th>
+                  <th className="py-2 px-3 text-left">Chain</th>
+                  <th className="py-2 px-3 text-left">KYC</th>
+                  <th className="py-2 px-3 text-left">Role</th>
+                  <th className="py-2 px-3 text-left">Flags</th>
+                  <th className="py-2 px-3 text-left">Blacklisted</th>
+                  <th className="py-2 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-slate-950/60 divide-y divide-slate-800/80">
+                {wallets.map((w) => {
+                  const key = `${w.chain}:${w.address}`;
+                  return (
+                    <tr key={key} className="hover:bg-slate-900/70 transition-colors">
+                      <td className="py-2 px-3 font-mono text-[10px] text-emerald-200 break-all">{w.address}</td>
+                      <td className="py-2 px-3 text-slate-200">{w.chain}</td>
+                      <td className="py-2 px-3 text-slate-200">
+                        <div className="flex flex-col gap-2">
+                          <div className="inline-flex items-center gap-2">
+                            <span className="inline-flex rounded-full border border-slate-600/70 bg-slate-900/40 px-3 py-1 text-[11px] text-slate-200">
+                              {w.kycStatus || "-"}
+                            </span>
+                            <button
+                              type="button"
+                              className="inline-flex items-center rounded-full border border-slate-600/70 bg-slate-900/40 px-3 py-1 text-[11px] font-semibold text-slate-100 hover:bg-slate-900/70 transition-colors"
+                              onClick={() => setKycModal({ open: true, wallet: w })}
+                            >
+                              View details
+                            </button>
+                          </div>
+                          <KYCAdminControls
+                            address={w.address}
+                            chain={w.chain}
+                            currentStatus={w.kycStatus || ""}
+                            onUpdate={(status) => handleUpdateKYC(w.address, w.chain, status)}
+                          />
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-slate-200">
+                        <div className="flex flex-col gap-2">
+                          <span className="inline-flex w-fit rounded-full border border-slate-600/70 bg-slate-900/40 px-3 py-1 text-[11px] text-slate-200">
+                            {w.role || "user"}
+                          </span>
+                          <RoleAdminControls
+                            address={w.address}
+                            chain={w.chain}
+                            currentRole={w.role || "user"}
+                            onUpdate={(role) => handleUpdateRole(w.address, w.chain, role)}
+                          />
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-slate-200">{w.flags?.length || 0}</td>
+                      <td className="py-2 px-3 text-slate-200">{w.blacklisted ? "Yes" : "No"}</td>
+                      <td className="py-2 px-3">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex items-center rounded-full bg-red-600/90 px-3 py-1 text-[11px] font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-60"
+                            disabled={deleting === key}
+                            onClick={() => handleDelete(w.address, w.chain)}
+                          >
+                            {deleting === key ? "Deleting…" : "Delete"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold transition-colors disabled:opacity-60 ${
+                              w.blacklisted
+                                ? 'bg-amber-500/90 text-black hover:bg-amber-400'
+                                : 'border border-slate-600/70 bg-slate-900/40 text-slate-100 hover:bg-slate-900/70'
+                            }`}
+                            disabled={blacklisting === key}
+                            onClick={() => handleBlacklist(w.address, w.chain, !!w.blacklisted)}
+                          >
+                            {blacklisting === key
+                              ? (w.blacklisted ? 'Un-blacklisting…' : 'Blacklisting…')
+                              : (w.blacklisted ? 'Un-blacklist' : 'Blacklist')}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
       <KYCDetailsModal
         isOpen={kycModal.open}
         wallet={kycModal.wallet}

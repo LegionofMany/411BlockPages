@@ -50,11 +50,10 @@ const FlaggedTransactionsTable: React.FC<FlaggedTransactionsTableProps> = ({ adm
   }, [adminWallet]);
 
   const handleDismiss = async (txid: string, chain: string, address: string, flagIndex: number) => {
-    const res = await fetch("/api/admin/dismiss-transaction-flag", {
+    const res = await adminFetch("/api/admin/dismiss-transaction-flag", {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-address": adminWallet
       },
       body: JSON.stringify({ txid, chain, address, flagIndex })
     });
@@ -62,7 +61,7 @@ const FlaggedTransactionsTable: React.FC<FlaggedTransactionsTableProps> = ({ adm
       setFlaggedTxs(prev => prev.map(t => {
         if (t.txid === txid && t.chain === chain && t.address === address) {
           const flags = (t.flags || []).filter((_: Flag, idx: number) => idx !== flagIndex);
-          return { ...t, flags, flagged: flags.length > 1 };
+          return { ...t, flags, flagged: flags.length > 0 };
         }
         return t;
       }).filter(t => t.flagged !== false));
@@ -70,11 +69,10 @@ const FlaggedTransactionsTable: React.FC<FlaggedTransactionsTableProps> = ({ adm
   };
 
   const handleResolve = async (txid: string, chain: string, address: string) => {
-    const res = await fetch("/api/admin/dismiss-transaction-flag", {
+    const res = await adminFetch("/api/admin/dismiss-transaction-flag", {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-address": adminWallet
       },
       body: JSON.stringify({ txid, chain, address, flagIndex: null })
     });
@@ -103,77 +101,84 @@ const FlaggedTransactionsTable: React.FC<FlaggedTransactionsTableProps> = ({ adm
   };
 
   return (
-    <section>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-pink-300">Flagged Transactions</h2>
+    <section className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-b border-white/10">
+        <h2 className="text-base sm:text-lg font-semibold text-slate-100">Flagged Transactions</h2>
         <div className="flex items-center gap-2">
           <button
-            className="bg-pink-700 hover:bg-pink-800 text-white px-3 py-1.5 rounded text-sm font-bold"
+            className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
             onClick={handleExportCSV}
+            type="button"
           >
             Download CSV
           </button>
         </div>
       </div>
       {loading ? (
-        <div className="text-pink-200">Loading flagged transactions...</div>
+        <div className="px-4 py-4 text-slate-200">Loading flagged transactions...</div>
       ) : error ? (
-        <div className="text-red-400">{error}</div>
+        <div className="px-4 py-4 text-red-400">{error}</div>
       ) : flaggedTxs.length === 0 ? (
-        <div className="text-pink-200">No flagged transactions found.</div>
+        <div className="px-4 py-4 text-slate-200">No flagged transactions found.</div>
       ) : (
-        <div className="-mx-4 sm:mx-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-gray-900 rounded-xl shadow-xl">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-xs sm:text-sm">
             <thead>
-              <tr className="bg-pink-900 text-pink-200">
-                <th className="py-2 px-4">TxID</th>
-                <th className="py-2 px-4">Chain</th>
-                <th className="py-2 px-4">Address</th>
-                <th className="py-2 px-4">From</th>
-                <th className="py-2 px-4">To</th>
-                <th className="py-2 px-4">Value</th>
-                <th className="py-2 px-4">Date</th>
-                <th className="py-2 px-4"># Flags</th>
-                <th className="py-2 px-4">Flag Details</th>
-                <th className="py-2 px-4">Actions</th>
+              <tr className="bg-white/5 text-slate-200">
+                <th className="py-2 px-4 text-left">TxID</th>
+                <th className="py-2 px-4 text-left">Chain</th>
+                <th className="py-2 px-4 text-left">Address</th>
+                <th className="py-2 px-4 text-left">From</th>
+                <th className="py-2 px-4 text-left">To</th>
+                <th className="py-2 px-4 text-left">Value</th>
+                <th className="py-2 px-4 text-left">Date</th>
+                <th className="py-2 px-4 text-left"># Flags</th>
+                <th className="py-2 px-4 text-left">Flag Details</th>
+                <th className="py-2 px-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
               {flaggedTxs.map(tx => (
-                <tr key={tx.txid + tx.chain + tx.address} className="border-b border-pink-800 hover:bg-pink-950">
-                  <td className="py-2 px-4 font-mono text-pink-300">{tx.txid}</td>
-                  <td className="py-2 px-4 text-pink-200">{tx.chain}</td>
-                  <td className="py-2 px-4 text-pink-100">{tx.address}</td>
-                  <td className="py-2 px-4 text-pink-100">{tx.from}</td>
-                  <td className="py-2 px-4 text-pink-100">{tx.to}</td>
-                  <td className="py-2 px-4 text-pink-100">{tx.value}</td>
-                  <td className="py-2 px-4 text-pink-100">{tx.date ? new Date(tx.date).toLocaleString() : '-'}</td>
-                  <td className="py-2 px-4 text-pink-100">{tx.flags?.length || 0}</td>
+                <tr key={tx.txid + tx.chain + tx.address} className="border-t border-white/10 hover:bg-white/5">
+                  <td className="py-2 px-4 font-mono text-slate-200 break-all">{tx.txid}</td>
+                  <td className="py-2 px-4 text-slate-200 whitespace-nowrap">{tx.chain}</td>
+                  <td className="py-2 px-4 font-mono text-slate-200 break-all">{tx.address}</td>
+                  <td className="py-2 px-4 font-mono text-slate-300 break-all">{tx.from}</td>
+                  <td className="py-2 px-4 font-mono text-slate-300 break-all">{tx.to}</td>
+                  <td className="py-2 px-4 text-slate-200 whitespace-nowrap">{tx.value}</td>
+                  <td className="py-2 px-4 text-slate-300 whitespace-nowrap">{tx.date ? new Date(tx.date).toLocaleString() : '-'}</td>
+                  <td className="py-2 px-4 text-slate-200 whitespace-nowrap">{tx.flags?.length || 0}</td>
                   <td className="py-2 px-4">
-                    <ul className="list-disc pl-4 space-y-1">
+                    <ul className="list-disc pl-4 space-y-2">
                       {tx.flags?.map((f, i) => (
-                        <li key={i} className="text-pink-100 text-sm flex items-center gap-2">
-                          <span className="font-semibold">{f.user}</span>: {f.reason} <span className="text-xs text-pink-400">({f.date ? new Date(f.date).toLocaleString() : '-'})</span>
+                        <li key={i} className="text-slate-200 text-xs sm:text-sm flex flex-wrap items-center gap-2">
+                          <span className="font-semibold break-all">{f.user}</span>
+                          <span className="text-white/80 break-words">{f.reason}</span>
+                          <span className="text-xs text-white/50 whitespace-nowrap">({f.date ? new Date(f.date).toLocaleString() : '-'})</span>
                           <button
-                            className="ml-2 px-2 py-0.5 rounded bg-pink-700 text-white text-xs font-bold hover:bg-pink-800"
+                            className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
                             onClick={() => handleDismiss(tx.txid, tx.chain, tx.address, i)}
-                          >Dismiss</button>
+                            type="button"
+                          >
+                            Dismiss
+                          </button>
                         </li>
                       ))}
                     </ul>
                   </td>
-                  <td className="py-2 px-4">
+                  <td className="py-2 px-4 whitespace-nowrap">
                     <button
-                      className="bg-green-700 hover:bg-green-800 text-white px-2 py-1 rounded text-xs font-bold"
+                      className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold border border-emerald-400/40 bg-emerald-500/90 text-black hover:bg-emerald-500"
                       onClick={() => handleResolve(tx.txid, tx.chain, tx.address)}
-                    >Resolve All</button>
+                      type="button"
+                    >
+                      Resolve All
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          </div>
         </div>
       )}
     </section>
