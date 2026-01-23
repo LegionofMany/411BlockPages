@@ -545,22 +545,6 @@ function ProfilePageInner() {
           </Link>
         </div>
 
-        {me?.address ? (
-          <div className="mb-5 rounded-xl border border-slate-800 bg-slate-950/40 p-4 flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <div className="text-slate-100 font-semibold">Need help or want updates? Join our Discord.</div>
-              <div className="text-xs text-slate-300 mt-1">Discord is our community hub. No wallet or login required to join.</div>
-            </div>
-            <a
-              href={process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || 'https://discord.gg/z8MgDnHdR'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-full bg-emerald-500 text-slate-950 font-semibold text-xs hover:bg-emerald-400"
-            >
-              Join Discord
-            </a>
-          </div>
-        ) : null}
 
         {safeRedirectTo ? (
           <div className="mb-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4 flex items-center justify-between gap-3 flex-wrap">

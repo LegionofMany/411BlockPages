@@ -34,7 +34,7 @@ export default function DiscordCommunitySection({
   compact = false,
 }: Props) {
   const inviteUrl = getInviteUrl();
-  const { src: widgetSrc, serverId } = getWidgetUrl();
+  const { src: widgetSrc } = getWidgetUrl();
 
   // QR code pointing at the invite; scanning should open Discord app if installed.
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(inviteUrl)}`;
@@ -49,7 +49,7 @@ export default function DiscordCommunitySection({
           {title}
         </h2>
         <p className={compact ? 'mt-1 text-xs text-slate-300' : 'mt-2 text-sm text-slate-300'}>
-          Discord is our community hub. No wallet or login required to join.
+          Discord is our community hub. No wallet or login required.
         </p>
       </div>
 
@@ -70,14 +70,8 @@ export default function DiscordCommunitySection({
             </div>
           ) : (
             <div className="w-full rounded-2xl border border-slate-800 bg-black/40 p-4">
-              <div className="text-sm font-semibold text-slate-100">Discord widget coming soon</div>
-              <div className="mt-1 text-xs text-slate-300">
-                We haven’t configured the Discord Server ID yet, so the embed can’t render.
-              </div>
-              {/* TODO: Set NEXT_PUBLIC_DISCORD_SERVER_ID (Discord Server ID) to enable the official widget embed. */}
-              <div className="mt-3 text-[11px] text-slate-400">
-                Server ID placeholder: <span className="font-mono">{serverId || 'SERVER_ID_HERE'}</span>
-              </div>
+              <div className="text-sm font-semibold text-slate-100">Join us on Discord</div>
+              <div className="mt-1 text-xs text-slate-300">Use the invite below to join.</div>
             </div>
           )}
 
@@ -90,9 +84,6 @@ export default function DiscordCommunitySection({
             >
               Join Discord
             </a>
-            <span className="text-xs text-slate-400">
-              Opens in a new tab — no wallet popup.
-            </span>
           </div>
         </div>
 
@@ -128,3 +119,5 @@ export default function DiscordCommunitySection({
     </section>
   );
 }
+
+// TODO: To enable the official Discord embed, set NEXT_PUBLIC_DISCORD_SERVER_ID (Discord Server ID).

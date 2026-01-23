@@ -5,7 +5,6 @@ import Cropper from 'react-easy-crop';
 import Slider from 'rc-slider';
 import { showToast } from '../../components/simpleToast';
 import Skeleton from '../../components/ui/Skeleton';
-import DiscordCommunitySection from '../../components/DiscordCommunitySection';
 
 type ProfileState = Record<string, any>;
 
@@ -192,14 +191,6 @@ export default function EditProfilePage() {
         <p className="text-xs mb-4" style={{ color: '#9ca3af' }}>
           Refine your public identity, social proofs, and charity presets.
         </p>
-
-        <div className="mb-6">
-          <DiscordCommunitySection
-            compact
-            title="Join the BlockPages Community"
-            className="rounded-2xl border border-slate-800 bg-black/40 p-4"
-          />
-        </div>
 
         <details className="mb-4 rounded-md bg-slate-900/50 p-3 border border-slate-700 text-sm text-slate-300">
           <summary className="cursor-pointer font-medium text-emerald-200">Social verification (simple)</summary>
