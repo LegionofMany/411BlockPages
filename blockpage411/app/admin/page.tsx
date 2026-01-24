@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 import AdminWalletsTable from "../components/admin/AdminWalletsTable";
 import FlaggedWalletsTable from "../components/admin/FlaggedWalletsTable";
@@ -59,39 +60,57 @@ export default function AdminPage() {
         </p>
       </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="rounded-3xl bg-black/70 border border-emerald-500/25 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
+      <section className="rounded-3xl border border-white/10 bg-black/30 p-4">
+        <div className="text-xs font-semibold tracking-[0.16em] uppercase text-slate-300 mb-3">
+          Admin pages
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {[
+            { href: "/admin/charities", label: "Charities" },
+            { href: "/admin/fundraisers", label: "Fundraisers" },
+            { href: "/admin/givingblock-donations", label: "Donations" },
+            { href: "/admin/kyc-review", label: "KYC" },
+            { href: "/admin/risk", label: "Risk" },
+            { href: "/admin/reports", label: "Reports" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-slate-100 hover:bg-white/10 transition-colors"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-1">
           <AdminStatsCards />
         </div>
-        <div className="rounded-3xl bg-black/70 border border-amber-400/25 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4 md:col-span-2">
-          <h3 className="text-sm font-semibold text-amber-100 mb-3">Recent Transactions</h3>
+        <div className="lg:col-span-2">
           <RecentTransactionsTable />
         </div>
       </div>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="rounded-3xl bg-black/70 border border-emerald-500/25 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
-          <h3 className="text-sm font-semibold text-emerald-200 mb-3">Flagged Transactions</h3>
-          <FlaggedTransactionsTable adminWallet={adminWallet} />
-        </div>
-        <div className="rounded-3xl bg-black/70 border border-emerald-500/25 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
-          <h3 className="text-sm font-semibold text-emerald-200 mb-3">Flagged Wallets</h3>
-          <FlaggedWalletsTable adminWallet={adminWallet} />
-        </div>
+        <FlaggedTransactionsTable adminWallet={adminWallet} />
+        <FlaggedWalletsTable adminWallet={adminWallet} />
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-3xl bg-black/70 border border-slate-600/40 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
-          <h3 className="text-sm font-semibold text-slate-100 mb-3">Content Moderation</h3>
-          <ContentModerationTable />
-        </div>
-        <div className="rounded-3xl bg-black/70 border border-slate-600/40 shadow-[0_18px_45px_rgba(0,0,0,0.9)] p-4">
-          <h3 className="text-sm font-semibold text-slate-100 mb-3">Admin Activity Log</h3>
-          <AuditLogTable adminWallet={adminWallet} />
-          <div className="mt-3 rounded-2xl bg-slate-900/80 border border-slate-700/60 p-3 text-[11px] text-slate-300">
-            <p className="font-semibold text-slate-100 mb-1">Quick links</p>
-            <p className="mb-1">Use the sidebar to jump to charities, fundraisers, risk, and reports.</p>
-            <p>Only wallets listed in <span className="font-mono">NEXT_PUBLIC_ADMIN_WALLETS</span> with a valid session can access these tools.</p>
+        <ContentModerationTable />
+        <div className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/10">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-100">Admin Activity Log</h3>
+          </div>
+          <div className="p-4">
+            <AuditLogTable adminWallet={adminWallet} />
+            <div className="mt-3 rounded-2xl bg-slate-900/80 border border-slate-700/60 p-3 text-[11px] text-slate-300">
+              <p className="font-semibold text-slate-100 mb-1">Quick links</p>
+              <p className="mb-1">Use the menu/sidebar to jump to charities, fundraisers, risk, and reports.</p>
+              <p>Only wallets listed in <span className="font-mono">NEXT_PUBLIC_ADMIN_WALLETS</span> with a valid session can access these tools.</p>
+            </div>
           </div>
         </div>
       </section>
