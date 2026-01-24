@@ -25,19 +25,23 @@ export default function AdminPage() {
   }
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <div className="mt-32 text-center">
-          <h1 className="text-2xl font-bold text-red-400 mb-4">Access Denied</h1>
-          <p className="text-cyan-200 mb-4">Your wallet address is not recognized as an admin.</p>
-          <p className="text-cyan-400">Current wallet: <span className="font-mono">{adminWallet || "(none)"}</span></p>
-          <p className="text-cyan-400">Allowed admins:</p>
-          <ul className="text-cyan-300 font-mono text-sm mt-2">
-            {(process.env.NEXT_PUBLIC_ADMIN_WALLETS || "").split(",").map(a => <li key={a}>{a.trim()}</li>)}
-          </ul>
-          <div className="mt-6 bg-slate-800/50 p-4 rounded text-sm text-cyan-200">
-            <strong className="text-cyan-100">How to become an admin</strong>
-            <p className="mt-2">Add your wallet address to the <span className="font-mono">NEXT_PUBLIC_ADMIN_WALLETS</span> environment variable (comma-separated), restart the server, and sign in using the Connect → Verify flow so the server issues a session cookie.</p>
-            <p className="mt-2">This page uses a server-side JWT session for auth — setting localStorage alone will not grant admin access.</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black text-amber-50 px-4">
+        <div className="max-w-xl w-full rounded-3xl border border-red-500/30 bg-black/70 backdrop-blur-xl p-6">
+          <div className="text-xs font-semibold tracking-[0.16em] uppercase text-red-200/90 mb-2">
+            Access denied
+          </div>
+          <h1 className="text-xl font-semibold text-red-100 mb-2">Admin Dashboard</h1>
+          <p className="text-sm text-slate-200/90">
+            Your wallet address is not recognized as an admin.
+          </p>
+
+          <div className="mt-4 rounded-2xl border border-slate-700/60 bg-slate-950/50 p-3">
+            <div className="text-xs text-slate-400 uppercase tracking-[0.16em]">Current wallet</div>
+            <div className="mt-1 font-mono text-xs text-emerald-200 break-all">{adminWallet || "(none)"}</div>
+          </div>
+
+          <div className="mt-4 text-xs text-slate-300">
+            Admins are controlled by <span className="font-mono">NEXT_PUBLIC_ADMIN_WALLETS</span>. Ensure your wallet is in that list, then set localStorage <span className="font-mono">wallet</span> (or connect via the app) and refresh.
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from 'react';
 import "../styles/globals.css";
 import { Providers } from "./components/Providers";
-import Navbar from "./components/Navbar";
+import Chrome from "./components/Chrome";
 import { AuthGate } from "./components/AuthGate";
 
 export const metadata: Metadata = {
@@ -30,8 +30,6 @@ export default function RootLayout({
             '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
           backgroundColor: '#0a1020',
           background: 'radial-gradient(circle at top, #1a223a, #0a1020)',
-          // reserve space for the fixed navbar
-          paddingTop: '4rem'
         }}
       >
           <Providers>
@@ -47,10 +45,7 @@ export default function RootLayout({
             >
               Skip to content
             </a>
-            {/* Navbar moved to layout so it's outside page stacking contexts and visible on all routes */}
-            <Navbar />
-            {/* main content anchor used by the skip link and to mark content inert while mobile drawer is open */}
-            <div id="content">{children}</div>
+            <Chrome>{children}</Chrome>
           </Providers>
       </body>
     </html>

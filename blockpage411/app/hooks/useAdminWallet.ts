@@ -57,6 +57,13 @@ export default function useAdminWallet() {
         const res = await fetch('/api/admin/check');
         if (res.ok) {
           const body = await res.json();
+          if (body && typeof body.address === 'string') {
+            try {
+              setAdminWallet(getAddress(body.address));
+            } catch {
+              setAdminWallet(body.address.toLowerCase().trim());
+            }
+          }
           if (body && body.isAdmin) {
             setIsAdmin(true);
           } else {
@@ -75,6 +82,16 @@ export default function useAdminWallet() {
       if (!e.key || e.key === 'wallet') checkAdmin();
     }
     window.addEventListener('storage', onStorage);
+
+    function onFocus() {
+      checkAdmin();
+      checkServerAdmin();
+    }
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') onFocus();
+    }
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     const eth = (window as unknown as { ethereum?: EthereumProvider }).ethereum;
     function onAccountsChanged(...args: unknown[]) {
@@ -98,6 +115,8 @@ export default function useAdminWallet() {
 
     return () => {
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       if (eth && eth.removeListener)
         eth.removeListener('accountsChanged', onAccountsChanged);
     };

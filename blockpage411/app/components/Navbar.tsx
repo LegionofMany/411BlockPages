@@ -28,6 +28,11 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
   // call hook unconditionally to satisfy rules-of-hooks
   const pathname = usePathname() || '';
 
+  // Close the mobile menu on navigation so it can't trap pointer events on #content.
+  React.useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   // navigation items - include all top-level routes and a couple useful legacy/admin links
   const navItems: Array<{ href: string; label: string; Icon?: React.FC; show?: boolean }> = [
     { href: '/', label: 'Home', Icon: IconHome },
