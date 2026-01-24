@@ -22,7 +22,7 @@ export default function AdminPage() {
   // const router = useRouter();
 
   if (!checked) {
-    return <div className="min-h-screen flex items-center justify-center bg-black text-cyan-200">Checking admin access...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-black text-slate-200">Checking admin access...</div>;
   }
   if (!isAdmin) {
     return (

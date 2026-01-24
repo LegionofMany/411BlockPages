@@ -10,10 +10,10 @@ interface Stats {
 }
 
 const StatCard: React.FC<{ title: string; value: string | number; hint?: string }> = ({ title, value, hint }) => (
-  <div className="rounded-lg bg-gray-900/80 p-4 shadow-xl border border-gray-800">
-    <div className="text-sm text-cyan-200">{title}</div>
-    <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-cyan-100">{value}</div>
-    {hint && <div className="text-xs text-gray-400 mt-1">{hint}</div>}
+  <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+    <div className="text-xs uppercase tracking-[0.16em] text-white/60">{title}</div>
+    <div className="mt-2 text-2xl sm:text-3xl font-extrabold text-slate-100">{value}</div>
+    {hint && <div className="text-xs text-white/55 mt-1">{hint}</div>}
   </div>
 );
 
@@ -42,10 +42,15 @@ const AdminStatsCards: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-3">
-        <div className="animate-pulse bg-gray-800 rounded-lg h-20" />
-        <div className="animate-pulse bg-gray-800 rounded-lg h-20" />
-        <div className="animate-pulse bg-gray-800 rounded-lg h-20" />
+      <div className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+        <div className="px-4 py-3 border-b border-white/10">
+          <div className="text-base sm:text-lg font-semibold text-slate-100">Stats</div>
+        </div>
+        <div className="p-4 grid grid-cols-1 gap-3">
+          <div className="animate-pulse bg-white/10 rounded-xl h-20" />
+          <div className="animate-pulse bg-white/10 rounded-xl h-20" />
+          <div className="animate-pulse bg-white/10 rounded-xl h-20" />
+        </div>
       </div>
     );
   }
@@ -55,10 +60,15 @@ const AdminStatsCards: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3">
-      <StatCard title="Total Wallets" value={stats.totalWallets} hint="All wallets in DB" />
-      <StatCard title="Flagged Transactions" value={stats.flaggedTxCount} hint="Transactions marked as suspicious" />
-      <StatCard title="Flagged Wallets" value={stats.flaggedWallets} hint="Wallets with flags or blacklisted" />
+    <div className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/10">
+        <div className="text-base sm:text-lg font-semibold text-slate-100">Stats</div>
+      </div>
+      <div className="p-4 grid grid-cols-1 gap-3">
+        <StatCard title="Total Wallets" value={stats.totalWallets} hint="All wallets in DB" />
+        <StatCard title="Flagged Transactions" value={stats.flaggedTxCount} hint="Transactions marked as suspicious" />
+        <StatCard title="Flagged Wallets" value={stats.flaggedWallets} hint="Wallets with flags or blacklisted" />
+      </div>
     </div>
   );
 };

@@ -48,42 +48,49 @@ const SystemSettingsPanel: React.FC = () => {
     setSaving(false);
   };
 
-  if (loading) return <div className="text-cyan-200">Loading system settings...</div>;
+  if (loading) return <div className="text-slate-200">Loading system settings...</div>;
   if (error) return <div className="text-red-400">{error}</div>;
   if (!settings) return null;
 
   return (
-    <section className="mb-12">
-      <h2 className="text-xl font-semibold text-cyan-200 mb-4">System Settings</h2>
-      <div className="space-y-4">
+    <section className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/10">
+        <h2 className="text-base sm:text-lg font-semibold text-slate-100">System Settings</h2>
+      </div>
+      <div className="p-4 space-y-4">
         <div>
-          <label className="block text-cyan-100 font-bold mb-1">Admin Wallets (comma separated)</label>
+          <label className="block text-slate-200 text-sm font-semibold mb-1">Admin Wallets (comma separated)</label>
           <input
             type="text"
-            className="w-full px-3 py-2 rounded bg-gray-800 text-cyan-100 border border-cyan-700"
+            className="w-full px-3 py-2 rounded-md bg-black/30 text-slate-100 border border-white/10 placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
             value={settings.NEXT_PUBLIC_ADMIN_WALLETS}
             onChange={e => handleChange("NEXT_PUBLIC_ADMIN_WALLETS", e.target.value)}
           />
         </div>
         <div>
-          <label className="block text-cyan-100 font-bold mb-1">Maintenance Mode</label>
-          <input
-            type="checkbox"
-            checked={!!settings.MAINTENANCE_MODE}
-            onChange={e => handleChange("MAINTENANCE_MODE", e.target.checked)}
-            className="mr-2"
-          />
-          <span className="text-cyan-100">Enable maintenance mode</span>
+          <label className="block text-slate-200 text-sm font-semibold mb-2">Maintenance Mode</label>
+          <label className="inline-flex items-center gap-2 text-sm text-slate-200">
+            <input
+              type="checkbox"
+              checked={!!settings.MAINTENANCE_MODE}
+              onChange={e => handleChange("MAINTENANCE_MODE", e.target.checked)}
+              className="h-4 w-4 rounded border-white/20 bg-black/30"
+            />
+            Enable maintenance mode
+          </label>
         </div>
         {/* Add more settings fields as needed */}
       </div>
-      <button
-        className="mt-4 bg-cyan-700 hover:bg-cyan-800 text-white px-4 py-2 rounded font-bold"
-        onClick={handleSave}
-        disabled={saving}
-      >
-        {saving ? "Saving..." : "Save Settings"}
-      </button>
+      <div className="px-4 pb-4">
+        <button
+          className="inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold border border-emerald-400/40 bg-emerald-500/90 text-black hover:bg-emerald-500 disabled:opacity-60"
+          onClick={handleSave}
+          disabled={saving}
+          type="button"
+        >
+          {saving ? "Saving..." : "Save Settings"}
+        </button>
+      </div>
     </section>
   );
 };

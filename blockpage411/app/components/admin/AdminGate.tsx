@@ -19,7 +19,7 @@ export default function AdminGate({
 
   if (!checked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-cyan-200">
+      <div className="min-h-screen flex items-center justify-center bg-black text-slate-200">
         Checking admin access...
       </div>
     );

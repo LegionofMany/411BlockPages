@@ -85,7 +85,7 @@ export default function AdminRiskPage() {
       </section>
 
       {loading && (
-        <div className="mt-10 text-cyan-200 text-sm">Loading high-risk wallets...</div>
+        <div className="mt-10 text-slate-200 text-sm">Loading high-risk wallets...</div>
       )}
 
       {error && !loading && (
@@ -123,16 +123,16 @@ export default function AdminRiskPage() {
                   return (
                     <tr key={key} className="hover:bg-slate-900/60 transition-colors">
                       <td className="px-3 py-2 align-top">
-                        <div className="font-mono text-xs text-cyan-100 break-all">{w.address}</div>
-                        <div className="text-[11px] uppercase tracking-wide text-cyan-300/80 mt-1">{w.chain}</div>
+                        <div className="font-mono text-xs text-slate-100 break-all">{w.address}</div>
+                        <div className="text-[11px] uppercase tracking-wide text-white/60 mt-1">{w.chain}</div>
                       </td>
                       <td className="px-3 py-2 align-top">
                         <div className="flex items-center gap-2">
                           <RiskBadge score={w.riskScore} category={w.riskCategory as RiskCategory} />
-                          <span className="text-xs text-cyan-200/80">{Math.round(w.riskScore)}</span>
+                          <span className="text-xs text-white/70">{Math.round(w.riskScore)}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-2 align-top text-xs text-cyan-200/80">
+                      <td className="px-3 py-2 align-top text-xs text-white/70">
                         <div>Blacklisted: {w.blacklisted ? "Yes" : "No"}</div>
                         <div>Suspicious: {w.suspicious ? "Yes" : "No"}</div>
                         {typeof w.trustScore === "number" && (
@@ -141,7 +141,7 @@ export default function AdminRiskPage() {
                       </td>
                       <td className="px-3 py-2 align-top">
                         <form
-                          className="flex flex-col gap-2 text-xs text-cyan-100"
+                          className="flex flex-col gap-2 text-xs text-slate-100"
                           onSubmit={(e) => {
                             e.preventDefault();
                             const formData = new FormData(e.currentTarget);
@@ -155,12 +155,12 @@ export default function AdminRiskPage() {
                               min={0}
                               max={100}
                               defaultValue={Math.round(w.riskScore)}
-                              className="w-20 rounded border border-cyan-700/70 bg-slate-900/80 px-2 py-1 text-xs text-cyan-100"
+                              className="w-20 rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-slate-100"
                             />
                             <select
                               name="riskCategory"
                               defaultValue={w.riskCategory ?? ''}
-                              className="rounded border border-cyan-700/70 bg-slate-900/80 px-2 py-1 text-xs text-cyan-100"
+                              className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-slate-100"
                             >
                               <option value="">Auto</option>
                               <option value="green">Green</option>
