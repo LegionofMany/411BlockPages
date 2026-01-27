@@ -3,11 +3,13 @@ import { createPublicClient, http, isAddress, getAddress } from 'viem';
 import { mainnet, base } from 'viem/chains';
 import Resolution from '@unstoppabledomains/resolution';
 import { PublicKey } from '@solana/web3.js';
+import { EVM_CHAIN_PRIORITY, type EvmChainId } from 'lib/evmChains';
+import { getEvmTxCount } from 'lib/evmAddressProbe';
 
 export type ResolvedWalletInput = {
   address: string;
   resolvedFrom: 'address' | 'ens' | 'basename' | 'unstoppable';
-  chainHint?: 'ethereum' | 'base' | 'bitcoin' | 'solana' | 'tron';
+  chainHint?: 'ethereum' | 'bsc' | 'polygon' | 'base' | 'arbitrum' | 'optimism' | 'bitcoin' | 'solana' | 'tron';
 };
 
 const resolution = new Resolution();
@@ -128,7 +130,28 @@ export async function resolveWalletInput(query: string): Promise<ResolvedWalletI
 
   // Direct address
   if (isAddress(q)) {
-    const resolved: ResolvedWalletInput = { address: getAddress(q), resolvedFrom: 'address' };
+    const checksummed = getAddress(q);
+    let chainHint: EvmChainId | undefined = undefined;
+
+    // Best-effort chain inference for EVM addresses: pick first chain with txCount>0,
+    // otherwise first responsive chain. Keeps navigation from landing on a wrong chain.
+    try {
+      let best: { chain: EvmChainId; txCount: number } | null = null;
+      for (const c of EVM_CHAIN_PRIORITY) {
+        const txCount = await getEvmTxCount(c, checksummed, 1500);
+        if (txCount == null) continue;
+        if (txCount > 0) {
+          best = { chain: c, txCount };
+          break;
+        }
+        if (!best) best = { chain: c, txCount };
+      }
+      if (best) chainHint = best.chain;
+    } catch {
+      // ignore
+    }
+
+    const resolved: ResolvedWalletInput = { address: checksummed, resolvedFrom: 'address', chainHint };
     try {
       await setCache(cacheKey, resolved, 60 * 60);
     } catch {

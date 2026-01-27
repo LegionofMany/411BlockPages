@@ -1,5 +1,7 @@
 "use client";
 import React, { useState } from "react";
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import type { Transaction } from "../../../../lib/types";
 
 interface TransactionListProps {
@@ -15,6 +17,8 @@ function shortenHash(hash?: string | null, front = 6, back = 6) {
 const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
   const [copied, setCopied] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  const params = useParams<{ chain?: string; address?: string }>();
+  const chain = typeof params?.chain === 'string' ? params.chain : '';
 
   if (!transactions || transactions.length === 0) return null;
 
@@ -36,6 +40,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
         {transactions.map((tx, i) => {
           const full = tx.txid || tx.hash || '';
           const shortened = shortenHash(full, 6, 6);
+          const txHref = chain && full ? `/tx/${encodeURIComponent(chain)}/${encodeURIComponent(full)}` : '';
           return (
             <li
               key={i}
@@ -43,10 +48,21 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-start sm:items-center gap-2">
-                  <span className="text-cyan-200 font-mono block overflow-x-auto text-sm sm:text-base break-all sm:break-normal">
-                    <span className="hidden sm:inline">{full}</span>
-                    <span className="inline sm:hidden">{shortened}</span>
-                  </span>
+                  {txHref ? (
+                    <Link
+                      href={txHref}
+                      className="text-cyan-200 font-mono block overflow-x-auto text-sm sm:text-base break-all sm:break-normal hover:text-cyan-100"
+                      title="Open transaction details"
+                    >
+                      <span className="hidden sm:inline">{full}</span>
+                      <span className="inline sm:hidden">{shortened}</span>
+                    </Link>
+                  ) : (
+                    <span className="text-cyan-200 font-mono block overflow-x-auto text-sm sm:text-base break-all sm:break-normal">
+                      <span className="hidden sm:inline">{full}</span>
+                      <span className="inline sm:hidden">{shortened}</span>
+                    </span>
+                  )}
                   <div className="ml-auto sm:ml-2 relative">
                     <button
                       aria-label={`Copy transaction ${full}`}
@@ -76,6 +92,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
                   <span className="break-all"><strong className="text-cyan-300">To:</strong> {tx.to}</span>
                   <span className="break-all"><strong className="text-cyan-300">Value:</strong> {tx.value}</span>
                 </div>
+
+                {(tx as any)?.counterpartyLabel ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-full border border-blue-700/60 bg-blue-950/40 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
+                      {(tx as any).counterpartyType === 'Exchange' ? 'Exchange' : 'Provider'}: {(tx as any).counterpartyLabel}
+                    </span>
+                  </div>
+                ) : null}
               </div>
               <div className="mt-2 sm:mt-0 sm:ml-4 text-right">
                 <span className="text-xs text-cyan-500 block">Date: {tx.date ? new Date(tx.date).toLocaleString() : 'N/A'}</span>

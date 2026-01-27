@@ -13,6 +13,11 @@ import redisRateLimit from 'lib/redisRateLimit';
 import { computeWalletVisibility } from 'services/walletVisibilityService';
 import jwt from 'jsonwebtoken';
 import { JsonRpcProvider, formatEther } from 'ethers';
+import TxRating from 'lib/txRatingModel';
+import { EVM_CHAIN_PRIORITY, normalizeEvmChainId, type EvmChainId } from 'lib/evmChains';
+import { getEvmTxCount } from 'lib/evmAddressProbe';
+import AddressReputation from 'lib/addressReputationModel';
+import { computeReputation } from 'services/reputation/computeReputation';
 
 // Types for Wallet document
 type WalletDoc = {
@@ -476,6 +481,182 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const pagedTxs = Array.isArray(returnedTxs) ? returnedTxs.slice(start, start + pageSize) : [];
   const hasMore = start + pagedTxs.length < totalTxs;
 
+  // If this chain looks empty for an EVM address, hint which EVM chain has activity.
+  // Kept best-effort and only on page 1 to avoid heavy fan-out.
+  let suggestedChain: EvmChainId | null = null;
+  try {
+    const normalized = normalizeEvmChainId(chainStr);
+    if (normalized && totalTxs === 0 && page === 1) {
+      let best: { chain: EvmChainId; txCount: number } | null = null;
+      for (const c of EVM_CHAIN_PRIORITY) {
+        if (c === normalized) continue;
+        const txCount = await getEvmTxCount(c, String(address || ''), 1500);
+        if (txCount == null) continue;
+        if (txCount > 0) {
+          best = { chain: c, txCount };
+          break;
+        }
+        if (!best) best = { chain: c, txCount };
+      }
+      if (best?.chain) suggestedChain = best.chain;
+    }
+  } catch {
+    suggestedChain = null;
+  }
+
+  // Best-effort: label transaction counterparties using ProviderWallet mappings.
+  // Only applies to EVM-like chains where from/to are single addresses.
+  let enrichedTxs: Transaction[] = pagedTxs;
+  let exchangeInteractions: Array<{ name: string; type: string; count: number }> = [];
+  try {
+    if (CHAIN_IDS[chainStr] && Array.isArray(pagedTxs) && pagedTxs.length > 0) {
+      const addrLc = String(addr || '').toLowerCase();
+      const addrs = new Set<string>();
+      for (const tx of pagedTxs) {
+        const from = typeof tx?.from === 'string' ? tx.from.toLowerCase() : '';
+        const to = typeof tx?.to === 'string' ? tx.to.toLowerCase() : '';
+        if (from) addrs.add(from);
+        if (to) addrs.add(to);
+      }
+
+      const addrList = Array.from(addrs);
+      const pws = (await ProviderWallet.find({
+        chain: String(chainStr).toLowerCase(),
+        address: { $in: addrList },
+      }).lean()) as Array<{ address: string; providerId?: any; note?: string }>;
+
+      const providerIds = Array.from(new Set(pws.map((x) => String(x.providerId || '')).filter(Boolean)));
+      const providers = providerIds.length
+        ? ((await Provider.find({ _id: { $in: providerIds } }).select('name type').lean()) as Array<{ _id: any; name?: string; type?: string }>)
+        : [];
+
+      const providerById = new Map<string, { name: string; type: string }>();
+      for (const p of providers) {
+        const id = String((p as any)?._id || '');
+        if (!id) continue;
+        providerById.set(id, { name: String(p?.name || ''), type: String(p?.type || 'Other') });
+      }
+
+      const providerByAddr = new Map<string, { name: string; type: string }>();
+      for (const pw of pws) {
+        const a = String(pw.address || '').toLowerCase();
+        const pid = String(pw.providerId || '');
+        const prov = pid ? providerById.get(pid) : null;
+        if (a && prov?.name) providerByAddr.set(a, prov);
+      }
+
+      // Fallback: if a counterparty wallet was manually tagged with exchangeSource, use that as an Exchange label.
+      try {
+        const tagged = (await Wallet.find({ chain: chainStr, address: { $in: addrList } })
+          .select('address exchangeSource')
+          .lean()) as Array<{ address?: string; exchangeSource?: string }>;
+        for (const w of tagged) {
+          const a = String(w?.address || '').toLowerCase();
+          const ex = typeof w?.exchangeSource === 'string' ? w.exchangeSource.trim() : '';
+          if (!a || !ex) continue;
+          if (!providerByAddr.has(a)) providerByAddr.set(a, { name: ex, type: 'Exchange' });
+        }
+      } catch {
+        // ignore
+      }
+
+      const interactions = new Map<string, { name: string; type: string; count: number }>();
+
+      enrichedTxs = pagedTxs.map((tx) => {
+        const from = typeof tx?.from === 'string' ? tx.from.toLowerCase() : '';
+        const to = typeof tx?.to === 'string' ? tx.to.toLowerCase() : '';
+        const fromProv = from ? providerByAddr.get(from) : undefined;
+        const toProv = to ? providerByAddr.get(to) : undefined;
+
+        const counterparty = from && from === addrLc ? to : from;
+        const cpProv = counterparty ? providerByAddr.get(counterparty) : undefined;
+
+        if (cpProv?.name) {
+          const key = `${cpProv.type}:${cpProv.name}`;
+          const prev = interactions.get(key);
+          interactions.set(key, { name: cpProv.name, type: cpProv.type, count: (prev?.count || 0) + 1 });
+        }
+
+        return {
+          ...tx,
+          fromLabel: fromProv?.name,
+          toLabel: toProv?.name,
+          counterparty: counterparty || undefined,
+          counterpartyLabel: cpProv?.name,
+          counterpartyType: cpProv?.type === 'CEX' ? 'Exchange' : (cpProv?.type as any),
+        };
+      });
+
+      exchangeInteractions = Array.from(interactions.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+    }
+  } catch {
+    enrichedTxs = pagedTxs;
+    exchangeInteractions = [];
+  }
+
+  // Best-effort: aggregate transaction ratings *for this address*.
+  // Ownership rule is enforced at write-time (only senders can rate), but the rating
+  // attaches to the receiver address (`to`) so third parties can see a wallet's reputation.
+  let txRatingsSummary: { avgScore: number; count: number } | null = null;
+  try {
+    const evmChain = normalizeEvmChainId(chainStr);
+    if (evmChain) {
+      const agg = await TxRating.aggregate([
+        { $match: { chain: evmChain, to: addr.toLowerCase() } },
+        {
+          $group: {
+            _id: null,
+            count: { $sum: 1 },
+            avgScore: { $avg: '$score' },
+          },
+        },
+      ]);
+      const first = Array.isArray(agg) && agg.length ? (agg[0] as any) : null;
+      txRatingsSummary = {
+        count: typeof first?.count === 'number' ? first.count : 0,
+        avgScore: typeof first?.avgScore === 'number' ? first.avgScore : 0,
+      };
+    }
+  } catch {
+    txRatingsSummary = null;
+  }
+
+  // Reputation rollup (best-effort). Persist a cached copy for faster UI.
+  const riskScoreValue = typeof (wallet as any)?.riskScore === 'number' ? (wallet as any).riskScore : null;
+  const rep = computeReputation({
+    riskScore: riskScoreValue,
+    txRatingAvg: txRatingsSummary?.avgScore || 0,
+    txRatingCount: txRatingsSummary?.count || 0,
+  });
+  const reputation = {
+    score: rep.score,
+    label: rep.label,
+    txRatingAvg: txRatingsSummary?.avgScore || 0,
+    txRatingCount: txRatingsSummary?.count || 0,
+  };
+  try {
+    await AddressReputation.findOneAndUpdate(
+      { chain: String(chainStr).toLowerCase(), address: String(addr).toLowerCase() },
+      {
+        $set: {
+          chain: String(chainStr).toLowerCase(),
+          address: String(addr).toLowerCase(),
+          txRatingAvg: reputation.txRatingAvg,
+          txRatingCount: reputation.txRatingCount,
+          topInteractions: exchangeInteractions,
+          reputationScore: rep.score == null ? 0 : rep.score,
+          reputationLabel: rep.label,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+  } catch {
+    // ignore persistence failures
+  }
+
   const payload = {
     address: wallet?.address || address,
     chain: wallet?.chain || chain,
@@ -497,7 +678,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       flaggedReason: r.flaggedReason,
     })),
     avgRating: wallet?.avgRating || 0,
-    transactions: pagedTxs,
+    txRatingsSummary,
+    transactions: enrichedTxs,
+    exchangeInteractions,
+    reputation,
     nftCount: returnedNftCount,
     lastRefreshed: wallet?.lastRefreshed || null,
     statusTags: getStatusTags(wallet),
@@ -513,6 +697,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
     // pagination meta
     pagination: { total: totalTxs, page, pageSize, hasMore },
+    suggestedChain: suggestedChain || undefined,
   };
 
   // Add connected wallets + basic graph + heuristics (best-effort, do not block response)

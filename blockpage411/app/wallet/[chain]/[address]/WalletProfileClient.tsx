@@ -20,7 +20,17 @@ import { openAuthModal } from "../../../components/auth/openAuthModal";
 import { setDeferredAction } from "../../../components/auth/deferredAction";
 import { ReputationGauge } from '../../../components/ui/ReputationGauge';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  const payload = await res.json().catch(() => ({} as any));
+  if (!res.ok) {
+    const err: any = new Error(payload?.message || 'Failed to load wallet data');
+    err.status = res.status;
+    err.payload = payload;
+    throw err;
+  }
+  return payload;
+};
 
 export default function WalletProfileClient({ initialData, chain, address }: { initialData: any; chain: string; address: string }) {
   const { data, error, mutate } = useSWR(`/api/wallet/${chain}/${address}`, fetcher, { fallbackData: initialData });
@@ -29,6 +39,17 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followed, setFollowed] = useState(false);
+
+  useEffect(() => {
+    const suggested = data && typeof (data as any)?.suggestedChain === 'string' ? String((data as any).suggestedChain) : '';
+    if (suggested && suggested !== chain) {
+      try {
+        router.replace(`/wallet/${encodeURIComponent(suggested)}/${encodeURIComponent(address)}`);
+      } catch {
+        // ignore
+      }
+    }
+  }, [data, chain, address, router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -75,7 +96,31 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   if (rawRisk === 'low' || rawRisk === 'green') riskCategory = 'green';
   else if (rawRisk === 'medium' || rawRisk === 'yellow') riskCategory = 'yellow';
   else if (rawRisk === 'high' || rawRisk === 'red') riskCategory = 'red';
-  const reputationScore = typeof riskScore === 'number' ? Math.max(0, Math.min(100, 100 - Math.round(riskScore))) : null;
+  const reputationScore =
+    typeof data?.reputation?.score === 'number'
+      ? Math.max(0, Math.min(100, data.reputation.score))
+      : typeof riskScore === 'number'
+        ? Math.max(0, Math.min(100, 100 - Math.round(riskScore)))
+        : null;
+
+  const reputationLabel: string | null =
+    typeof data?.reputation?.label === 'string'
+      ? data.reputation.label
+      : reputationScore == null
+        ? null
+        : reputationScore >= 80
+          ? 'Strong'
+          : reputationScore >= 60
+            ? 'Good'
+            : reputationScore >= 40
+              ? 'Mixed'
+              : reputationScore >= 20
+                ? 'Caution'
+                : 'High risk signals';
+
+  const exchangeInteractions: Array<{ name: string; type: string; count: number }> = Array.isArray((data as any)?.exchangeInteractions)
+    ? (data as any).exchangeInteractions
+    : [];
 
   const connectedWallets = Array.isArray(data?.connectedWallets) ? data.connectedWallets : [];
   const heuristics = Array.isArray(data?.heuristicIndicators) ? data.heuristicIndicators : [];
@@ -96,6 +141,12 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
     if (vis.canSeeBalance) return 'Public view (balances visible to anyone)';
     return 'Limited view (balances hidden for most viewers)';
   })();
+
+  const sentTxs: any[] = Array.isArray(data?.transactions)
+    ? data.transactions.filter((t: any) => String(t?.from || '').toLowerCase() === String(address || '').toLowerCase())
+    : [];
+
+  const isOwner = Boolean((data as any)?.visibility?.isOwner);
 
   return (
     <div className="min-h-screen flex flex-col items-center">
@@ -135,12 +186,75 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
               <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Reputation</div>
               <div className="mt-2">
                 <ReputationGauge score={reputationScore} />
+                {reputationLabel ? (
+                  <div className="mt-2 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-slate-100">
+                    {reputationLabel}
+                  </div>
+                ) : null}
                 <div className="mt-2 text-[11px] text-slate-400">
                   Informational signal based on on-chain patterns and community reports.
                 </div>
               </div>
             </section>
           </div>
+
+          {exchangeInteractions.length > 0 ? (
+            <div className="mt-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Exchange interactions</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {exchangeInteractions.slice(0, 8).map((x) => (
+                  <span
+                    key={`${x.type}:${x.name}`}
+                    className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-slate-100"
+                    title={`${x.count} transactions (best-effort)`}
+                  >
+                    {x.name} · {x.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {isOwner && sentTxs.length > 0 ? (
+            <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-slate-100">Your sent transactions</div>
+                <div className="text-[11px] text-slate-400">Rate & annotate past transactions</div>
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                {sentTxs.slice(0, 20).map((t: any) => {
+                  const hash = String(t?.hash || t?.txid || '');
+                  const to = String(t?.to || '');
+                  if (!hash) return null;
+                  return (
+                    <button
+                      key={hash}
+                      type="button"
+                      className="w-full text-left rounded-lg border border-white/10 bg-slate-950/30 px-3 py-2 hover:bg-slate-950/50"
+                      onClick={() => {
+                        try {
+                          router.push(`/tx/${encodeURIComponent(chain)}/${encodeURIComponent(hash)}`);
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-mono text-xs text-slate-100 truncate">{hash.slice(0, 10)}…{hash.slice(-8)}</div>
+                        <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold text-slate-100">
+                          Rate
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-400 truncate">To: {to ? `${to.slice(0, 10)}…${to.slice(-6)}` : '—'}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-[11px] text-slate-400">
+                Ratings are restricted: you can only rate transactions sent from your connected wallet.
+              </div>
+            </div>
+          ) : null}
 
           {(connectedWallets.length > 0 || heuristics.length > 0 || graph) && (
             <div className="mt-6 grid grid-cols-1 gap-4">
@@ -362,6 +476,16 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
               }} />
             </div>
             <div className="flex-1 min-w-0 mt-8 lg:mt-0">
+              {data?.txRatingsSummary ? (
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-xs font-semibold text-slate-100">
+                    Tx ratings (sent): {Number(data.txRatingsSummary.avgScore || 0).toFixed(2)} / 5
+                  </span>
+                  <span className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-xs font-semibold text-slate-200/90">
+                    {Number(data.txRatingsSummary.count || 0)} rated txs
+                  </span>
+                </div>
+              ) : null}
               <WalletRatingSection
                 address={address}
                 chain={chain}
@@ -452,7 +576,7 @@ function KYCRequestButton() {
   return (
     <span className="inline-block">
       <button
-        className="ml-4 px-3 py-1 rounded bg-cyan-700 text-white font-bold disabled:opacity-60"
+        className="ml-4 px-3 py-1 rounded-md bg-white text-slate-900 font-semibold border border-slate-200 disabled:opacity-60"
         disabled={loading}
         onClick={async () => {
           setLoading(true);

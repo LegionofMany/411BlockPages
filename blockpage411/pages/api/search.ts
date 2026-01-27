@@ -1,8 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '../../lib/db';
 import Wallet from '../../lib/walletModel';
-import Resolution from '@unstoppabledomains/resolution';
-import { ethers } from 'ethers';
+import { EVM_CHAIN_PRIORITY, normalizeEvmChainId, type EvmChainId } from '../../lib/evmChains';
+import { parseSearchInput } from '../../lib/search/input';
+import { fetchEvmTxByHash } from '../../lib/evmTxLookup';
+import { getEvmTxCount } from '../../lib/evmAddressProbe';
+import { resolveWalletInput } from '../../services/resolveWalletInput';
 
 // Types for Wallet document
 type WalletDoc = {
@@ -29,44 +32,16 @@ function getStatusTags(wallet: WalletDoc) {
   return tags;
 }
 
-// Lightweight Unstoppable/ENS-style resolution helper.
-// Uses ethers for .eth ENS and Unstoppable Domains SDK for common UD TLDs.
-const resolution = new Resolution();
-
-async function resolveDomainToAddress(name: string): Promise<{ address: string; domain: string } | null> {
+async function resolveDomainToAddress(name: string): Promise<{ address: string; domain: string; chainHint?: string } | null> {
   const domain = String(name || '').trim();
   if (!domain) return null;
-
-  const lower = domain.toLowerCase();
-  const isEns = lower.endsWith('.eth');
-  const isUd = /\.(crypto|nft|x|wallet|dao|blockchain|bitcoin|888)$/.test(lower);
-
-  // Prefer ENS resolution via ethers for .eth names
-  if (isEns) {
-    try {
-      const rpcUrl = process.env.ETH_RPC_URL || process.env.NEXT_PUBLIC_ETH_RPC_URL;
-      const provider = rpcUrl
-        ? new ethers.JsonRpcProvider(rpcUrl)
-        : ethers.getDefaultProvider('mainnet');
-      const addr = await provider.resolveName(lower);
-      if (addr) return { address: addr, domain };
-    } catch (e) {
-      console.warn('ENS_RESOLUTION_ERROR', { domain, error: (e as Error).message });
-    }
+  try {
+    const resolved = await resolveWalletInput(domain);
+    if (!resolved?.address || resolved.resolvedFrom === 'address') return null;
+    return { address: resolved.address, domain, chainHint: resolved.chainHint };
+  } catch {
+    return null;
   }
-
-  if (isUd) {
-    try {
-      const addr = await resolution.addr(lower, 'ETH');
-      if (!addr) return null;
-      return { address: addr, domain };
-    } catch (e) {
-      console.warn('UNSTOPPABLE_RESOLUTION_ERROR', { domain, error: (e as Error).message });
-      return null;
-    }
-  }
-
-  return null;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -78,19 +53,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let input = (q || '').toString().trim();
   let resolvedDomain: string | undefined;
 
+  const chainParam = typeof chain === 'string' ? chain.trim() : '';
+  const normalizedChainHint = normalizeEvmChainId(chainParam);
+
+  // If it's a tx hash, probe across EVM chains in priority order.
+  // This ensures we don't claim "not found" when it exists on a different chain.
+  const parsedInitial = parseSearchInput(input);
+  if (parsedInitial.kind === 'txHash' && parsedInitial.txHash) {
+    for (const evmChain of EVM_CHAIN_PRIORITY) {
+      const tx = await fetchEvmTxByHash(evmChain, parsedInitial.txHash);
+      if (tx) {
+        res.status(200).json({ kind: 'tx', tx, results: [] });
+        return;
+      }
+    }
+    res.status(200).json({ kind: 'tx', tx: null, results: [] });
+    return;
+  }
+
   // Try resolving Unstoppable-style domains to an address first
   if (input) {
     const resolved = await resolveDomainToAddress(input);
     if (resolved) {
       input = resolved.address;
       resolvedDomain = resolved.domain;
+
+      // If chain is not explicitly provided, carry through the resolver hint.
+      if (!chainParam && resolved.chainHint) {
+        chain = resolved.chainHint;
+      }
     }
   }
 
-  // Simple search: match address substring, filter by chain if provided
-  const query: Record<string, unknown> = { };
-  if (input) query.address = { $regex: input, $options: 'i' };
-  if (chain) query.chain = chain;
+  // Search strategy:
+  // - For full wallet addresses, use an exact match (fast, uses indexes).
+  // - For partial text, keep a regex fallback.
+  const query: Record<string, unknown> = {};
+  const parsedQuery = parseSearchInput(input);
+  if (parsedQuery.kind === 'address' && parsedQuery.address) {
+    query.address = String(parsedQuery.address).toLowerCase();
+  } else if (input) {
+    query.address = { $regex: input, $options: 'i' };
+  }
+  if (chain) query.chain = String(chain);
   // Do not filter out blacklisted here — return a safe public summary including blacklist flag.
   console.log('SEARCH API: query', query);
   const results = await Wallet.find(query).limit(20);
@@ -112,24 +117,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     riskScore: w.riskScore,
     statusTags: getStatusTags(w),
   }));
-  // If no results, return a default profile for the searched address/chain
-  if (profiles.length === 0 && input && chain) {
-    profiles = [{
-      address: input,
-      chain: chain,
-      ens: resolvedDomain,
-      avgRating: undefined,
-      nftCount: undefined,
-      blacklisted: false,
-      blacklistReason: undefined,
-      flagsCount: 0,
-      flagsSummary: [],
-      kycStatus: 'unverified',
-      socials: undefined,
-      trustScore: 0,
-      riskScore: 0,
-      statusTags: [],
-    }];
+
+  // If no results, return a default profile for the searched address.
+  // If chain is not provided and the input is an EVM address, try to infer the best chain
+  // (first chain with a non-zero tx count; otherwise the first responsive chain).
+  if (profiles.length === 0 && input) {
+    const parsed = parseSearchInput(input);
+    const isEvmAddress = parsed.kind === 'address' && !!parsed.address;
+
+    let selectedChain: string | undefined = chainParam || undefined;
+
+    if (!selectedChain && isEvmAddress) {
+      selectedChain = normalizedChainHint || undefined;
+    }
+
+    if (isEvmAddress) {
+      const preferred = normalizedChainHint;
+      const order: EvmChainId[] = preferred
+        ? [preferred, ...EVM_CHAIN_PRIORITY.filter((c) => c !== preferred)]
+        : EVM_CHAIN_PRIORITY;
+
+      let best: { chain: EvmChainId; txCount: number } | null = null;
+      for (const evmChain of order) {
+        const txCount = await getEvmTxCount(evmChain, parsed.address!, 2000);
+        if (txCount === null) continue;
+        if (txCount > 0) {
+          best = { chain: evmChain, txCount };
+          break;
+        }
+        if (!best) best = { chain: evmChain, txCount };
+      }
+
+      if (best) selectedChain = best.chain;
+    }
+
+    if (selectedChain) {
+      profiles = [
+        {
+          address: input,
+          chain: selectedChain,
+          ens: resolvedDomain,
+          avgRating: undefined,
+          nftCount: undefined,
+          blacklisted: false,
+          blacklistReason: undefined,
+          flagsCount: 0,
+          flagsSummary: [],
+          kycStatus: 'unverified',
+          socials: undefined,
+          trustScore: 0,
+          riskScore: 0,
+          statusTags: [],
+        },
+      ];
+    }
   }
-  res.status(200).json({ results: profiles });
+
+  res.status(200).json({ kind: 'wallet', results: profiles });
 }

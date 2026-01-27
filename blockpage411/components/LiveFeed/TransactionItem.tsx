@@ -1,5 +1,5 @@
 "use client";
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import type { NormalizedTransaction } from '../../services/liveFeed/normalizeTransaction';
 import { useRouter } from 'next/navigation';
 import { useWalletReputation } from '../../app/hooks/useWalletReputation';
@@ -38,6 +38,7 @@ function valueColor(tx: NormalizedTransaction): string {
 function TransactionItem({ tx }: Props) {
   const router = useRouter();
   const [showReputation, setShowReputation] = useState(false);
+  const [labels, setLabels] = useState<Record<string, { name: string; type: string } | null>>({});
   const explorerBase =
     tx.network === 'ethereum'
       ? 'https://etherscan.io/tx/'
@@ -64,6 +65,40 @@ function TransactionItem({ tx }: Props) {
     address: defaultWallet,
     enabled: showReputation,
   });
+
+  useEffect(() => {
+    if (!showReputation) return;
+    let cancelled = false;
+    const from = String(tx.from || '').toLowerCase();
+    const to = String(tx.to || '').toLowerCase();
+    const key = `${tx.network}:${from}:${to}`;
+    if (labels && Object.keys(labels).length && (labels as any).__key === key) return;
+
+    (async () => {
+      try {
+        const qs = new URLSearchParams({
+          chain: String(tx.network),
+          addresses: [from, to].filter(Boolean).join(','),
+        });
+        const res = await fetch(`/api/labels?${qs.toString()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const js = await res.json().catch(() => ({} as any));
+        if (cancelled) return;
+        const next = (js && typeof js === 'object' && js.labels && typeof js.labels === 'object') ? js.labels : {};
+        (next as any).__key = key;
+        setLabels(next);
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showReputation, tx.network, tx.from, tx.to]);
+
+  const fromLabel = labels[String(tx.from || '').toLowerCase()] || null;
+  const toLabel = labels[String(tx.to || '').toLowerCase()] || null;
 
   return (
     <div
@@ -136,6 +171,20 @@ function TransactionItem({ tx }: Props) {
         {showReputation && (
           <div className="text-[10px] text-slate-300">
             <ReputationGauge score={reputationScore} variant="stars" />
+            {(fromLabel?.name || toLabel?.name) && (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {fromLabel?.name ? (
+                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-semibold text-slate-100">
+                    From: {fromLabel.type === 'Exchange' ? 'Exchange' : 'Provider'} · {fromLabel.name}
+                  </span>
+                ) : null}
+                {toLabel?.name ? (
+                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-semibold text-slate-100">
+                    To: {toLabel.type === 'Exchange' ? 'Exchange' : 'Provider'} · {toLabel.name}
+                  </span>
+                ) : null}
+              </div>
+            )}
           </div>
         )}
         <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400">

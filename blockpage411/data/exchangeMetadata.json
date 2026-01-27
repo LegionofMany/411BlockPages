@@ -2,6 +2,7 @@
   "exchanges": [
     "Binance",
     "Coinbase",
+    "Netcoins",
     "Kraken",
     "KuCoin",
     "OKX",
@@ -9,6 +10,7 @@
     "Bitfinex",
     "Gemini",
     "Huobi",
+    "Uphold",
     "Gate.io"
   ],
   "coldWallets": [

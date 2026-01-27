@@ -93,4 +93,11 @@ export interface Transaction {
   to?: string;
   value?: string;
   date?: string | number;
+
+  // Optional enrichment fields (best-effort, may be omitted)
+  fromLabel?: string;
+  toLabel?: string;
+  counterparty?: string;
+  counterpartyLabel?: string;
+  counterpartyType?: 'CEX' | 'DEX' | 'Wallet' | 'Other' | 'Provider' | 'Exchange';
 }

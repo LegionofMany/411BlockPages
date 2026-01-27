@@ -1,6 +1,8 @@
 [
   {"id":1,"name":"Binance","aliases":["Binance","Binance Exchange"],"type":"CEX","website":"https://www.binance.com","rank":1},
   {"id":2,"name":"Coinbase Exchange","aliases":["Coinbase","Coinbase Pro","CB Exchange"],"type":"CEX","website":"https://www.coinbase.com","rank":2},
+  {"id":2001,"name":"Netcoins","aliases":["Netcoins"],"type":"CEX","website":"https://netcoins.ca","rank":2001},
+  {"id":2002,"name":"Uphold","aliases":["Uphold"],"type":"CEX","website":"https://uphold.com","rank":2002},
   {"id":3,"name":"Huobi Global","aliases":["Huobi","Huobi Global"],"type":"CEX","website":"https://www.huobi.com","rank":3},
   {"id":4,"name":"Kraken","aliases":["Kraken","Kraken Pro"],"type":"CEX","website":"https://www.kraken.com","rank":4},
   {"id":5,"name":"Bithumb","aliases":["Bithumb","Bithumb Global"],"type":"CEX","website":"https://www.bithumb.com","rank":5},

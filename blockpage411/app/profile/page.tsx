@@ -69,7 +69,11 @@ function ProfilePageInner() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [walletMeta, setWalletMeta] = useState({ chain: 'eth', exchangeSource: '', storageType: '' });
-  const [metadataOptions, setMetadataOptions] = useState<{ exchanges: string[]; coldWallets: string[]; softWallets: string[] }>({ exchanges: [], coldWallets: [], softWallets: [] });
+  const [metadataOptions, setMetadataOptions] = useState<{ exchanges: string[]; coldWallets: string[]; softWallets: string[] }>({
+    exchanges: [],
+    coldWallets: [],
+    softWallets: [],
+  });
   const [meLoading, setMeLoading] = useState(true);
   const [savingWalletMeta, setSavingWalletMeta] = useState(false);
   const [form, setForm] = useState({
@@ -538,28 +542,29 @@ function ProfilePageInner() {
           ) : null}
           <Link
             href="/profile/edit"
-            className="hidden sm:inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-lime-400 px-4 py-2 text-xs font-semibold text-slate-950 shadow-[0_10px_30px_rgba(34,197,94,0.45)] hover:from-emerald-400 hover:to-lime-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            className="hidden sm:inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            style={{ backgroundColor: '#10b981', color: '#020617', textDecoration: 'none' }}
           >
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-900/20 text-[10px]">✎</span>
             Edit profile
           </Link>
         </div>
 
-
-        {safeRedirectTo ? (
+        {me?.address && safeRedirectTo && (
           <div className="mb-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4 flex items-center justify-between gap-3 flex-wrap">
             <div>
               <div className="text-slate-100 font-semibold">You’re signed in.</div>
               <div className="text-xs text-slate-300 mt-1">You can return to where you left off anytime.</div>
             </div>
             <a
-              className="px-3 py-1.5 rounded bg-slate-800 text-slate-100 hover:bg-slate-700"
+              className="px-3 py-1.5 rounded-full bg-emerald-500 text-slate-950 text-xs font-semibold shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               href={safeRedirectTo}
+              style={{ backgroundColor: '#10b981', color: '#020617', textDecoration: 'none' }}
             >
               Return
             </a>
           </div>
-        ) : null}
+        )}
         <div className="mb-4 flex gap-2 border-b border-slate-800/80 pb-2" role="tablist" aria-label="Profile tabs">
           <button
             className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-colors ${tab === 'profile' ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 hover:text-emerald-300'}`}
@@ -577,13 +582,13 @@ function ProfilePageInner() {
           </button>
           <Link
             href="/profile/edit"
-            className="ml-auto inline-flex sm:hidden items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-lime-400 px-3 py-1.5 text-[11px] font-semibold text-slate-950 shadow-[0_10px_26px_rgba(34,197,94,0.5)] hover:from-emerald-400 hover:to-lime-300"
+            className="ml-auto inline-flex sm:hidden items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-slate-950 shadow-sm hover:bg-emerald-400"
+            style={{ backgroundColor: '#10b981', color: '#020617', textDecoration: 'none' }}
           >
             <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-900/20 text-[9px]">✎</span>
             Edit
           </Link>
         </div>
-
         {tab === 'profile' && (
           <div className="space-y-6 text-slate-200">
             <section
@@ -1182,7 +1187,7 @@ function ProfilePageInner() {
       return (
         <span className="inline-block">
           <button
-            className="ml-4 px-3 py-1 rounded bg-cyan-700 text-white font-bold disabled:opacity-60"
+            className="ml-4 px-3 py-1 rounded-md bg-white text-slate-900 font-semibold border border-slate-200 disabled:opacity-60"
             disabled={loading}
             onClick={async () => {
               setLoading(true);

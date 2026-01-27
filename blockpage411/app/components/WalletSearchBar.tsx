@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 
 type SearchResult = {
+  kind?: 'wallet' | 'tx';
   address?: string;
   chain?: string;
   network?: string;
@@ -12,6 +13,9 @@ type SearchResult = {
   ens?: string;
   summary?: string;
   description?: string;
+  hash?: string;
+  from?: string;
+  to?: string | null;
   socials?: { displayName?: string; avatarUrl?: string };
   trustScore?: number;
   riskScore?: number;
@@ -19,6 +23,21 @@ type SearchResult = {
   blacklisted?: boolean;
   kycStatus?: string;
   statusTags?: string[];
+};
+
+type SearchApiTx = {
+  chain: string;
+  hash: string;
+  from: string;
+  to: string | null;
+  valueEther: string;
+  blockNumber: number | null;
+};
+
+type SearchApiResponse = {
+  kind?: 'wallet' | 'tx';
+  results?: SearchResult[];
+  tx?: SearchApiTx | null;
 };
 
 type ResolveWalletResponse = {
@@ -55,10 +74,14 @@ function toWalletPath(chain: string, address: string): string {
   return `/wallet/${encodeURIComponent(chain)}/${encodeURIComponent(address)}`;
 }
 
+function toTxPath(chain: string, hash: string): string {
+  return `/tx/${encodeURIComponent(chain)}/${encodeURIComponent(hash)}`;
+}
+
 export default function WalletSearchBar({
   className,
   inputClassName,
-  placeholder = 'Search wallet (address, ENS, Base name, or UD)',
+  placeholder = 'Search wallet or tx hash (address, ENS, UD, 0x… tx)',
   size = 'md',
   autoFocus,
   showSuggestions = true,
@@ -134,7 +157,17 @@ export default function WalletSearchBar({
     router.push(toWalletPath(chain, address));
   }
 
+  function navigateTx(chain: string, hash: string) {
+    router.push(toTxPath(chain, hash));
+  }
+
   function navigateToResult(r: SearchResult) {
+    if (r?.kind === 'tx' && typeof r?.hash === 'string' && r.hash) {
+      const chain = normalizeChain(r.chain || r.network) || defaultChain();
+      navigateTx(chain, r.hash);
+      return;
+    }
+
     const address = typeof r?.address === 'string' ? r.address : undefined;
     if (!address) return;
 
@@ -157,11 +190,18 @@ export default function WalletSearchBar({
         const params = new URLSearchParams({ q: next });
         const res = await fetch(`/api/search?${params.toString()}`);
         if (res.ok) {
-          const js = await res.json().catch(() => ({} as any));
+          const js = (await res.json().catch(() => ({} as any))) as SearchApiResponse;
+
+          if (js?.kind === 'tx' && js?.tx?.hash) {
+            const chain = normalizeChain(js.tx.chain) || defaultChain();
+            navigateTx(chain, js.tx.hash);
+            return;
+          }
+
           const list = Array.isArray(js?.results) ? (js.results as SearchResult[]) : [];
-          const first = list.find((x) => typeof x?.address === 'string');
-          if (first?.address) {
-            navigateToResult(first);
+          const firstWallet = list.find((x) => typeof x?.address === 'string');
+          if (firstWallet?.address) {
+            navigateToResult(firstWallet);
             return;
           }
         }

@@ -493,26 +493,26 @@ export default function EditProfilePage() {
             </div>
             {error && <div className="text-red-400">{error}</div>}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                disabled={saving}
-                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-500 text-slate-950 rounded-full text-sm font-semibold shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-              >
-                {saving ? 'Saving...' : 'Save changes'}
-              </button>
-              <button
-                type="button"
-                onClick={()=>router.push('/')}
-                className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 text-slate-100 rounded-full text-sm hover:bg-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => { await requestAllVerifications(values, setValues); }}
-                className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-full text-sm hover:bg-indigo-500"
-              >
-                Request Verification
-              </button>
+                <button
+                  disabled={saving}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-white text-slate-900 rounded-md text-sm font-semibold shadow-sm hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 border border-slate-200"
+                >
+                  {saving ? 'Saving...' : 'Save changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={()=>router.push('/')}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-900 rounded-md text-sm hover:bg-slate-100 border border-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => { await requestAllVerifications(values, setValues); }}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-900 rounded-md text-sm hover:bg-slate-100 border border-slate-200"
+                >
+                  Request Verification
+                </button>
             </div>
           </form>
         )}
