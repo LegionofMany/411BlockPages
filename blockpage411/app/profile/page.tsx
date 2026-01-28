@@ -789,9 +789,17 @@ function ProfilePageInner() {
                 {' '}
                 {me ? (
                   me.directoryOptIn ? (
-                    <span className="text-slate-100">Listed · <Link className="underline text-slate-200 hover:text-slate-100" href="/phone-book">View directory</Link></span>
+                    <span className="text-slate-100">
+                      Listed ·{' '}
+                      <Link className="underline text-slate-200 hover:text-slate-100" href="/phone-book">View directory</Link>
+                      {' '}·{' '}
+                      <Link className="underline text-slate-200 hover:text-slate-100" href="/profile/edit#phone-book-listing">Manage</Link>
+                    </span>
                   ) : (
-                    <span className="text-slate-400">Not listed</span>
+                    <span className="text-slate-400">
+                      Not listed ·{' '}
+                      <Link className="underline text-slate-200 hover:text-slate-100" href="/profile/edit#phone-book-listing">Enable listing</Link>
+                    </span>
                   )
                 ) : (
                   <Skeleton className="h-4 w-32" />

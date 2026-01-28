@@ -128,7 +128,7 @@ export default function PhoneBookPage() {
               results.map((p) => (
                 <Link
                   key={p.address}
-                  href={`/wallet/${encodeURIComponent(p.address)}`}
+                  href={`/wallet/ethereum/${encodeURIComponent(p.address)}`}
                   className="rounded-2xl border border-slate-800 bg-black/40 p-4 hover:bg-black/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                 >
                   <div className="flex items-center gap-3">
@@ -200,6 +200,15 @@ export default function PhoneBookPage() {
             <DiscordCommunitySection compact />
             <div className="mt-4 text-xs text-slate-400">
               Want to appear here? Enable “List me in the Phone Book” in your profile settings.
+            </div>
+            <div className="mt-3">
+              <Link
+                href="/profile/edit#phone-book-listing"
+                className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-sm hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                style={{ backgroundColor: '#10b981', color: '#020617', textDecoration: 'none' }}
+              >
+                Manage Phone Book listing
+              </Link>
             </div>
           </div>
         </aside>

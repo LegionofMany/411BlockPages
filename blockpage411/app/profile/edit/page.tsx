@@ -318,10 +318,11 @@ export default function EditProfilePage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded px-3 py-2">
+              <div id="phone-book-listing" className="flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded px-3 py-2 scroll-mt-24">
                 <div>
                   <div className="text-sm font-medium text-slate-100">List me in the Phone Book</div>
                   <p className="text-xs text-slate-400">Allows others to discover your profile in the directory.</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Takes effect after you save.</p>
                 </div>
                 <button
                   type="button"
