@@ -20,9 +20,8 @@ if (!MONGODB_URI) {
   }
 }
 
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
-}
+// Do not throw at import-time: Next.js may import server modules during build
+// to collect route configuration. We throw at call-time in dbConnect() instead.
 
 interface MongooseCache {
   conn: Mongoose | null;
@@ -36,6 +35,9 @@ if (!cached) {
 }
 
 async function dbConnect() {
+  if (!MONGODB_URI) {
+    throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
+  }
   if (cached.conn) {
     return cached.conn;
   }
