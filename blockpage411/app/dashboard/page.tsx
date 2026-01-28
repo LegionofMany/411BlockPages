@@ -8,7 +8,6 @@ import SampleWallet from "../components/landing/SampleWallet";
 import PopularWallets from "../components/landing/PopularWallets";
 import Testimonials from "../components/landing/Testimonials";
 import LiveStats from "../components/landing/LiveStatsClient";
-import LandingSearchDemo from "../components/landing/LandingSearchDemo";
 import SocialProof from "../components/landing/SocialProof";
 import FAQ from "../components/landing/FAQ";
 import ThemeProvider from "../components/ThemeProvider";
@@ -26,7 +25,6 @@ export default function DashboardPage() {
       >
         <main className="flex-1 flex flex-col items-center w-full pt-24">
           <Hero />
-          <LandingSearchDemo />
           <LiveStats />
           <ChainCarousel />
           <Features />
