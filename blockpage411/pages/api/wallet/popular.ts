@@ -30,18 +30,56 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (hasZRevRange(redis)) {
       popularWallets = await redis.zrevrange('popular_wallets', 0, 19) as string[];
     }
-    // Ensure MongoDB connection before querying
-    await dbConnect();
-    // Optionally fetch wallet details from MongoDB
-  const walletDocs = await Wallet.find({ address: { $in: popularWallets } }) as WalletDoc[];
-    // Map to include searchCount and lastRefreshed
-    const wallets = walletDocs.map(w => ({
-      address: w.address,
-      searchCount: w.searchCount || 0,
-      lastRefreshed: w.lastRefreshed || w.updatedAt || null,
-      popular: w.popular || false,
-      transactions: w.transactions || [],
-    }));
+
+    // If Redis is disabled/empty, avoid hitting MongoDB at all for this hot landing-page endpoint.
+    // (This prevents noisy 500s in dev when DB is temporarily unavailable.)
+    if (!popularWallets || popularWallets.length === 0) {
+      const payload = { wallets: [] as Array<{ address: string; searchCount: number; lastRefreshed: string | null; popular: boolean }> };
+      try {
+        cachedPopular = { value: payload, expiresAt: Date.now() + CACHE_TTL_MS };
+      } catch {
+        // ignore
+      }
+      return res.status(200).json(payload);
+    }
+
+    // Best-effort MongoDB enrich. If DB fails, still return a safe payload.
+    let walletDocs: WalletDoc[] = [];
+    try {
+      await dbConnect();
+      // Use lean() so unknown fields (if present in Mongo) come through, even if not in the schema.
+      walletDocs = await Wallet.find({ address: { $in: popularWallets } }).lean() as any;
+    } catch (e) {
+      console.warn('POPULAR WALLETS: Mongo unavailable; returning addresses only.', (e as any)?.message || e);
+      const payload = {
+        wallets: popularWallets.map((a) => ({
+          address: a,
+          searchCount: 0,
+          lastRefreshed: null,
+          popular: true,
+        })),
+      };
+      try {
+        cachedPopular = { value: payload, expiresAt: Date.now() + CACHE_TTL_MS };
+      } catch {
+        // ignore
+      }
+      return res.status(200).json(payload);
+    }
+
+    const docByAddress = new Map<string, WalletDoc>();
+    for (const w of walletDocs) docByAddress.set(String(w.address || '').toLowerCase(), w);
+
+    // Preserve the Redis ordering.
+    const wallets = popularWallets.map((addr) => {
+      const w = docByAddress.get(String(addr).toLowerCase());
+      return {
+        address: addr,
+        searchCount: (w as any)?.searchCount || 0,
+        lastRefreshed: ((w as any)?.lastRefreshed || (w as any)?.updatedAt || null) as any,
+        popular: Boolean((w as any)?.popular ?? true),
+      };
+    });
     const payload = { wallets };
     // populate cache
     try {
@@ -52,7 +90,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     res.status(200).json(payload);
   } catch (error) {
-    console.error('Redis or MongoDB error:', error);
-    res.status(500).json({ error: 'Failed to fetch popular wallets.' });
+    // Never hard-fail this endpoint; the home page should remain usable.
+    console.warn('POPULAR WALLETS: degraded response due to error:', (error as any)?.message || error);
+    const payload = { wallets: [] };
+    try {
+      cachedPopular = { value: payload, expiresAt: Date.now() + CACHE_TTL_MS };
+    } catch {
+      // ignore
+    }
+    res.status(200).json(payload);
   }
 }

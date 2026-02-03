@@ -16,11 +16,17 @@ export default function PopularWallets() {
     async function fetchPopularWallets() {
       try {
         setLoading(true);
-        const res = await fetch("/api/wallet/popular");
-        const data = await res.json();
-        setWallets(data.wallets);
+        const res = await fetch("/api/wallet/popular", { cache: 'no-store' });
+        if (!res.ok) {
+          setWallets([]);
+          return;
+        }
+        const data = await res.json().catch(() => ({} as any));
+        const next = Array.isArray((data as any)?.wallets) ? (data as any).wallets : [];
+        setWallets(next);
       } catch (error) {
-        console.error("Failed to fetch popular wallets", error);
+        // Non-critical on landing page; fail silently.
+        setWallets([]);
       } finally {
         setLoading(false);
       }

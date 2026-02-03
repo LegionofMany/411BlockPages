@@ -40,10 +40,19 @@ export default function DiscordCommunitySection({
     let mounted = true;
     (async () => {
       try {
+        const statusRes = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+        const status = await statusRes.json().catch(() => ({} as any));
+        if (!mounted) return;
+        if (!status?.authenticated) {
+          setSignedIn(false);
+          setEligible(false);
+          return;
+        }
+
         const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
         if (!mounted) return;
         if (!res.ok) {
-          setSignedIn(false);
+          setSignedIn(true);
           setEligible(false);
           return;
         }
