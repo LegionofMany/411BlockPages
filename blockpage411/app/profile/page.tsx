@@ -59,7 +59,18 @@ interface MeResponse {
 
 export default function ProfilePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen">
+          <main className="max-w-5xl mx-auto p-6">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6">
+              <div className="text-slate-100 font-semibold">Loading profile…</div>
+              <div className="mt-2 text-sm text-slate-300">Preparing your dashboard</div>
+            </div>
+          </main>
+        </div>
+      }
+    >
       <ProfilePageInner />
     </Suspense>
   );
@@ -93,6 +104,11 @@ function ProfilePageInner() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const searchParams = useSearchParams();
+
+  // Optional return target after login; must be a safe, same-site relative path.
+  const redirectTo = String(searchParams?.get('redirectTo') || '').trim();
+  const safeRedirectTo = redirectTo.startsWith('/') && !redirectTo.startsWith('//') ? redirectTo : '';
+
   const {
     connectMetaMask,
     connectCoinbase,
@@ -572,6 +588,40 @@ function ProfilePageInner() {
     } catch {
       return deadlineIso;
     }
+  }
+
+  // If /api/me fails (401/404/503), don't let the dashboard silently render empty.
+  if (!meLoading && !me) {
+    return (
+      <div className="min-h-screen">
+        <main className="max-w-3xl mx-auto p-6">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6">
+            <div className="text-slate-100 font-semibold">You’re not signed in yet</div>
+            <div className="mt-2 text-sm text-slate-300">
+              Sign in to load your profile. If you just signed in, try refreshing — your session cookie might still be propagating.
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href={safeRedirectTo ? `/login?redirectTo=${encodeURIComponent(safeRedirectTo)}` : '/login'}
+                className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-400"
+              >
+                Go to Login
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMeLoading(true);
+                  refreshMe();
+                }}
+                className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/60 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (

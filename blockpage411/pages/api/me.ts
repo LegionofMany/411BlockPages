@@ -39,10 +39,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('API/ME: dbConnect failed', err);
     return res.status(503).json({ message: 'Database unavailable' });
   }
-  const user = await User.findOne({ address: userAddress });
+  let user = await User.findOne({ address: userAddress });
   if (!user) {
-    if (DEBUG_AUTH) console.log('API/ME: User not found', userAddress);
-    return res.status(404).json({ message: 'User not found' });
+    if (DEBUG_AUTH) console.log('API/ME: User not found; creating', userAddress);
+    // Some login flows can succeed (JWT issued) even if Mongo was temporarily
+    // unreachable during nonce/verify. Create the user lazily here so the app
+    // never lands on a blank screen after login.
+    const now = new Date();
+    user = await User.create({
+      address: userAddress,
+      nonce: '',
+      nonceCreatedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
   }
   // Compute verification score and badge
   let score = 0;

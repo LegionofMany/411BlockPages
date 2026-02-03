@@ -224,13 +224,35 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
   );
 
   const getSigner = useCallback(async () => {
-    // If we don't have an active provider yet, try injected as a fallback.
-    const p = provider || getInjectedEthereum(null);
-    if (!p) throw new Error("No wallet provider available.");
+    // Prefer the provider from the active wagmi connector. This avoids a common
+    // failure mode where `window.ethereum` is a multi-provider shim and signing
+    // requests never surface to the wallet the user actually connected.
+    let p: Eip1193Provider | null = null;
+    try {
+      if (connector) {
+        const cp = (await connector.getProvider()) as unknown;
+        if (isEip1193Provider(cp)) p = cp as Eip1193Provider;
+      }
+    } catch {
+      // ignore
+    }
+
+    if (!p && provider) p = provider;
+
+    if (!p) {
+      const prefer: InjectedPreference =
+        providerType === 'coinbase' ? 'coinbase' : 'metamask';
+      p = getInjectedEthereum(prefer) || getInjectedEthereum(null);
+    }
+
+    if (!p) throw new Error('No wallet provider available.');
 
     const browserProvider = new BrowserProvider(p as any);
+    // If we know the connected address, request a signer for that address
+    // explicitly. This reduces “wrong account” and hanging signer edge cases.
+    if (address) return browserProvider.getSigner(address);
     return browserProvider.getSigner();
-  }, [provider]);
+  }, [address, connector, provider, providerType]);
 
   // Keep our local state in sync with wagmi account state.
   useEffect(() => {

@@ -35,21 +35,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
   res.setHeader('Set-Cookie', nonceCookie);
 
-  // Best-effort persistence to MongoDB (kept for compatibility and auditability).
-  // If DB is down, the login flow can still continue via the cookie.
-  try {
-    await dbConnect();
-    let user = await User.findOne({ address });
-    if (!user) {
-      user = await User.create({ address, nonce, nonceCreatedAt: now });
-    } else {
-      user.nonce = nonce;
-      user.nonceCreatedAt = now;
-      await user.save();
-    }
-  } catch (e) {
-    console.warn('AUTH NONCE: DB unavailable; proceeding with cookie-based nonce.', (e as any)?.message || e);
-  }
-
+  // Respond immediately so the UI doesn't get stuck on "Verifying..." during
+  // transient Mongo connectivity issues or cold starts.
   res.status(200).json({ nonce });
+
+  // Best-effort persistence to MongoDB (kept for compatibility/auditability).
+  // IMPORTANT: do not await; we don't want to block the response.
+  setTimeout(() => {
+    void (async () => {
+      try {
+        await dbConnect();
+        let user = await User.findOne({ address });
+        if (!user) {
+          await User.create({ address, nonce, nonceCreatedAt: now });
+        } else {
+          user.nonce = nonce;
+          user.nonceCreatedAt = now;
+          await user.save();
+        }
+      } catch (e) {
+        console.warn(
+          'AUTH NONCE: DB unavailable; proceeding with cookie-based nonce.',
+          (e as any)?.message || e
+        );
+      }
+    })();
+  }, 0);
 }

@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 const WalletButtons = dynamic(() => import('./WalletButtons'));
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEvmWallet } from "../../components/EvmWalletProvider";
+import { hexlify, toUtf8Bytes } from "ethers";
 
 
 export default function LoginPage() {
@@ -30,18 +31,80 @@ function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const { address, isConnected, disconnect, getSigner } = useEvmWallet();
+  const { address, isConnected, disconnect, getSigner, provider } = useEvmWallet();
   const abortRef = useRef<AbortController | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  function withTimeout<T>(p: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
+    return Promise.race([
+      p,
+      new Promise<T>((_, reject) => {
+        setTimeout(() => reject(new Error(timeoutMessage)), ms);
+      }),
+    ]);
+  }
+
+  async function signLoginMessage(opts: { message: string; address: string }): Promise<string> {
+    const { message, address } = opts;
+
+    // 1) Try ethers Signer (preferred when it works)
+    const signer = await withTimeout(
+      getSigner(),
+      12_000,
+      'Wallet signer not ready. Try disconnecting and reconnecting your wallet.'
+    );
+
+    try {
+      return await withTimeout(
+        signer.signMessage(message),
+        45_000,
+        'Signature request timed out. Check MetaMask for a pending signature popup.'
+      );
+    } catch (e: any) {
+      // 2) Fall back to raw EIP-1193 request. This can fix environments where
+      // signer.signMessage() never surfaces a prompt.
+      if (!provider || typeof (provider as any).request !== 'function') throw e;
+
+      const msgHex = hexlify(toUtf8Bytes(message));
+      const addr = String(address || '').toLowerCase();
+      const req = (provider as any).request.bind(provider);
+
+      // MetaMask expects: personal_sign([data, address])
+      try {
+        const sig = await withTimeout(
+          req({ method: 'personal_sign', params: [msgHex, addr] }),
+          45_000,
+          'Signature request timed out. Check MetaMask for a pending signature popup.'
+        );
+        if (typeof sig === 'string' && sig) return sig;
+      } catch {
+        // Some wallets flip param order: [address, data]
+        const sig = await withTimeout(
+          req({ method: 'personal_sign', params: [addr, msgHex] }),
+          45_000,
+          'Signature request timed out. Check your wallet for a pending signature popup.'
+        );
+        if (typeof sig === 'string' && sig) return sig;
+      }
+
+      throw new Error('Signature failed. Please retry and approve the signature in your wallet.');
+    }
+  }
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   async function handleLogin() {
+    if (loading) return;
     setError("");
     setLoading(true);
+
+    // If API routes are cold-starting or blocked, don't hang the UI forever.
+    // We'll abort the whole attempt after a reasonable timeout.
+    let timedOut = false;
+    let timeoutId: number | null = null;
 
     // Cancel any previous in-flight attempt before starting a new one.
     try {
@@ -51,6 +114,15 @@ function LoginPageInner() {
     }
     const controller = new AbortController();
     abortRef.current = controller;
+
+    timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      try {
+        controller.abort();
+      } catch {
+        // ignore
+      }
+    }, 30_000);
 
     try {
       if (!address) throw new Error('Connect a wallet first.');
@@ -73,8 +145,7 @@ function LoginPageInner() {
       const message = `Login nonce: ${nonceJson.nonce}`;
 
       // 2. Sign nonce with the currently connected wallet
-      const signer = await getSigner();
-      const signature = await signer.signMessage(message);
+      const signature = await signLoginMessage({ message, address });
       console.log('LOGIN: obtained signature', { signature });
 
       // 3) Verify signature (sets HttpOnly cookie)
@@ -114,7 +185,11 @@ function LoginPageInner() {
         String(err?.message || '').toLowerCase().includes('canceled') ||
         String(err?.message || '').toLowerCase().includes('cancelled');
       if (isAbort) {
-        console.log('LOGIN: aborted');
+        if (timedOut) {
+          setError('Login timed out. Please try again.');
+        } else {
+          console.log('LOGIN: aborted');
+        }
         return;
       }
 
@@ -127,6 +202,13 @@ function LoginPageInner() {
       const msg = err?.message || 'Login failed. Check console/network for details.';
       setError(String(msg));
     } finally {
+      if (timeoutId != null) {
+        try {
+          window.clearTimeout(timeoutId);
+        } catch {
+          // ignore
+        }
+      }
       setLoading(false);
       // Clear controller if this attempt is the active one.
       if (abortRef.current === controller) abortRef.current = null;
