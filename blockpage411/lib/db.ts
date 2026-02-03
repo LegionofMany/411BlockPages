@@ -47,7 +47,12 @@ async function dbConnect() {
       try {
         const m = await mongoose.connect(MONGODB_URI!, {
           bufferCommands: false,
-        });
+          // Fail fast so API routes don't hang for minutes when DNS/SRV is blocked
+          // or when Atlas is unreachable from the current network.
+          serverSelectionTimeoutMS: 6_000,
+          connectTimeoutMS: 6_000,
+          socketTimeoutMS: 20_000,
+        } as any);
         return m;
       } catch (err) {
         // Mask credentials when printing the URI
@@ -58,7 +63,23 @@ async function dbConnect() {
           console.error('Failed to connect to MongoDB (unable to mask URI)');
         }
         console.error('Mongoose connect error (full):', err);
-        console.error('Common causes: incorrect credentials, network/VPC restrictions, or missing Atlas IP allowlist. See https://www.mongodb.com/docs/atlas/security-whitelist/');
+        // Extra guidance for the specific failure you're seeing: querySrv ECONNREFUSED
+        // which commonly happens when the environment blocks SRV DNS lookups used by
+        // mongodb+srv:// URIs.
+        const e = err as any;
+        if (e?.syscall === 'querySrv' || String(e?.message || '').includes('querySrv')) {
+          console.error(
+            'Tip: Your environment appears to be blocking SRV DNS (mongodb+srv). ' +
+              'Try using a non-SRV connection string (mongodb://host1,host2,...), or fix DNS/network egress.'
+          );
+        }
+        console.error(
+          'Common causes: incorrect credentials, network/VPC restrictions, blocked DNS/SRV, or missing Atlas IP allowlist. ' +
+            'See https://www.mongodb.com/docs/atlas/security-whitelist/'
+        );
+
+        // Allow retries on subsequent requests (important in dev when connectivity changes).
+        cached.promise = null;
         throw err;
       }
     })();
