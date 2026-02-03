@@ -45,8 +45,112 @@ function LoginPageInner() {
     ]);
   }
 
+  function getBestEip1193Provider(): any {
+    if (provider && typeof (provider as any).request === 'function') return provider as any;
+    if (typeof window === 'undefined') return null;
+    const eth = (window as any).ethereum;
+    if (!eth) return null;
+    // Prefer MetaMask if multiple providers are present.
+    if (Array.isArray(eth.providers)) {
+      const mm = eth.providers.find((p: any) => p?.isMetaMask);
+      if (mm && typeof mm.request === 'function') return mm;
+    }
+    return typeof eth.request === 'function' ? eth : null;
+  }
+
+  function prettyWalletError(e: any): string {
+    const code = e?.code;
+    const msg = String(e?.message || e || '');
+    // MetaMask: -32002 means a request (connect/sign) is already pending.
+    if (code === -32002 || msg.toLowerCase().includes('already pending')) {
+      return 'A wallet request is already pending. Open your wallet (MetaMask) and approve or reject the existing request, then retry.';
+    }
+    if (code === 4001 || msg.toLowerCase().includes('user rejected')) {
+      return 'Signature was rejected in your wallet. Please retry and approve the signature.';
+    }
+    return msg || 'Wallet error. Please retry.';
+  }
+
+  async function ensureWalletAccountsReady(p: any, expectedAddress: string) {
+    if (!p || typeof p.request !== 'function') return;
+
+    // Some wallet providers can appear “connected” in app state but still require
+    // a permissions prompt before signing. This forces the prompt up-front.
+    let accounts: string[] = [];
+    try {
+      const res = await withTimeout(
+        Promise.resolve(p.request({ method: 'eth_accounts' })),
+        8_000,
+        'Wallet is not responding. Make sure your wallet extension/app is unlocked.'
+      );
+      if (Array.isArray(res)) accounts = res.map((a) => String(a));
+    } catch (e: any) {
+      // Ignore and try requestAccounts.
+      console.warn('LOGIN: eth_accounts failed', e);
+    }
+
+    const exp = String(expectedAddress || '').toLowerCase();
+    const hasExpected = accounts.some((a) => String(a).toLowerCase() === exp);
+    if (accounts.length === 0 || (exp && !hasExpected)) {
+      try {
+        await withTimeout(
+          Promise.resolve(p.request({ method: 'eth_requestAccounts' })),
+          25_000,
+          'Wallet connection request timed out. Open your wallet and approve the connection.'
+        );
+      } catch (e: any) {
+        throw new Error(prettyWalletError(e));
+      }
+    }
+  }
+
   async function signLoginMessage(opts: { message: string; address: string }): Promise<string> {
     const { message, address } = opts;
+
+    const eip1193 = getBestEip1193Provider();
+    if (eip1193) {
+      await ensureWalletAccountsReady(eip1193, address);
+    }
+
+    // Prefer direct EIP-1193 signing first. In some environments, ethers'
+    // Signer.signMessage can hang even though the raw request works.
+    if (eip1193 && typeof eip1193.request === 'function') {
+      const req = eip1193.request.bind(eip1193);
+      const addr = String(address || '').toLowerCase();
+
+      // Try plain string first (widest compatibility).
+      try {
+        const sig = await withTimeout(
+          Promise.resolve(req({ method: 'personal_sign', params: [message, addr] })),
+          45_000,
+          'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
+        );
+        if (typeof sig === 'string' && sig) return sig;
+      } catch (e: any) {
+        const msg = prettyWalletError(e);
+        // If it's a hard user-facing error (reject/pending), surface it.
+        if (msg && msg !== String(e?.message || '')) throw new Error(msg);
+      }
+
+      // Then try hex-encoded message (some providers prefer this).
+      const msgHex = hexlify(toUtf8Bytes(message));
+      try {
+        const sig = await withTimeout(
+          Promise.resolve(req({ method: 'personal_sign', params: [msgHex, addr] })),
+          45_000,
+          'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
+        );
+        if (typeof sig === 'string' && sig) return sig;
+      } catch {
+        // Some wallets flip param order: [address, data]
+        const sig = await withTimeout(
+          Promise.resolve(req({ method: 'personal_sign', params: [addr, msgHex] })),
+          45_000,
+          'Signature request timed out. Open your wallet and approve the signature.'
+        );
+        if (typeof sig === 'string' && sig) return sig;
+      }
+    }
 
     // 1) Try ethers Signer (preferred when it works)
     const signer = await withTimeout(
@@ -59,36 +163,10 @@ function LoginPageInner() {
       return await withTimeout(
         signer.signMessage(message),
         45_000,
-        'Signature request timed out. Check MetaMask for a pending signature popup.'
+        'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
       );
     } catch (e: any) {
-      // 2) Fall back to raw EIP-1193 request. This can fix environments where
-      // signer.signMessage() never surfaces a prompt.
-      if (!provider || typeof (provider as any).request !== 'function') throw e;
-
-      const msgHex = hexlify(toUtf8Bytes(message));
-      const addr = String(address || '').toLowerCase();
-      const req = (provider as any).request.bind(provider);
-
-      // MetaMask expects: personal_sign([data, address])
-      try {
-        const sig = await withTimeout(
-          req({ method: 'personal_sign', params: [msgHex, addr] }),
-          45_000,
-          'Signature request timed out. Check MetaMask for a pending signature popup.'
-        );
-        if (typeof sig === 'string' && sig) return sig;
-      } catch {
-        // Some wallets flip param order: [address, data]
-        const sig = await withTimeout(
-          req({ method: 'personal_sign', params: [addr, msgHex] }),
-          45_000,
-          'Signature request timed out. Check your wallet for a pending signature popup.'
-        );
-        if (typeof sig === 'string' && sig) return sig;
-      }
-
-      throw new Error('Signature failed. Please retry and approve the signature in your wallet.');
+      throw new Error(prettyWalletError(e) || 'Signature failed. Please retry and approve the signature in your wallet.');
     }
   }
 
