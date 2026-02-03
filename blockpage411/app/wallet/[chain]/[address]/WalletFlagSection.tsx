@@ -151,8 +151,29 @@ const WalletFlagSection: React.FC<WalletFlagSectionProps> = ({ flags, address, c
 
   async function fetchRemaining() {
     try {
+      // Avoid spamming the server (and console) with 401s for logged-out visitors.
+      // We only show quota when the user is authenticated.
+      try {
+        const statusRes = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+        const status = await statusRes.json().catch(() => ({} as any));
+        if (!status?.authenticated) {
+          setRemaining(null);
+          return;
+        }
+      } catch {
+        setRemaining(null);
+        return;
+      }
+
       const res = await fetch('/api/flags/remaining', { credentials: 'include' });
-      if (!res.ok) return setRemaining(null);
+      if (res.status === 401) {
+        setRemaining(null);
+        return;
+      }
+      if (!res.ok) {
+        setRemaining(null);
+        return;
+      }
       const body = await res.json();
       setRemaining(typeof body.remaining === 'number' ? body.remaining : null);
     } catch {

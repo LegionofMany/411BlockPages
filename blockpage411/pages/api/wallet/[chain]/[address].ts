@@ -12,7 +12,7 @@ import { getCache, setCache } from 'lib/redisCache';
 import redisRateLimit from 'lib/redisRateLimit';
 import { computeWalletVisibility } from 'services/walletVisibilityService';
 import jwt from 'jsonwebtoken';
-import { JsonRpcProvider, formatEther } from 'ethers';
+import { FetchRequest, JsonRpcProvider, formatEther } from 'ethers';
 import TxRating from 'lib/txRatingModel';
 import { EVM_CHAIN_PRIORITY, normalizeEvmChainId, type EvmChainId } from 'lib/evmChains';
 import { getEvmTxCount } from 'lib/evmAddressProbe';
@@ -73,6 +73,15 @@ function getRpcUrlForChain(chain: string): string | null {
   return null;
 }
 
+function getEthersNetworkForChain(chain: string): { name: string; chainId: number } | null {
+  const c = String(chain || '').toLowerCase();
+  if (c === 'ethereum' || c === 'eth') return { name: 'homestead', chainId: 1 };
+  if (c === 'base') return { name: 'base', chainId: 8453 };
+  if (c === 'polygon') return { name: 'matic', chainId: 137 };
+  if (c === 'bsc') return { name: 'bsc', chainId: 56 };
+  return null;
+}
+
 function getNativeTokenIdForChain(chain: string): { coingeckoId: string; symbol: string } | null {
   const c = String(chain || '').toLowerCase();
   if (c === 'ethereum' || c === 'eth') return { coingeckoId: 'ethereum', symbol: 'ETH' };
@@ -119,8 +128,15 @@ async function fetchEvmNativeBalance(chain: string, address: string): Promise<{ 
   if (!rpcUrl || !token) return null;
 
   try {
-    const provider = new JsonRpcProvider(rpcUrl);
-    const balWei = await provider.getBalance(address);
+    const net = getEthersNetworkForChain(chain);
+    const req = new FetchRequest(rpcUrl);
+    req.timeout = 8000;
+    const provider = net ? new JsonRpcProvider(req, net, { staticNetwork: net } as any) : new JsonRpcProvider(req);
+
+    const balWei = await Promise.race([
+      provider.getBalance(address),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('balance timeout')), 8500)),
+    ]);
     const amountNative = Number(formatEther(balWei));
     const priceUsd = await fetchUsdPrice(token.coingeckoId);
     const amountUsd = typeof priceUsd === 'number' ? amountNative * priceUsd : null;

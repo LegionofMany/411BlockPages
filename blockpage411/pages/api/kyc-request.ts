@@ -37,6 +37,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await User.findOne({ address: userAddress });
   if (!user) return res.status(404).json({ message: 'User not found' });
 
+  // Client request: KYC requests must prompt Base wallet sign-in first.
+  // We enforce that the user has completed Base verification.
+  if (!(user as any).baseVerifiedAt) {
+    return res.status(400).json({ message: 'Base wallet sign-in required before requesting KYC.' });
+  }
+
   // rate limiting: prevent repeated requests from same address within interval
   const now = Date.now();
   const last = lastKycRequestAt[userAddress] || 0;

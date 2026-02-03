@@ -11,6 +11,12 @@ const NETWORKS: SupportedNetwork[] = ['ethereum', 'bsc', 'polygon'];
 // use Alchemy's WSS URLs keyed off NEXT_PUBLIC_ALCHEMY_KEY. BSC can be
 // configured via a dedicated public WSS endpoint.
 const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_KEY;
+
+const FALLBACK_USD_PRICES: Record<SupportedNetwork, number> = {
+  ethereum: 2500,
+  bsc: 350,
+  polygon: 0.8,
+};
  
 const WS_RPC_ENDPOINTS: Partial<Record<SupportedNetwork, string>> = {
   ethereum: ALCHEMY_KEY ? `wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : undefined,
@@ -219,7 +225,7 @@ export default function LiveFeed() {
               network,
               nativeSymbol: meta.symbol,
               nativeDecimals: meta.decimals,
-              usdPrice: pricesRef.current[network],
+              usdPrice: pricesRef.current[network] ?? FALLBACK_USD_PRICES[network],
               largeThresholdUsd: 1_000_000,
             });
 
@@ -299,7 +305,7 @@ export default function LiveFeed() {
               network,
               nativeSymbol: meta.symbol,
               nativeDecimals: meta.decimals,
-              usdPrice: pricesRef.current[network],
+              usdPrice: pricesRef.current[network] ?? FALLBACK_USD_PRICES[network],
               largeThresholdUsd: 1_000_000,
             });
             if (whalesOnlyRef.current && normalized.label !== '🔥 Whale Transfer Detected') continue;

@@ -3,6 +3,7 @@ import dbConnect from 'lib/db';
 import User from 'lib/userModel';
 import Wallet from 'lib/walletModel';
 import { computeTrustScore } from 'services/trustScoreService';
+import { computeSocialCreditScore } from 'services/socialCreditScore';
 import { resolveNames } from 'services/nameResolution';
 import jwt from 'jsonwebtoken';
 
@@ -69,6 +70,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let flagsCount = 0;
   let walletRiskScore: number | null = null;
   let walletRiskCategory: string | null = null;
+  let walletAvgRating: number | null = null;
+  let walletRatingsCount: number | null = null;
   try {
     const walletDoc = await Wallet.findOne({
       address: user.address.toLowerCase(),
@@ -79,6 +82,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (typeof walletDoc?.riskScore === 'number') walletRiskScore = walletDoc.riskScore;
     if (typeof walletDoc?.riskCategory === 'string') walletRiskCategory = walletDoc.riskCategory;
+
+    if (typeof walletDoc?.avgRating === 'number') walletAvgRating = walletDoc.avgRating;
+    if (Array.isArray(walletDoc?.ratings)) walletRatingsCount = walletDoc.ratings.length;
   } catch {
     // ignore wallet lookup errors
   }
@@ -134,6 +140,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const connectedChains = Array.from(new Set(followedWallets.map((w: any) => String(w.chain || '')).filter(Boolean)));
 
+  const socialCredit = computeSocialCreditScore({
+    baseVerifiedAt: (user as any).baseVerifiedAt || null,
+    kycStatus: user.kycStatus,
+    telegram: (user as any).telegram || (user as any).socialLinks?.telegram,
+    twitter: (user as any).twitter || (user as any).socialLinks?.twitter,
+    discord: (user as any).discord || (user as any).socialLinks?.discord,
+    instagram: (user as any).instagram || (user as any).socialLinks?.instagram,
+    facebook: (user as any).facebook || (user as any).socialLinks?.facebook,
+    linkedin: (user as any).linkedin,
+    website: (user as any).website,
+    email: (user as any).email,
+    emailVerified: !!(user as any).emailVerified,
+    avatarUrl: (user as any).avatarUrl,
+    nftAvatarUrl: (user as any).nftAvatarUrl,
+    connectedChains,
+    walletAvgRating,
+    walletRatingsCount,
+  });
+
   res.status(200).json({
     address: user.address,
     ensName: names.ensName,
@@ -156,6 +181,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     kycStatus: user.kycStatus,
     kycRequestedAt: user.kycRequestedAt,
     kycVerifiedAt: user.kycVerifiedAt,
+    baseVerifiedAt: (user as any).baseVerifiedAt || null,
+    baseVerifiedAddress: (user as any).baseVerifiedAddress || null,
+    socialCredit,
     donationRequests: user.donationRequests as import('../../lib/types').DonationRequest[],
     featuredCharityId: (user as any).featuredCharityId,
     activeEventId: (user as any).activeEventId,

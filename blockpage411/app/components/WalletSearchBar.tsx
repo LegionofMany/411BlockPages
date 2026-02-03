@@ -40,11 +40,18 @@ type SearchApiResponse = {
   tx?: SearchApiTx | null;
 };
 
-type ResolveWalletResponse = {
-  address: string;
-  resolvedFrom: string;
-  chainHint?: string;
-};
+type ResolveWalletResponse =
+  | {
+      kind?: 'wallet';
+      address: string;
+      resolvedFrom: string;
+      chainHint?: string;
+    }
+  | {
+      kind: 'lightning';
+      input: string;
+      route: string;
+    };
 
 type Props = {
   className?: string;
@@ -212,11 +219,16 @@ export default function WalletSearchBar({
       // Fallback: resolve ENS/Base name/UD/address to an address (and chainHint).
       const r = await fetch(`/api/resolve-wallet?q=${encodeURIComponent(next)}`);
       if (!r.ok) {
-        setError('No results found.');
+        const js = await r.json().catch(() => ({} as any));
+        setError(String(js?.message || 'No results found.'));
         return;
       }
       const resolved = (await r.json().catch(() => null)) as ResolveWalletResponse | null;
-      if (!resolved?.address) {
+      if (resolved && (resolved as any).kind === 'lightning' && (resolved as any).route) {
+        router.push(String((resolved as any).route));
+        return;
+      }
+      if (!resolved || !('address' in resolved) || !resolved.address) {
         setError('No results found.');
         return;
       }

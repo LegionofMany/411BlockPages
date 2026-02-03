@@ -93,6 +93,7 @@ export default function EditProfilePage() {
           telegram: me.telegram || '',
           twitter: me.twitter || '',
           discord: me.discord || '',
+          linkedin: me.linkedin || '',
           website: me.website || '',
           email: me.email || '',
           facebook: me.facebook || '',
@@ -382,6 +383,16 @@ export default function EditProfilePage() {
                   value={String(values.website ?? '')}
                   onChange={e=>setValues({...values, website: e.target.value})}
                   placeholder="Website"
+                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">LinkedIn</label>
+                <input
+                  value={String(values.linkedin ?? '')}
+                  onChange={e=>setValues({...values, linkedin: e.target.value})}
+                  placeholder="LinkedIn profile URL or handle"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
               </div>
@@ -750,7 +761,7 @@ async function requestAllVerifications(
   setValues: React.Dispatch<React.SetStateAction<ProfileState>>
 ) {
   // collect common handles
-  const platforms = ['telegram', 'twitter', 'discord', 'facebook', 'instagram'];
+  const platforms = ['telegram', 'twitter', 'discord', 'facebook', 'instagram', 'linkedin'];
   const handles = platforms.map(p => ({ platform: p, handle: String(values[p] || '').trim() })).filter(h => h.handle);
   if (handles.length === 0) { showToast('No social handles filled to request verification for', 3000); return; }
   try {

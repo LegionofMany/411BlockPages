@@ -7,10 +7,12 @@ import Skeleton from '../components/ui/Skeleton';
 import Toast from '../components/ui/Toast';
 import RiskBadge from '../../components/RiskBadge';
 import UserProfile from '../components/UserProfile';
+import SocialCreditCard from '../components/SocialCreditCard';
 import type { UnifiedNftItem } from '../../services/nfts';
 import { consumeDeferredAction } from '../components/auth/deferredAction';
 import { useSearchParams } from 'next/navigation';
 import { useEvmWallet } from '../../components/EvmWalletProvider';
+import type { SocialCreditScoreResult } from '../../services/socialCreditScore';
 
 interface EventItem {
   _id: string;
@@ -32,6 +34,8 @@ interface MeResponse {
   udDomain?: string | null;
   directoryOptIn?: boolean;
   nftAvatarUrl?: string;
+  baseVerifiedAt?: string | null;
+  socialCredit?: SocialCreditScoreResult;
   socialLinks?: {
     trustScore?: number;
   };
@@ -62,7 +66,8 @@ export default function ProfilePage() {
 }
 
 function ProfilePageInner() {
-  const [tab, setTab] = useState<'profile' | 'events'>('events');
+  const router = useRouter();
+  const [tab, setTab] = useState<'profile' | 'events'>('profile');
   const [me, setMe] = useState<MeResponse | null>(null);
   const [featuredCharity, setFeaturedCharity] = useState<any | null>(null);
   const [activeEvent, setActiveEvent] = useState<EventItem | null>(null);
@@ -90,110 +95,109 @@ function ProfilePageInner() {
   const searchParams = useSearchParams();
   const {
     connectMetaMask,
+    connectCoinbase,
     getSigner,
     provider: evmProvider,
     address: connectedWalletAddress,
     isConnected,
+    providerType,
   } = useEvmWallet();
-
-  const [nftChain, setNftChain] = useState<string>('ethereum');
-
-  const rawRedirectTo = searchParams?.get('redirectTo') || '';
-  const safeRedirectTo = rawRedirectTo.startsWith('/') && !rawRedirectTo.startsWith('//') ? rawRedirectTo : '';
-
-  function chainSlugFromChainId(chainId: number): string {
-    switch (chainId) {
-      case 1:
-        return 'ethereum';
-      case 8453:
-        return 'base';
-      case 137:
-        return 'polygon';
-      case 42161:
-        return 'arbitrum';
-      case 10:
-        return 'optimism';
-      default:
-        return 'ethereum';
-    }
-  }
-
-  async function detectNftChain(): Promise<string> {
+  async function refreshMe() {
+    setMeLoading(true);
     try {
-      const hex = (await evmProvider?.request({ method: 'eth_chainId' })) as unknown;
-      const chainIdHex = typeof hex === 'string' ? hex : '';
-      const chainId = Number.parseInt(chainIdHex, 16);
-      if (!Number.isFinite(chainId)) return 'ethereum';
-      return chainSlugFromChainId(chainId);
-    } catch {
-      return 'ethereum';
+      const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      setMe(data);
+      if (data.nftAvatarUrl) {
+        setNftImageUrl(data.nftAvatarUrl);
+        setNftInput(data.nftAvatarUrl);
+        setNftSource(null);
+      }
+      try {
+        if (data.featuredCharityId) {
+          const charityRes = await fetch(`/api/charities/${encodeURIComponent(data.featuredCharityId)}`);
+          if (charityRes.ok) {
+            const charity = await charityRes.json();
+            setFeaturedCharity(charity);
+          }
+        }
+        if (data.activeEventId) {
+          const eventRes = await fetch(`/api/events/list?creatorUserId=${encodeURIComponent(data._id)}&activeOnly=true`);
+          if (eventRes.ok) {
+            const eventData = await eventRes.json();
+            const first = (eventData.results || []).find((ev: EventItem) => ev._id === data.activeEventId) || null;
+            setActiveEvent(first);
+          }
+        }
+      } catch {
+        // ignore errors in auxiliary profile decorations
+      }
+      try {
+        if (data?.address) {
+          const riskRes = await fetch(`/api/wallet/risk?chain=ethereum&address=${encodeURIComponent(data.address)}`);
+          if (riskRes.ok) {
+            const risk = await riskRes.json();
+            setRiskScore(typeof risk.score === 'number' ? risk.score : null);
+            setRiskCategory(risk.category || null);
+          }
+        }
+      } catch {
+        // ignore risk fetch errors for now
+      }
+    } finally {
+      setMeLoading(false);
     }
   }
-
-  const [nftImageUrl, setNftImageUrl] = useState<string>('');
-  const [nftInput, setNftInput] = useState<string>('');
-  const [nftSource, setNftSource] = useState<string | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string>('');
-  const [connectingWallet, setConnectingWallet] = useState<boolean>(false);
-  const [nftError, setNftError] = useState<string | null>(null);
-  const [nfts, setNfts] = useState<UnifiedNftItem[]>([]);
-  const [nftsLoading, setNftsLoading] = useState(false);
-  const [nftsError, setNftsError] = useState<string | null>(null);
-  const [riskScore, setRiskScore] = useState<number | null>(null);
-  const [riskCategory, setRiskCategory] = useState<'green' | 'yellow' | 'red' | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     let mounted = true;
     (async () => {
-      try {
-        const res = await fetch('/api/me', { credentials: 'include' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!mounted) return;
-        setMe(data);
-        if (data.nftAvatarUrl) {
-          setNftImageUrl(data.nftAvatarUrl);
-          setNftInput(data.nftAvatarUrl);
-          setNftSource(null);
-        }
-        try {
-          if (data.featuredCharityId) {
-            const charityRes = await fetch(`/api/charities/${encodeURIComponent(data.featuredCharityId)}`);
-            if (charityRes.ok) {
-              const charity = await charityRes.json();
-              setFeaturedCharity(charity);
-            }
-          }
-          if (data.activeEventId) {
-            const eventRes = await fetch(`/api/events/list?creatorUserId=${encodeURIComponent(data._id)}&activeOnly=true`);
-            if (eventRes.ok) {
-              const eventData = await eventRes.json();
-              const first = (eventData.results || []).find((ev: EventItem) => ev._id === data.activeEventId) || null;
-              setActiveEvent(first);
-            }
-          }
-        } catch {
-          // ignore errors in auxiliary profile decorations
-        }
-        try {
-          if (data?.address) {
-            const riskRes = await fetch(`/api/wallet/risk?chain=ethereum&address=${encodeURIComponent(data.address)}`);
-            if (riskRes.ok) {
-              const risk = await riskRes.json();
-              setRiskScore(typeof risk.score === 'number' ? risk.score : null);
-              setRiskCategory(risk.category || null);
-            }
-          }
-        } catch {
-          // ignore risk fetch errors for now
-        }
-      } catch {
-        // ignore
-      }
+      if (!mounted) return;
+      await refreshMe();
     })();
     return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function ensureBaseSignIn(): Promise<boolean> {
+    try {
+      // Prefer Coinbase Wallet ("Base wallet") for the verification action.
+      if (!isConnected || !connectedWalletAddress) {
+        await connectCoinbase();
+      } else if (providerType !== 'coinbase') {
+        await connectCoinbase();
+      }
+
+      const signer = await getSigner();
+      const addr = (await signer.getAddress()).toLowerCase();
+      if (me?.address && addr !== String(me.address).toLowerCase()) {
+        setToast('Connected wallet does not match your signed-in profile.');
+        return false;
+      }
+
+      const message = `Base wallet sign-in for Blockpage411\nAddress: ${addr}\nTime: ${new Date().toISOString()}`;
+      const signature = await signer.signMessage(message);
+      const res = await fetch('/api/base/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ address: addr, message, signature }),
+      });
+      const json = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        setToast(json?.message || 'Base sign-in failed');
+        return false;
+      }
+      await refreshMe();
+      setToast('Base wallet sign-in completed.');
+      return true;
+    } catch (e: any) {
+      const msg = e?.message || '';
+      setToast(msg || 'Base sign-in cancelled');
+      return false;
+    }
+  }
 
   // Resume any deferred action that required auth.
   useEffect(() => {
@@ -477,27 +481,70 @@ function ProfilePageInner() {
       setNftError('Paste an NFT image URL to continue.');
       return;
     }
-    const url = nftInput.trim();
-    setNftImageUrl(url);
-    setNftSource('custom');
-    // Persist to profile
-    fetch('/api/profile/update', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ walletAddress: me?.address || walletAddress, nftAvatarUrl: url }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setNftError(data?.message || 'Failed to save NFT photo');
+    const raw = nftInput.trim();
+
+    const isDirectImage = /^https?:\/\//i.test(raw) && /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(raw);
+    const isIpfs = /^ipfs:\/\//i.test(raw);
+    const isOpenSea = /opensea\.io\/(.+\/)?assets\//i.test(raw);
+
+    const persist = (imageUrl: string, source: string | null) => {
+      setNftImageUrl(imageUrl);
+      setNftSource(source);
+      fetch('/api/profile/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ walletAddress: me?.address || walletAddress, nftAvatarUrl: imageUrl }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            setNftError(data?.message || 'Failed to save NFT photo');
+            return;
+          }
+          setToast('NFT photo linked to your profile');
+        })
+        .catch(() => {
+          setNftError('Network error while saving NFT photo');
+        });
+    };
+
+    // Direct image or IPFS can be normalized locally.
+    if (isDirectImage) {
+      persist(raw, 'custom');
+      return;
+    }
+
+    if (isIpfs) {
+      const rest = raw.replace(/^ipfs:\/\//i, '').replace(/^ipfs\//i, '');
+      const url = `https://ipfs.io/ipfs/${rest}`;
+      persist(url, 'custom');
+      return;
+    }
+
+    // OpenSea or non-image URL: resolve server-side.
+    (async () => {
+      try {
+        const r = await fetch('/api/nft/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: raw }),
+        });
+        const j = await r.json().catch(() => ({} as any));
+        if (!r.ok) {
+          setNftError(j?.message || 'Failed to resolve NFT metadata');
           return;
         }
-        setToast('NFT photo linked to your profile');
-      })
-      .catch(() => {
-        setNftError('Network error while saving NFT photo');
-      });
+        const imageUrl = String(j?.imageUrl || '').trim();
+        if (!imageUrl) {
+          setNftError('No image found for that NFT input.');
+          return;
+        }
+        persist(imageUrl, isOpenSea ? 'opensea' : 'custom');
+      } catch {
+        setNftError('Network error while resolving NFT metadata');
+      }
+    })();
   }
 
   function handleCopyLink(url: string) {
@@ -567,14 +614,14 @@ function ProfilePageInner() {
         )}
         <div className="mb-4 flex gap-2 border-b border-slate-800/80 pb-2" role="tablist" aria-label="Profile tabs">
           <button
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-colors ${tab === 'profile' ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 hover:text-emerald-300'}`}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-colors border ${tab === 'profile' ? 'bg-emerald-500 text-slate-950 border-emerald-400/30' : 'bg-slate-900/50 text-slate-200 border-slate-700 hover:bg-slate-800 hover:text-emerald-200'}`}
             onClick={() => setTab('profile')}
             aria-selected={tab === 'profile'}
           >
             Overview
           </button>
           <button
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-colors ${tab === 'events' ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 hover:text-emerald-300'}`}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-colors border ${tab === 'events' ? 'bg-emerald-500 text-slate-950 border-emerald-400/30' : 'bg-slate-900/50 text-slate-200 border-slate-700 hover:bg-slate-800 hover:text-emerald-200'}`}
             onClick={() => setTab('events')}
             aria-selected={tab === 'events'}
           >
@@ -591,6 +638,25 @@ function ProfilePageInner() {
         </div>
         {tab === 'profile' && (
           <div className="space-y-6 text-slate-200">
+            <SocialCreditCard
+              score={me?.socialCredit}
+              enrollLabel={me?.socialCredit?.discordEligible ? 'Enrolled' : 'Enroll'}
+              onEnroll={async () => {
+                // Enroll action:
+                // 1) ensure Base sign-in
+                // 2) send user to profile completion
+                if (!me?.baseVerifiedAt) {
+                  const ok = await ensureBaseSignIn();
+                  if (!ok) return;
+                }
+                if (!me?.socialCredit?.discordEligible) {
+                  router.push('/profile/edit');
+                  return;
+                }
+                setToast('You are fully enrolled.');
+              }}
+            />
+
             <section
               className="relative overflow-hidden rounded-[1.75rem] border border-emerald-500/40 bg-black/90"
               style={{
@@ -611,7 +677,7 @@ function ProfilePageInner() {
                     On-chain identity
                   </p>
                   <div className="mb-2">
-                    <KYCRequestButton />
+                    <KYCRequestButton onEnsureBaseSignIn={ensureBaseSignIn} />
                   </div>
                   <h2 className="text-xl md:text-2xl font-semibold mb-2 leading-tight" style={{ color: '#fefce8' }}>
                     Link your NFT as your profile photo
@@ -1034,6 +1100,7 @@ function ProfilePageInner() {
                 <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Title</label>
                 <input
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm md:text-base placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  style={{ color: '#f8fafc' }}
                   placeholder="Short descriptive title"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -1043,6 +1110,7 @@ function ProfilePageInner() {
                 <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Description</label>
                 <textarea
                   className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  style={{ color: '#f8fafc' }}
                   placeholder="What is the event for?"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -1056,6 +1124,7 @@ function ProfilePageInner() {
                     <input
                       type="text"
                       className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                      style={{ color: '#f8fafc' }}
                       placeholder="Goal amount (e.g. 100 or $100)"
                       value={form.goalAmount}
                       onChange={(e) => setForm({ ...form, goalAmount: e.target.value })}
@@ -1068,6 +1137,7 @@ function ProfilePageInner() {
                     <input
                       type="date"
                       className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                      style={{ color: '#f8fafc' }}
                       value={form.deadline}
                       onChange={(e) => setForm({ ...form, deadline: e.target.value })}
                       required
@@ -1078,6 +1148,7 @@ function ProfilePageInner() {
                     <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Recipient wallet</label>
                     <input
                       className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                      style={{ color: '#f8fafc' }}
                       placeholder="0xabc..."
                       value={form.recipientWallet}
                       onChange={(e) => setForm({ ...form, recipientWallet: e.target.value })}
@@ -1189,7 +1260,11 @@ function ProfilePageInner() {
   );
 }
 
-    function KYCRequestButton() {
+    function KYCRequestButton({
+      onEnsureBaseSignIn,
+    }: {
+      onEnsureBaseSignIn?: () => Promise<boolean>;
+    }) {
       const [loading, setLoading] = React.useState(false);
       const [error, setError] = React.useState<string | null>(null);
       return (
@@ -1203,11 +1278,27 @@ function ProfilePageInner() {
               try {
                 const res = await fetch('/api/kyc-request', { method: 'POST', credentials: 'include' });
                 const result = await res.json().catch(() => ({}));
-                if ((result as any).kycUrl) {
+                if (res.ok && (result as any).kycUrl) {
                   window.open((result as any).kycUrl, '_blank');
-                } else {
-                  setError((result as any).message || 'KYC request failed');
+                  return;
                 }
+
+                const message = (result as any).message || 'KYC request failed';
+                // If the server requires Base sign-in, offer an automatic retry.
+                if (/base wallet sign-in required/i.test(message) && onEnsureBaseSignIn) {
+                  const ok = await onEnsureBaseSignIn();
+                  if (ok) {
+                    const retry = await fetch('/api/kyc-request', { method: 'POST', credentials: 'include' });
+                    const retryResult = await retry.json().catch(() => ({}));
+                    if (retry.ok && (retryResult as any).kycUrl) {
+                      window.open((retryResult as any).kycUrl, '_blank');
+                      return;
+                    }
+                    setError((retryResult as any).message || 'KYC request failed');
+                    return;
+                  }
+                }
+                setError(message);
               } catch {
                 setError('Network error');
               } finally {

@@ -9,9 +9,7 @@ export default function Footer() {
     setYear(new Date().getFullYear());
   }, []);
 
-  const discordInviteUrl =
-    (process.env.NEXT_PUBLIC_DISCORD_INVITE_URL && String(process.env.NEXT_PUBLIC_DISCORD_INVITE_URL).trim()) ||
-    'https://discord.gg/z8MgDnHdR';
+  // Keep the invite gated behind /discord (which checks eligibility via /api/me).
 
   return (
     <footer style={{ backgroundColor: '#070812' }} className="w-full bg-gray-900/80 text-white py-8 px-4 mt-12 shadow-inner border-t-2 border-blue-700">
@@ -24,16 +22,14 @@ export default function Footer() {
           <Link href="/" className="transition-colors" style={{ color: '#9ae6b4' }}>Home</Link>
           <Link href="/search" className="transition-colors" style={{ color: '#9ae6b4' }}>Search</Link>
           <Link href="/phone-book" className="transition-colors" style={{ color: '#9ae6b4' }}>Phone Book</Link>
-          <a
-            href={discordInviteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/discord"
             className="transition-colors inline-flex items-center gap-2"
             style={{ color: '#9ae6b4' }}
           >
             <Image src="/icons/discord.svg" alt="Discord" width={16} height={16} />
             Discord
-          </a>
+          </Link>
           <a href="https://github.com/LegionofMany/411BlockPages" target="_blank" rel="noopener noreferrer" className="transition-colors" style={{ color: '#9ae6b4' }}>GitHub</a>
           <Link href="/privacy" className="transition-colors" style={{ color: '#9ae6b4' }}>Privacy Policy</Link>
           <Link href="/terms" className="transition-colors" style={{ color: '#9ae6b4' }}>Terms of Service</Link>

@@ -28,6 +28,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
     const address = typeof payload === 'object' && payload ? payload.address : undefined;
+    if (!address) {
+      res.status(200).json({ authenticated: false });
+      return;
+    }
     res.status(200).json({ authenticated: true, address });
   } catch {
     res.status(200).json({ authenticated: false });

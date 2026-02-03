@@ -54,9 +54,9 @@ export default function ProviderSelect({ value: _value, onChange }:{ value?: Pro
     return ()=>{ window.removeEventListener('resize', updateRect); window.removeEventListener('scroll', updateRect, true); };
   }, []);
 
-  // close dropdown when clicking outside input or dropdown (so buttons on the page remain clickable)
+  // close dropdown when clicking/tapping outside input or dropdown (so buttons on the page remain clickable)
   useEffect(()=>{
-    function onDocMouseDown(e: MouseEvent){
+    function onDocPointerDown(e: PointerEvent){
       try{
         const target = e.target as Node | null;
         if (!target) return;
@@ -66,8 +66,8 @@ export default function ProviderSelect({ value: _value, onChange }:{ value?: Pro
         setFocused(false);
       }catch(e){ /* ignore */ }
     }
-    document.addEventListener('mousedown', onDocMouseDown);
-    return ()=> document.removeEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('pointerdown', onDocPointerDown);
+    return ()=> document.removeEventListener('pointerdown', onDocPointerDown);
   }, []);
 
   // listen for global close event so external buttons can force-close the dropdown
@@ -84,12 +84,16 @@ export default function ProviderSelect({ value: _value, onChange }:{ value?: Pro
       <input
         ref={inputRef}
         aria-label="Search provider"
-        className="input"
+        className="input w-full rounded-xl border border-white/15 bg-slate-950/50 px-3 text-slate-50 placeholder:text-slate-300/70 shadow-[0_10px_30px_rgba(0,0,0,0.45)] focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
         placeholder="Search provider"
         value={q}
         onChange={(e)=>setQ(e.target.value)}
         onFocus={()=>setFocused(true)}
-        onBlur={()=>{ /* keep dropdown visible briefly to allow click selection; rely on portal click */ setTimeout(()=>setFocused(false), 150); }}
+        // Do not auto-close on blur: on mobile, scrolling the portal dropdown can blur the input
+        // and immediately collapse the dropdown, preventing scrolling.
+        onKeyDown={(e)=>{
+          if (e.key === 'Escape') setFocused(false);
+        }}
       />
 
       {/* render dropdown in a body-level portal so it can't be overlapped by footer */}
@@ -97,8 +101,18 @@ export default function ProviderSelect({ value: _value, onChange }:{ value?: Pro
         <Portal>
           <div
             ref={dropdownRef}
-            style={{ position: 'fixed', left: rect.left, top: rect.bottom + 6, width: rect.width, zIndex: 1200, pointerEvents: 'auto' }}
-            className="max-h-[60vh] overflow-auto bg-white shadow rounded border border-gray-200"
+            data-test-id="provider-select-dropdown"
+            style={{
+              position: 'fixed',
+              left: rect.left,
+              top: rect.bottom + 6,
+              width: rect.width,
+              zIndex: 1200,
+              pointerEvents: 'auto',
+              WebkitOverflowScrolling: 'touch' as any,
+              touchAction: 'pan-y',
+            }}
+            className="max-h-[60vh] overflow-auto overscroll-contain bg-white shadow rounded border border-gray-200"
           >
             {loading && <div className="p-2 text-sm text-gray-500">Loading…</div>}
             {!loading && opts.length === 0 && <div className="p-2 text-sm">No providers found — you can add a new one.</div>}

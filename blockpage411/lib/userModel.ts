@@ -4,6 +4,9 @@ const UserSchema = new Schema({
   address: { type: String, required: true, unique: true },
   nonce: { type: String, required: true },
   nonceCreatedAt: { type: Date, required: true },
+  // Base wallet sign-in proof (used for gated features like Discord and KYC flow)
+  baseVerifiedAt: { type: Date },
+  baseVerifiedAddress: { type: String },
   // v3 profile fields
   displayName: { type: String },
   avatarUrl: { type: String },

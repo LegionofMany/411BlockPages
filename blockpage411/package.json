@@ -39,6 +39,8 @@
     "@unstoppabledomains/resolution": "^9.3.3",
     "autoprefixer": "^10.4.21",
     "axios": "^1.12.2",
+    "bech32": "^2.0.0",
+    "bolt11": "^1.4.1",
     "cloudinary": "^1.34.0",
     "cookie": "^1.0.2",
     "dotenv": "^17.2.3",

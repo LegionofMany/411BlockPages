@@ -37,7 +37,18 @@ const baseClient = createPublicClient({
 });
 
 function normalizeQuery(query: string): string {
-  return String(query || '').trim();
+  const raw = String(query || '').trim();
+  if (!raw) return '';
+
+  // Support common URI formats users paste from wallets.
+  // bitcoin:<address>?amount=...&label=...
+  if (/^bitcoin:/i.test(raw)) {
+    const withoutScheme = raw.replace(/^bitcoin:/i, '');
+    const beforeQuery = withoutScheme.split('?')[0].split('#')[0];
+    return decodeURIComponent(beforeQuery || '').trim();
+  }
+
+  return raw;
 }
 
 function isProbablyEns(name: string): boolean {

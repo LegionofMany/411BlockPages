@@ -46,7 +46,7 @@ describe('/api/kyc-request', () => {
 
   it('creates pending state and notifies admins', async () => {
     jest.doMock('lib/db', () => ({ __esModule: true, default: jest.fn(() => Promise.resolve()) }));
-    const fakeUser: any = { address: '0xabc', kycStatus: 'unknown', save: jest.fn(() => Promise.resolve()) };
+    const fakeUser: any = { address: '0xabc', kycStatus: 'unknown', baseVerifiedAt: new Date(), save: jest.fn(() => Promise.resolve()) };
     jest.doMock('lib/userModel', () => ({ __esModule: true, default: { findOne: jest.fn(() => fakeUser) } }));
     jest.doMock('lib/auditLogModel', () => ({ __esModule: true, default: { create: jest.fn(() => Promise.resolve()) } }));
     const notifyAdminMock = jest.fn(() => Promise.resolve());

@@ -21,6 +21,7 @@ const ProfileUpdateSchema = z.object({
   telegram: z.string().optional(),
   twitter: z.string().optional(),
   discord: z.string().optional(),
+  linkedin: z.string().optional(),
   website: z.string().url().optional(),
   instagram: z.string().optional(),
   facebook: z.string().optional(),

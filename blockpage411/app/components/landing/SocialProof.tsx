@@ -4,7 +4,7 @@ export default function SocialProof() {
   const links = [
     { name: 'Twitter', href: 'https://twitter.com', symbol: '𝕏', count: '12.3k' },
     { name: 'GitHub', href: 'https://github.com', symbol: '⌘', count: '2.1k' },
-    { name: 'Discord', href: 'https://discord.gg/z8MgDnHdR', symbol: '◎', count: '8.7k' },
+    { name: 'Discord', href: '/discord', symbol: '◎', count: '8.7k' },
   ];
 
   return (
@@ -14,8 +14,8 @@ export default function SocialProof() {
           <a
             key={l.name}
             href={l.href}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={l.href.startsWith('http') ? '_blank' : undefined}
+            rel={l.href.startsWith('http') ? 'noopener noreferrer' : undefined}
             className="flex items-center gap-2 p-2 rounded transition-colors"
             style={{ color: '#9ca3af' }}
           >

@@ -1,17 +1,35 @@
-import { ethers } from 'ethers';
+import { ethers, FetchRequest } from 'ethers';
 import { getCache, setCache } from '../lib/redisCache';
 
 const DEFAULT_TIMEOUT = 8000;
 const DEFAULT_RETRIES = 3;
 const CIRCUIT_OPEN_MS = 60_000; // open for 60s after failures
 
+function networkForChain(chain?: string): { name: string; chainId: number } | undefined {
+  const c = String(chain || '').toLowerCase();
+  if (c === 'ethereum' || c === 'eth') return { name: 'homestead', chainId: 1 };
+  if (c === 'polygon' || c === 'matic') return { name: 'matic', chainId: 137 };
+  if (c === 'bsc' || c === 'binance') return { name: 'bsc', chainId: 56 };
+  if (c === 'base') return { name: 'base', chainId: 8453 };
+  return undefined;
+}
+
 // simple in-memory circuit state per url
 const circuitState: Record<string, { failures: number; openedAt?: number }> = {};
 
-function providerForUrl(url?: string) {
+function providerForUrl(url?: string, chain?: string) {
   try {
     if (!url) return ethers.getDefaultProvider();
-    return new ethers.JsonRpcProvider(url);
+    const network = networkForChain(chain);
+
+    // Use a FetchRequest with a timeout to prevent extremely long hangs when a public RPC is down.
+    const req = new FetchRequest(url);
+    req.timeout = DEFAULT_TIMEOUT;
+
+    // Prefer a static network when known; this avoids a separate network-detection call.
+    return network
+      ? new ethers.JsonRpcProvider(req, network, { staticNetwork: network } as any)
+      : new ethers.JsonRpcProvider(req);
   } catch {
     return ethers.getDefaultProvider();
   }
@@ -20,8 +38,16 @@ function providerForUrl(url?: string) {
 export async function withProvider<T>(chain: string | undefined, cb: (prov: ethers.Provider) => Promise<T>, opts?: { timeoutMs?: number; retries?: number }) {
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT;
   const retries = opts?.retries ?? DEFAULT_RETRIES;
-  const url = chain === 'polygon' ? process.env.POLYGON_RPC_URL : chain === 'bsc' ? process.env.BSC_RPC_URL : process.env.ETH_RPC_URL;
-  const provider = providerForUrl(url);
+  const c = String(chain || '').toLowerCase();
+  const url =
+    c === 'polygon'
+      ? process.env.POLYGON_RPC_URL
+      : c === 'bsc'
+        ? process.env.BSC_RPC_URL
+        : c === 'base'
+          ? process.env.BASE_RPC_URL
+          : process.env.ETH_RPC_URL;
+  const provider = providerForUrl(url, chain);
 
   let lastErr: Error | null = null;
   const key = url ?? 'default';

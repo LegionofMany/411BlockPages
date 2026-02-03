@@ -162,24 +162,40 @@ export default function RealTimeTransactions() {
           }
 
           ws.onopen = () => {
-            // Some bitcoin WS feeds require a subscription message; many will push unprompted
+            // mempool.space WebSocket requires a subscription message.
+            // Use the low-bandwidth mempool txid feed for a simple "live transactions" list.
+            try {
+              ws?.send(JSON.stringify({ "track-mempool-txids": true }));
+            } catch {
+              // ignore
+            }
             setLoading(false);
           };
 
           ws.onmessage = (ev: MessageEvent) => {
             if (!active) return;
             try {
-              const data = JSON.parse(ev.data as string) as {
-                txid?: string;
-                x?: { hash?: string };
-                data?: { txid?: string };
-                tx?: { hash?: string };
-              };
-              // handle several possible shapes
-              const txid = data.txid || data.x?.hash || data.data?.txid || data.tx?.hash;
-                if (txid) {
+              const data = JSON.parse(ev.data as string) as any;
+
+              // Primary shape (mempool.space docs):
+              // { "mempool-txids": { sequence, added: [txid...], removed, mined, replaced } }
+              const added: string[] | undefined = data?.['mempool-txids']?.added;
+              if (Array.isArray(added) && added.length) {
+                setTransactions((prev) => {
+                  const next = [
+                    ...added.map((txid) => ({ id: genId(), hash: String(txid), from: 'N/A', to: 'N/A', value: net.symbol })),
+                    ...prev,
+                  ];
+                  return next.slice(0, 25);
+                });
+                return;
+              }
+
+              // Fallback shapes for other WS payloads.
+              const txid = data?.txid || data?.x?.hash || data?.data?.txid || data?.tx?.hash;
+              if (txid) {
                 setTransactions((prev) => [
-                  { id: genId(), hash: txid, from: "N/A", to: "N/A", value: net.symbol },
+                  { id: genId(), hash: String(txid), from: 'N/A', to: 'N/A', value: net.symbol },
                   ...prev,
                 ].slice(0, 25));
               }
@@ -201,7 +217,9 @@ export default function RealTimeTransactions() {
         const startPolling = () => {
           if (!net.rpc) return;
           try {
-            jsonProvider = new ethers.JsonRpcProvider(net.rpc);
+            const chainId = typeof net.chainId === 'number' ? net.chainId : undefined;
+            const name = String(net.name || '').toLowerCase();
+            jsonProvider = chainId ? new ethers.JsonRpcProvider(net.rpc, { chainId, name: name || 'unknown' }) : new ethers.JsonRpcProvider(net.rpc);
           } catch (error) {
             console.error("json provider error", error);
             return;
@@ -287,7 +305,9 @@ export default function RealTimeTransactions() {
         // If we couldn't connect to the websocket at all, start RPC polling if available
         if (net.rpc) {
           try {
-            const json = new ethers.JsonRpcProvider(net.rpc);
+            const chainId = typeof net.chainId === 'number' ? net.chainId : undefined;
+            const name = String(net.name || '').toLowerCase();
+            const json = chainId ? new ethers.JsonRpcProvider(net.rpc, { chainId, name: name || 'unknown' }) : new ethers.JsonRpcProvider(net.rpc);
             jsonProvider = json;
             let last = -1;
             pollingInterval = setInterval(async () => {
