@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { BrowserProvider, getAddress } from "ethers";
 import { WagmiProvider, useAccount, useConnect, useDisconnect, useReconnect } from 'wagmi';
-import { coinbaseConnector, injectedConnector, walletConnectConnector, wagmiConfig } from './wagmi/config';
+import { coinbaseConnector, injectedConnector, metaMaskInjectedConnector, walletConnectConnector, wagmiConfig } from './wagmi/config';
 
 type JsonRpcRequest = { method: string; params?: unknown[] | Record<string, unknown> };
 
@@ -129,7 +129,7 @@ function EvmWalletContextProvider({ children }: { children: React.ReactNode }) {
   const connectMetaMask = useCallback(async () => {
     setError(null);
     try {
-      const result = await connectAsync({ connector: injectedConnector });
+      const result = await connectAsync({ connector: metaMaskInjectedConnector });
       const nextAddr = normalizeAddress((result as any)?.accounts?.[0]);
       setProviderType('injected');
       if (nextAddr) persistProviderChoice('injected', nextAddr);

@@ -33,8 +33,13 @@ function LoginPageInner() {
   const [mounted, setMounted] = useState(false);
   const { address, isConnected, disconnect, getSigner, provider } = useEvmWallet();
   const abortRef = useRef<AbortController | null>(null);
+  const inFlightRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [prefetchedNonce, setPrefetchedNonce] = useState<string | null>(null);
+  const [prefetchedAt, setPrefetchedAt] = useState<number>(0);
+  const [nonceWarm, setNonceWarm] = useState(false);
+  const [stage, setStage] = useState<'idle' | 'nonce' | 'sign' | 'verify'>('idle');
 
   function withTimeout<T>(p: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
     return Promise.race([
@@ -56,6 +61,29 @@ function LoginPageInner() {
       if (mm && typeof mm.request === 'function') return mm;
     }
     return typeof eth.request === 'function' ? eth : null;
+  }
+
+  async function fetchNonce(opts: { address: string; signal?: AbortSignal }): Promise<string> {
+    const { address, signal } = opts;
+    const nonceRes = await withTimeout(
+      fetch("/api/auth/nonce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ address }),
+        signal,
+      }),
+      60_000,
+      'Nonce request timed out. Please retry.'
+    );
+    const nonceJson = await nonceRes.json().catch(() => ({} as any));
+    if (!nonceRes.ok) {
+      throw new Error(nonceJson?.message || nonceRes.statusText || "Failed to fetch nonce");
+    }
+    const nonce = String(nonceJson?.nonce || '');
+    if (!nonce) throw new Error('Nonce missing from server response');
+    return nonce;
   }
 
   function prettyWalletError(e: any): string {
@@ -122,7 +150,7 @@ function LoginPageInner() {
       try {
         const sig = await withTimeout(
           Promise.resolve(req({ method: 'personal_sign', params: [message, addr] })),
-          45_000,
+          90_000,
           'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
         );
         if (typeof sig === 'string' && sig) return sig;
@@ -137,7 +165,7 @@ function LoginPageInner() {
       try {
         const sig = await withTimeout(
           Promise.resolve(req({ method: 'personal_sign', params: [msgHex, addr] })),
-          45_000,
+          90_000,
           'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
         );
         if (typeof sig === 'string' && sig) return sig;
@@ -145,7 +173,7 @@ function LoginPageInner() {
         // Some wallets flip param order: [address, data]
         const sig = await withTimeout(
           Promise.resolve(req({ method: 'personal_sign', params: [addr, msgHex] })),
-          45_000,
+          90_000,
           'Signature request timed out. Open your wallet and approve the signature.'
         );
         if (typeof sig === 'string' && sig) return sig;
@@ -162,7 +190,7 @@ function LoginPageInner() {
     try {
       return await withTimeout(
         signer.signMessage(message),
-        45_000,
+        90_000,
         'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
       );
     } catch (e: any) {
@@ -174,15 +202,65 @@ function LoginPageInner() {
     setMounted(true);
   }, []);
 
+  // Warm up the nonce route as soon as the wallet is connected.
+  // This avoids a long await (dev compile/cold route) between the click and the
+  // signature request, which can prevent some wallets from surfacing the prompt.
+  useEffect(() => {
+    if (!mounted) return;
+    if (!isConnected || !address) {
+      setPrefetchedNonce(null);
+      setPrefetchedAt(0);
+      setNonceWarm(false);
+      return;
+    }
+
+    // Only prefetch if we don't have a fresh nonce (nonce cookie is 5m).
+    const ageMs = Date.now() - (prefetchedAt || 0);
+    if (prefetchedNonce && ageMs < 4 * 60 * 1000) {
+      setNonceWarm(true);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    setNonceWarm(false);
+
+    (async () => {
+      try {
+        const nonce = await fetchNonce({ address, signal: controller.signal });
+        if (cancelled) return;
+        setPrefetchedNonce(nonce);
+        setPrefetchedAt(Date.now());
+        setNonceWarm(true);
+      } catch (e) {
+        if (cancelled) return;
+        // Non-fatal; we'll fetch on click.
+        console.warn('LOGIN: nonce prefetch failed', e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      try {
+        controller.abort();
+      } catch {
+        // ignore
+      }
+    };
+  }, [address, isConnected, mounted, prefetchedAt, prefetchedNonce]);
+
   async function handleLogin() {
-    if (loading) return;
+    // React state updates are async; use a ref guard to prevent double clicks from
+    // triggering multiple concurrent signature requests.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (loading) {
+      inFlightRef.current = false;
+      return;
+    }
     setError("");
     setLoading(true);
-
-    // If API routes are cold-starting or blocked, don't hang the UI forever.
-    // We'll abort the whole attempt after a reasonable timeout.
-    let timedOut = false;
-    let timeoutId: number | null = null;
+    setStage('nonce');
 
     // Cancel any previous in-flight attempt before starting a new one.
     try {
@@ -193,48 +271,47 @@ function LoginPageInner() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    timeoutId = window.setTimeout(() => {
-      timedOut = true;
-      try {
-        controller.abort();
-      } catch {
-        // ignore
-      }
-    }, 30_000);
-
     try {
       if (!address) throw new Error('Connect a wallet first.');
       console.log('LOGIN: starting handleLogin', { address });
 
-      // 1) Get nonce
-      const nonceRes = await fetch("/api/auth/nonce", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        cache: "no-store",
-        body: JSON.stringify({ address }),
-        signal: controller.signal,
-      });
-      const nonceJson = await nonceRes.json().catch(() => ({} as any));
-      if (!nonceRes.ok) {
-        throw new Error(nonceJson?.message || nonceRes.statusText || "Failed to fetch nonce");
+      // 1) Use prefetched nonce if fresh; otherwise fetch now.
+      let nonceToUse: string | null = null;
+      const ageMs = Date.now() - (prefetchedAt || 0);
+      if (prefetchedNonce && ageMs < 4 * 60 * 1000) {
+        nonceToUse = prefetchedNonce;
+        console.log('LOGIN: using prefetched nonce');
+      } else {
+        const fetched = await fetchNonce({ address, signal: controller.signal });
+        nonceToUse = fetched;
+        setPrefetchedNonce(fetched);
+        setPrefetchedAt(Date.now());
+        console.log('LOGIN: received nonce', { nonce: fetched });
       }
-      console.log('LOGIN: received nonce', nonceJson);
-      const message = `Login nonce: ${nonceJson.nonce}`;
+
+      setStage('sign');
+
+      const message = `Login nonce: ${nonceToUse}`;
 
       // 2. Sign nonce with the currently connected wallet
       const signature = await signLoginMessage({ message, address });
       console.log('LOGIN: obtained signature', { signature });
 
+      setStage('verify');
+
       // 3) Verify signature (sets HttpOnly cookie)
-      const verifyRes = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        cache: "no-store",
-        body: JSON.stringify({ address, signature }),
-        signal: controller.signal,
-      });
+      const verifyRes = await withTimeout(
+        fetch("/api/auth/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          cache: "no-store",
+          body: JSON.stringify({ address, signature }),
+          signal: controller.signal,
+        }),
+        20_000,
+        'Verify request timed out. Please retry.'
+      );
       const verifyJson = await verifyRes.json().catch(() => ({} as any));
       console.log('LOGIN: verify response', verifyRes.status, verifyJson);
       if (!verifyRes.ok) {
@@ -263,11 +340,7 @@ function LoginPageInner() {
         String(err?.message || '').toLowerCase().includes('canceled') ||
         String(err?.message || '').toLowerCase().includes('cancelled');
       if (isAbort) {
-        if (timedOut) {
-          setError('Login timed out. Please try again.');
-        } else {
-          console.log('LOGIN: aborted');
-        }
+        console.log('LOGIN: aborted');
         return;
       }
 
@@ -280,14 +353,9 @@ function LoginPageInner() {
       const msg = err?.message || 'Login failed. Check console/network for details.';
       setError(String(msg));
     } finally {
-      if (timeoutId != null) {
-        try {
-          window.clearTimeout(timeoutId);
-        } catch {
-          // ignore
-        }
-      }
       setLoading(false);
+      setStage('idle');
+      inFlightRef.current = false;
       // Clear controller if this attempt is the active one.
       if (abortRef.current === controller) abortRef.current = null;
     }
@@ -305,6 +373,19 @@ function LoginPageInner() {
   }, []);
 
   if (!mounted) return null;
+
+  const eipProvider = getBestEip1193Provider();
+  const canAttemptSignIn = Boolean(address && isConnected && eipProvider);
+  const stageText =
+    stage === 'nonce'
+      ? 'Preparing sign-in…'
+      : stage === 'sign'
+        ? 'Waiting for wallet signature… (open MetaMask)'
+        : stage === 'verify'
+          ? 'Verifying signature…'
+          : nonceWarm
+            ? 'Ready to sign.'
+            : 'Preparing sign-in…';
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
@@ -330,10 +411,20 @@ function LoginPageInner() {
             <button
               className="w-full btn-primary bg-gradient-to-r from-green-500 to-teal-500 hover:from-teal-500 hover:to-green-500 transition-all duration-200 transform hover:scale-105 py-3 font-bold"
               onClick={handleLogin}
-              disabled={loading}
+              disabled={loading || !canAttemptSignIn}
             >
               {loading ? "Verifying..." : "Sign In to Verify"}
             </button>
+            {!loading && !canAttemptSignIn && (
+              <div className="text-xs text-slate-300 text-center">
+                Wallet is still initializing. If this persists, disconnect and reconnect.
+              </div>
+            )}
+            {!loading && canAttemptSignIn && (
+              <div className="text-xs text-slate-300 text-center">
+                {stageText}
+              </div>
+            )}
             <button
               className="w-full text-sm text-gray-400 hover:text-white transition-colors"
               onClick={async () => {

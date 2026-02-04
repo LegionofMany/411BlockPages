@@ -15,6 +15,14 @@ export const injectedConnector = injected({
   shimDisconnect: true,
 });
 
+// MetaMask-targeted injected connector (no @metamask/sdk dependency).
+// This helps avoid environments where multiple injected wallets are present
+// (e.g., Brave Wallet + MetaMask) and we want to specifically target MetaMask.
+export const metaMaskInjectedConnector = injected({
+  shimDisconnect: true,
+  target: 'metaMask',
+});
+
 export const coinbaseConnector = coinbaseWallet({
   appName: 'Blockpage411',
   appLogoUrl: undefined,
@@ -37,7 +45,7 @@ export const walletConnectConnector = walletConnectProjectId
 
 export const wagmiConfig = createConfig({
   chains: [mainnet, base],
-  connectors: [injectedConnector, coinbaseConnector, ...(walletConnectConnector ? [walletConnectConnector] : [])],
+  connectors: [metaMaskInjectedConnector, injectedConnector, coinbaseConnector, ...(walletConnectConnector ? [walletConnectConnector] : [])],
   transports: {
     [mainnet.id]: http(ethereumRpcUrl),
     [base.id]: http(baseRpcUrl),
