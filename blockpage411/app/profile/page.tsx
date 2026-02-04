@@ -122,6 +122,29 @@ function ProfilePageInner() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [connectingWallet, setConnectingWallet] = useState(false);
 
+  const [nftInput, setNftInput] = useState('');
+  const [nftError, setNftError] = useState<string | null>(null);
+  const [nftImageUrl, setNftImageUrl] = useState<string | null>(null);
+  const [nftSource, setNftSource] = useState<'opensea' | 'rarible' | 'ud' | 'custom' | null>(null);
+  const [nftChain, setNftChain] = useState<string | null>(null);
+  const [nfts, setNfts] = useState<UnifiedNftItem[]>([]);
+  const [nftsLoading, setNftsLoading] = useState(false);
+  const [nftsError, setNftsError] = useState<string | null>(null);
+
+  async function detectNftChain(): Promise<string> {
+    try {
+      const chainIdHex = (await evmProvider?.request({ method: 'eth_chainId' })) as any;
+      const chainId = typeof chainIdHex === 'string' ? parseInt(chainIdHex, 16) : Number(chainIdHex);
+      if (chainId === 8453 || chainId === 84532) return 'base';
+      if (chainId === 137 || chainId === 80001) return 'polygon';
+      if (chainId === 42161 || chainId === 421614) return 'arbitrum';
+      if (chainId === 10 || chainId === 11155420) return 'optimism';
+      return 'ethereum';
+    } catch {
+      return 'ethereum';
+    }
+  }
+
   async function refreshMe() {
     setMeLoading(true);
     try {
