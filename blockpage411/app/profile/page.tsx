@@ -13,6 +13,7 @@ import { consumeDeferredAction } from '../components/auth/deferredAction';
 import { useSearchParams } from 'next/navigation';
 import { useEvmWallet } from '../../components/EvmWalletProvider';
 import type { SocialCreditScoreResult } from '../../services/socialCreditScore';
+import type { RiskCategory } from '../../services/risk/calculateRiskScore';
 
 interface EventItem {
   _id: string;
@@ -122,6 +123,9 @@ function ProfilePageInner() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [connectingWallet, setConnectingWallet] = useState(false);
 
+  const [riskScore, setRiskScore] = useState<number | null>(null);
+  const [riskCategory, setRiskCategory] = useState<RiskCategory | null>(null);
+
   const [nftInput, setNftInput] = useState('');
   const [nftError, setNftError] = useState<string | null>(null);
   const [nftImageUrl, setNftImageUrl] = useState<string | null>(null);
@@ -182,7 +186,8 @@ function ProfilePageInner() {
           if (riskRes.ok) {
             const risk = await riskRes.json();
             setRiskScore(typeof risk.score === 'number' ? risk.score : null);
-            setRiskCategory(risk.category || null);
+            const cat = risk?.category;
+            setRiskCategory(cat === 'green' || cat === 'yellow' || cat === 'red' ? cat : null);
           }
         }
       } catch {
@@ -530,7 +535,7 @@ function ProfilePageInner() {
     const isIpfs = /^ipfs:\/\//i.test(raw);
     const isOpenSea = /opensea\.io\/(.+\/)?assets\//i.test(raw);
 
-    const persist = (imageUrl: string, source: string | null) => {
+    const persist = (imageUrl: string, source: 'opensea' | 'rarible' | 'ud' | 'custom' | null) => {
       setNftImageUrl(imageUrl);
       setNftSource(source);
       fetch('/api/profile/update', {
@@ -976,7 +981,7 @@ function ProfilePageInner() {
               <div className="flex items-center gap-2 mt-1">
                 <span className="font-semibold">Wallet risk:</span>
                 {riskScore !== null ? (
-                  <RiskBadge score={riskScore} category={riskCategory || undefined} />
+                  <RiskBadge score={riskScore} category={riskCategory ?? undefined} />
                 ) : (
                   <span className="text-xs text-slate-400">Loading…</span>
                 )}
