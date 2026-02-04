@@ -118,6 +118,10 @@ function ProfilePageInner() {
     isConnected,
     providerType,
   } = useEvmWallet();
+
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [connectingWallet, setConnectingWallet] = useState(false);
+
   async function refreshMe() {
     setMeLoading(true);
     try {
