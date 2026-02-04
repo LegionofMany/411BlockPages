@@ -215,8 +215,14 @@ export default function WalletButtons({ onError }: Props) {
           onClick={() => setShowWalletBrowser(true)}
           disabled={isBusy}
         >
-          <span className="font-semibold">Open in wallet browser</span>
+          <span className="font-semibold">Open in wallet app (recommended)</span>
         </button>
+      )}
+
+      {isMobileDevice() && (
+        <div className="text-xs text-slate-400 text-center">
+          On mobile, your wallet may open in a separate app. After approving, return here to continue.
+        </div>
       )}
 
       {showWalletBrowser && typeof window !== 'undefined' && (
@@ -228,7 +234,7 @@ export default function WalletButtons({ onError }: Props) {
           />
           <div className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-slate-950 border border-slate-700 p-4 mx-3 mb-0 sm:mb-6">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-slate-100 font-semibold">Open this page in a wallet</div>
+              <div className="text-slate-100 font-semibold">Open in a wallet app</div>
               <button
                 type="button"
                 className="text-slate-300 hover:text-white"
@@ -237,6 +243,9 @@ export default function WalletButtons({ onError }: Props) {
               >
                 ✕
               </button>
+            </div>
+            <div className="text-xs text-slate-400 mb-3">
+              This opens the current page inside your wallet’s built-in browser (best reliability on mobile).
             </div>
             <div className="grid grid-cols-1 gap-2">
               <button
@@ -283,14 +292,14 @@ export default function WalletButtons({ onError }: Props) {
               </button>
             </div>
             <div className="mt-3 text-xs text-slate-400">
-              Tip: If you’re on a phone without an extension, opening in the wallet browser is the most reliable way to connect.
+              Tip: If nothing happens, make sure the wallet app is installed and unlocked, then try again.
             </div>
           </div>
         </div>
       )}
 
       <div className="text-xs text-slate-400">
-        Mobile tip: If you’re in Safari/Chrome, use “Open in wallet browser” for the smoothest connection.
+        Mobile tip: In Safari/Chrome, use “Open in wallet app” for the smoothest connection.
       </div>
     </div>
   );

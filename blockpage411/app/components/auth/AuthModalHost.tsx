@@ -17,6 +17,13 @@ export default function AuthModalHost() {
 
   const [open, setOpen] = React.useState(false);
   const [detail, setDetail] = React.useState<OpenAuthModalDetail>({});
+  const openRef = React.useRef(false);
+  const lastOpenAtRef = React.useRef(0);
+  const lastKeyRef = React.useRef<string>("");
+
+  React.useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   React.useEffect(() => {
     try {
@@ -31,6 +38,17 @@ export default function AuthModalHost() {
     function onOpen(e: Event) {
       const ce = e as CustomEvent<OpenAuthModalDetail>;
       const d = ce?.detail || {};
+
+      // Guard against rapid re-opens (common when multiple 401 handlers fire
+      // or when React dev mode double-invokes effects).
+      const key = `${d.title || ''}|${d.redirectTo || ''}|${d.ctaLabel || ''}`;
+      const now = Date.now();
+      if (openRef.current && key === lastKeyRef.current && now - lastOpenAtRef.current < 1000) {
+        return;
+      }
+      lastKeyRef.current = key;
+      lastOpenAtRef.current = now;
+
       setDetail(d);
       setOpen(true);
     }

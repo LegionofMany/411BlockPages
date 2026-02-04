@@ -7,6 +7,20 @@ import { verifyMessage } from 'ethers';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
+function inferCookieDomain(req: NextApiRequest): string | undefined {
+  const explicit = process.env.COOKIE_DOMAIN;
+  if (explicit) return explicit;
+
+  const hostHeader = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().toLowerCase();
+  const host = hostHeader.split(':')[0];
+  if (!host || host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return undefined;
+  if (host.endsWith('.vercel.app')) return undefined;
+  if (host === 'blockpages411.com' || host === 'www.blockpages411.com' || host.endsWith('.blockpages411.com')) {
+    return '.blockpages411.com';
+  }
+  return undefined;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Avoid logging signatures or other sensitive fields.
   console.log('AUTH VERIFY: method', req.method, 'address', (req.body as any)?.address);
@@ -23,11 +37,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const isProd = process.env.NODE_ENV === 'production';
+  const cookieDomain = isProd ? inferCookieDomain(req) : undefined;
   const clearNonceCookie = serialize('login_nonce', '', {
     httpOnly: true,
     path: '/',
     secure: isProd,
-    sameSite: isProd ? 'strict' : 'lax',
+    sameSite: 'lax',
+    domain: cookieDomain,
     maxAge: 0,
   });
 
@@ -126,7 +142,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     httpOnly: true,
     path: '/',
     secure: isProd,
-    sameSite: isProd ? 'strict' : 'lax',
+    sameSite: 'lax',
+    domain: cookieDomain,
     maxAge: 60 * 60 * 24, // 1 day
   });
 

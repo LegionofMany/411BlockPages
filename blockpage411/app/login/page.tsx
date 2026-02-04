@@ -91,7 +91,7 @@ function LoginPageInner() {
     const msg = String(e?.message || e || '');
     // MetaMask: -32002 means a request (connect/sign) is already pending.
     if (code === -32002 || msg.toLowerCase().includes('already pending')) {
-      return 'A wallet request is already pending. Open your wallet (MetaMask) and approve or reject the existing request, then retry.';
+      return 'A wallet request is already pending. Open your wallet and approve or reject the existing request, then retry.';
     }
     if (code === 4001 || msg.toLowerCase().includes('user rejected')) {
       return 'Signature was rejected in your wallet. Please retry and approve the signature.';
@@ -151,7 +151,7 @@ function LoginPageInner() {
         const sig = await withTimeout(
           Promise.resolve(req({ method: 'personal_sign', params: [message, addr] })),
           90_000,
-          'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
+          'Signature request timed out. Open your wallet and approve the signature.'
         );
         if (typeof sig === 'string' && sig) return sig;
       } catch (e: any) {
@@ -166,7 +166,7 @@ function LoginPageInner() {
         const sig = await withTimeout(
           Promise.resolve(req({ method: 'personal_sign', params: [msgHex, addr] })),
           90_000,
-          'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
+          'Signature request timed out. Open your wallet and approve the signature.'
         );
         if (typeof sig === 'string' && sig) return sig;
       } catch {
@@ -191,7 +191,7 @@ function LoginPageInner() {
       return await withTimeout(
         signer.signMessage(message),
         90_000,
-        'Signature request timed out. Open your wallet (MetaMask) and approve the signature.'
+        'Signature request timed out. Open your wallet and approve the signature.'
       );
     } catch (e: any) {
       throw new Error(prettyWalletError(e) || 'Signature failed. Please retry and approve the signature in your wallet.');
@@ -380,19 +380,31 @@ function LoginPageInner() {
     stage === 'nonce'
       ? 'Preparing sign-in…'
       : stage === 'sign'
-        ? 'Waiting for wallet signature… (open MetaMask)'
+        ? 'Waiting for signature in your wallet…'
         : stage === 'verify'
           ? 'Verifying signature…'
           : nonceWarm
             ? 'Ready to sign.'
-            : 'Preparing sign-in…';
+            : 'Connect your wallet to continue.';
+
+  const primaryButtonText =
+    stage === 'nonce'
+      ? 'Preparing…'
+      : stage === 'sign'
+        ? 'Awaiting Signature…'
+        : stage === 'verify'
+          ? 'Verifying…'
+          : 'Sign In';
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-extrabold text-white">Connect Your Wallet</h1>
-          <p className="text-slate-200 mt-2">to access your Web3 profile</p>
+          <h1 className="text-4xl font-extrabold text-white">Sign In</h1>
+          <p className="text-slate-200 mt-2">Connect a wallet and sign a message to continue</p>
+          <p className="text-xs text-slate-400 mt-3">
+            We never ask for your seed phrase. This signature is gasless and only proves wallet ownership.
+          </p>
         </div>
         {!isConnected ? (
           <div className="space-y-4">
@@ -413,17 +425,15 @@ function LoginPageInner() {
               onClick={handleLogin}
               disabled={loading || !canAttemptSignIn}
             >
-              {loading ? "Verifying..." : "Sign In to Verify"}
+              {primaryButtonText}
             </button>
             {!loading && !canAttemptSignIn && (
               <div className="text-xs text-slate-300 text-center">
                 Wallet is still initializing. If this persists, disconnect and reconnect.
               </div>
             )}
-            {!loading && canAttemptSignIn && (
-              <div className="text-xs text-slate-300 text-center">
-                {stageText}
-              </div>
+            {canAttemptSignIn && (
+              <div className="text-xs text-slate-300 text-center">{stageText}</div>
             )}
             <button
               className="w-full text-sm text-gray-400 hover:text-white transition-colors"
