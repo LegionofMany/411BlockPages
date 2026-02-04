@@ -54,10 +54,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           await user.save();
         }
       } catch (e) {
-        console.warn(
-          'AUTH NONCE: DB unavailable; proceeding with cookie-based nonce.',
-          (e as any)?.message || e
-        );
+        const code = (e as any)?.code;
+        if (code !== 'MONGODB_DISABLED' && code !== 'MONGODB_URI_MISSING') {
+          console.warn(
+            'AUTH NONCE: DB unavailable; proceeding with cookie-based nonce.',
+            (e as any)?.message || e
+          );
+        }
       }
     })();
   }, 0);

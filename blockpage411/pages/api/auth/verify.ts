@@ -46,7 +46,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } catch (e) {
     dbAvailable = false;
-    console.warn('AUTH VERIFY: DB unavailable; attempting cookie-based nonce.', (e as any)?.message || e);
+    const code = (e as any)?.code;
+    if (code !== 'MONGODB_DISABLED' && code !== 'MONGODB_URI_MISSING') {
+      console.warn('AUTH VERIFY: DB unavailable; attempting cookie-based nonce.', (e as any)?.message || e);
+    }
   }
 
   let nonceToUse: string | null = null;
