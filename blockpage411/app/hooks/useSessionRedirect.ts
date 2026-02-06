@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-type AuthStatus = { authenticated?: boolean };
+type AuthStatus = { authenticated?: boolean; address?: string; token?: string };
 
 const PROTECTED_PREFIXES = [
   "/profile",
@@ -76,7 +76,6 @@ export function useSessionRedirect() {
       return;
     }
 
-    // Authenticated user sitting on /login: send them to /profile first.
     if (authenticated && pathname === "/login") {
       const target = redirectTo ? `/profile?redirectTo=${encodeURIComponent(redirectTo)}` : "/profile";
       router.replace(target);

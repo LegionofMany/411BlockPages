@@ -42,6 +42,10 @@ const UserSchema = new Schema({
   kycStatus: { type: String, enum: ['unverified', 'pending', 'verified', 'rejected'], default: 'unverified' },
   kycRequestedAt: { type: Date },
   kycVerifiedAt: { type: Date },
+  // v9: Base-chain KYC signature (no email/documents; wallet-only verification)
+  kycSignature: { type: String },
+  kycChallengeNonce: { type: String },
+  kycChallengeIssuedAt: { type: Date },
   donationRequests: [{
     platform: { type: String }, // e.g. 'Gitcoin', 'OpenCollective', 'Patreon', etc.
     url: { type: String },

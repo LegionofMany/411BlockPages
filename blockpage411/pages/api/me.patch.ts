@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // allow email updates (will also persist to associated Wallet.kycDetails.email)
   // `email` is not strictly part of UserProfile type but we accept it here
   const extendedAlwaysAllowed: Array<keyof UserProfile | 'email'> = [...alwaysAllowed, 'email'];
-  const kycGated: (keyof UserProfile)[] = ['telegram', 'twitter', 'discord', 'website', 'phoneApps'];
+  const kycLocked: (keyof UserProfile)[] = ['telegram', 'twitter', 'discord', 'website', 'phoneApps'];
   const updatedFields: Array<keyof UserProfile | 'email'> = [];
 
   // Rate limit: max 5 profile updates per day
@@ -57,7 +57,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(429).json({ message: 'Profile update limit reached (5 per day)' });
   }
 
-  // Always-allowed fields
   let body: ProfilePatchBody = req.body as ProfilePatchBody;
   try {
     const parsed = profileUpdateSchema.partial().parse(req.body || {});
@@ -72,9 +71,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (err: any) {
     return res.status(400).json({ message: 'Invalid payload', details: err?.errors ?? String(err) });
   }
+
   for (const field of extendedAlwaysAllowed) {
     if (body[field] !== undefined) {
-      // special validation for charity presets
       if (field === 'featuredCharityId') {
         const val = body.featuredCharityId;
         if (val === null || val === '') {
@@ -131,7 +130,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       } else if (field === 'email') {
         user.email = body.email as any;
-        // mark as unverified until user confirms via token endpoint
         user.emailVerified = false as any;
       } else {
         user[field] = body[field] as any;
@@ -140,12 +138,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // KYC-gated fields
-  for (const field of kycGated) {
-    if ((req.body as Partial<import('../../lib/types').UserProfile>)[field] !== undefined) {
-      if (user.kycStatus !== 'verified') {
-        return res.status(403).json({ message: `KYC verification required to update ${field}` });
+  // KYC lock: once verified, freeze sensitive fields.
+  if (user.kycStatus === 'verified') {
+    for (const field of [...kycLocked, 'email' as any]) {
+      if ((body as any)[field] !== undefined) {
+        return res.status(403).json({ message: `Cannot update ${String(field)} after KYC verification` });
       }
+    }
+  }
+
+  // Draft updates for these fields are allowed pre-KYC.
+  for (const field of kycLocked) {
+    if ((req.body as Partial<import('../../lib/types').UserProfile>)[field] !== undefined) {
       user[field] = (req.body as Partial<import('../../lib/types').UserProfile>)[field];
       updatedFields.push(field);
     }
@@ -155,13 +159,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   user.profileUpdateHistory.push(now);
   await user.save();
 
-  // If email was updated, also persist to wallet kycDetails (and mark unverified)
   try {
     if ((body as any).email) {
       await Wallet.findOneAndUpdate({ address: userAddress }, { $set: { 'kycDetails.email': (body as any).email, 'kycDetails.emailVerified': false } }).exec();
     }
   } catch (err) {
-    // ignore wallet update errors here; profile update already saved
+    console.warn('Failed to update wallet kycDetails', err);
   }
+
   res.status(200).json({ success: true, updated: updatedFields });
 }

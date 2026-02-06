@@ -148,7 +148,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       summary: `Followed ${String(w.address || '').slice(0, 6)}...${String(w.address || '').slice(-4)} on ${w.chain}`,
     }));
 
-  const connectedChains = Array.from(new Set(followedWallets.map((w: any) => String(w.chain || '')).filter(Boolean)));
+  const connectedChainsInput = followedWallets
+    .map((w: any) => String(w.chain || ''))
+    .filter((v: string) => Boolean(v));
+  const connectedChains: string[] = Array.from(new Set<string>(connectedChainsInput));
 
   const socialCredit = computeSocialCreditScore({
     baseVerifiedAt: (user as any).baseVerifiedAt || null,

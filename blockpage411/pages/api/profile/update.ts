@@ -12,27 +12,27 @@ const JWT_SECRET = process.env.JWT_SECRET as string;
 
 const ProfileUpdateSchema = z.object({
   walletAddress: z.string().min(1),
-  displayName: z.string().max(64).optional(),
-  avatarUrl: z.string().url().optional(),
-  nftAvatarUrl: z.string().url().optional(),
-  udDomain: z.string().max(255).optional(),
-  directoryOptIn: z.boolean().optional(),
-  bio: z.string().max(500).optional(),
-  telegram: z.string().optional(),
-  twitter: z.string().optional(),
-  discord: z.string().optional(),
-  linkedin: z.string().optional(),
-  website: z.string().url().optional(),
-  instagram: z.string().optional(),
-  facebook: z.string().optional(),
-  whatsapp: z.string().optional(),
+  displayName: z.string().max(64).nullable().optional(),
+  avatarUrl: z.string().url().nullable().optional(),
+  nftAvatarUrl: z.string().url().nullable().optional(),
+  udDomain: z.string().max(255).nullable().optional(),
+  directoryOptIn: z.boolean().nullable().optional(),
+  bio: z.string().max(500).nullable().optional(),
+  telegram: z.string().nullable().optional(),
+  twitter: z.string().nullable().optional(),
+  discord: z.string().nullable().optional(),
+  linkedin: z.string().nullable().optional(),
+  website: z.string().url().nullable().optional(),
+  instagram: z.string().nullable().optional(),
+  facebook: z.string().nullable().optional(),
+  whatsapp: z.string().nullable().optional(),
   phoneApps: z.preprocess((val) => {
     if (typeof val === 'string') return val.split(',').map(s => s.trim()).filter(Boolean);
     return val;
-  }, z.array(z.string()).optional()),
-  email: z.string().email().optional(),
-  featuredCharityId: z.string().optional(),
-  donationLink: z.string().optional(),
+  }, z.array(z.string()).nullable().optional()),
+  email: z.string().email().nullable().optional(),
+  featuredCharityId: z.string().nullable().optional(),
+  donationLink: z.string().nullable().optional(),
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -56,49 +56,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const update = { ...parsed.data } as any;
   delete update.walletAddress;
 
-  // UD domain validation + ownership verification (best-effort, but must match if provided)
-  if (typeof update.udDomain === 'string') {
-    const raw = update.udDomain.trim();
-    if (!raw) {
-      update.udDomain = undefined;
-    } else {
-      const lower = raw.toLowerCase();
-      const isUd = /\.(crypto|nft|x|wallet|dao|blockchain|bitcoin|888)$/i.test(lower);
-      if (!isUd) {
-        return res.status(400).json({ message: 'Invalid UD domain. Supported TLDs: .crypto .nft .x .wallet .dao .blockchain .bitcoin .888' });
-      }
-      try {
-        const resolved = await resolveWalletInput(lower);
-        if (!resolved || !resolved.address) {
-          return res.status(400).json({ message: 'Unable to resolve UD domain to an address.' });
-        }
-        if (String(resolved.address).toLowerCase() !== walletAddress.toLowerCase()) {
-          return res.status(400).json({ message: 'UD domain does not resolve to your wallet. Please verify ownership and try again.' });
-        }
-        update.udDomain = lower;
-      } catch {
-        return res.status(400).json({ message: 'Unable to verify UD domain right now. Please try again later.' });
-      }
-    }
-  }
-
   update.updatedAt = new Date();
 
   await dbConnect();
-  // rate limit: max 5 updates per 24h
   let user = await User.findOne({ address: walletAddress });
   const now = new Date();
+
+  const kycLockedFields = new Set(['telegram', 'twitter', 'discord', 'website', 'phoneApps', 'email']);
+
   if (user) {
     user.profileUpdateHistory = user.profileUpdateHistory || [];
     user.profileUpdateHistory = user.profileUpdateHistory.filter((d: Date) => now.getTime() - new Date(d).getTime() < 24 * 60 * 60 * 1000);
     if (user.profileUpdateHistory.length >= 5) return res.status(429).json({ message: 'Profile update limit reached (5 per day)' });
     user.profileUpdateHistory.push(now);
-    // apply updates via findOneAndUpdate to avoid race
-    const setObj: any = { ...update, updatedAt: now, profileUpdateHistory: user.profileUpdateHistory };
-    const updated = await User.findOneAndUpdate({ address: walletAddress }, { $set: setObj }, { new: true });
+
+    // KYC lock: once verified, freeze sensitive fields.
+    if ((user as any).kycStatus === 'verified') {
+      for (const key of Object.keys(update)) {
+        if (kycLockedFields.has(key) && update[key] !== undefined) {
+          return res.status(403).json({ message: `Cannot update ${key} after KYC verification` });
+        }
+      }
+    }
+
+    // Apply updates without clobbering unrelated fields.
+    const $set: any = { updatedAt: now, profileUpdateHistory: user.profileUpdateHistory };
+    const $unset: any = {};
+
+    for (const [key, rawVal] of Object.entries(update)) {
+      if (rawVal === undefined) continue;
+      const shouldClear = rawVal === null || (typeof rawVal === 'string' && rawVal.trim() === '');
+      if (shouldClear) {
+        $unset[key] = 1;
+      } else {
+        $set[key] = rawVal;
+      }
+    }
+
+    const updateDoc: any = { $set };
+    if (Object.keys($unset).length) updateDoc.$unset = $unset;
+
+    const updated = await User.findOneAndUpdate({ address: walletAddress }, updateDoc, { new: true });
     user = (updated as any) || user;
   } else {
-    // create new user document with minimal required fields
+    // Create new user document with minimal required fields
     const createObj: any = { address: walletAddress, nonce: '', nonceCreatedAt: now, profileUpdateHistory: [now], ...update, createdAt: now, updatedAt: now };
     user = await User.create(createObj);
   }

@@ -133,10 +133,10 @@ async function fetchEvmNativeBalance(chain: string, address: string): Promise<{ 
     req.timeout = 8000;
     const provider = net ? new JsonRpcProvider(req, net, { staticNetwork: net } as any) : new JsonRpcProvider(req);
 
-    const balWei = await Promise.race([
+    const balWei = (await Promise.race([
       provider.getBalance(address),
       new Promise((_, rej) => setTimeout(() => rej(new Error('balance timeout')), 8500)),
-    ]);
+    ])) as bigint;
     const amountNative = Number(formatEther(balWei));
     const priceUsd = await fetchUsdPrice(token.coingeckoId);
     const amountUsd = typeof priceUsd === 'number' ? amountNative * priceUsd : null;
@@ -539,7 +539,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const pws = (await ProviderWallet.find({
         chain: String(chainStr).toLowerCase(),
         address: { $in: addrList },
-      }).lean()) as Array<{ address: string; providerId?: any; note?: string }>;
+      }).lean()) as unknown as Array<{ address: string; providerId?: any; note?: string }>;
 
       const providerIds = Array.from(new Set(pws.map((x) => String(x.providerId || '')).filter(Boolean)));
       const providers = providerIds.length

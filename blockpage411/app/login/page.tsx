@@ -376,6 +376,28 @@ function LoginPageInner() {
 
   const eipProvider = getBestEip1193Provider();
   const canAttemptSignIn = Boolean(address && isConnected && eipProvider);
+
+  // Mobile deep-link flow: if we previously sent the user into a wallet app,
+  // auto-continue sign-in once they return with a connected provider.
+  useEffect(() => {
+    if (!mounted) return;
+    if (!canAttemptSignIn) return;
+    if (inFlightRef.current || loading) return;
+    try {
+      const pending = window.localStorage.getItem('walletLoginPending');
+      if (pending !== 'true') return;
+      window.localStorage.removeItem('walletLoginPending');
+    } catch {
+      return;
+    }
+
+    // Defer a tick so the UI can settle.
+    const t = setTimeout(() => {
+      handleLogin();
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, canAttemptSignIn]);
   const stageText =
     stage === 'nonce'
       ? 'Preparing sign-in…'

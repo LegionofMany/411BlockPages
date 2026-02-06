@@ -217,7 +217,7 @@ export default function RealTimeTransactions() {
         const startPolling = () => {
           if (!net.rpc) return;
           try {
-            const chainId = typeof net.chainId === 'number' ? net.chainId : undefined;
+            const chainId = typeof (net as any).chainId === 'number' ? (net as any).chainId : undefined;
             const name = String(net.name || '').toLowerCase();
             jsonProvider = chainId ? new ethers.JsonRpcProvider(net.rpc, { chainId, name: name || 'unknown' }) : new ethers.JsonRpcProvider(net.rpc);
           } catch (error) {
@@ -305,7 +305,7 @@ export default function RealTimeTransactions() {
         // If we couldn't connect to the websocket at all, start RPC polling if available
         if (net.rpc) {
           try {
-            const chainId = typeof net.chainId === 'number' ? net.chainId : undefined;
+            const chainId = typeof (net as any).chainId === 'number' ? (net as any).chainId : undefined;
             const name = String(net.name || '').toLowerCase();
             const json = chainId ? new ethers.JsonRpcProvider(net.rpc, { chainId, name: name || 'unknown' }) : new ethers.JsonRpcProvider(net.rpc);
             jsonProvider = json;

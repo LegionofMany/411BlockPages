@@ -8,6 +8,16 @@ import Skeleton from '../../components/ui/Skeleton';
 
 type ProfileState = Record<string, any>;
 
+function debounce<TArgs extends unknown[]>(fn: (...args: TArgs) => void | Promise<void>, waitMs: number) {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return (...args: TArgs) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      void fn(...args);
+    }, waitMs);
+  };
+}
+
 interface CharityOption {
   charityId: string;
   name: string;
@@ -21,7 +31,11 @@ export default function EditProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [me, setMe] = useState<any | null>(null);
   const [values, setValues] = useState<ProfileState>({});
+  const [serverValues, setServerValues] = useState<ProfileState>({});
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [autosaveMessage, setAutosaveMessage] = useState<string>('');
   const [charities, setCharities] = useState<CharityOption[]>([]);
   const [events, setEvents] = useState<any[]>([]);
 
@@ -43,6 +57,19 @@ export default function EditProfilePage() {
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UNSIGNED_PRESET;
 
+  // Load form state from localStorage on page load
+  useEffect(() => {
+    const savedState = localStorage.getItem('profileFormState');
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        setValues((prev) => ({ ...prev, ...parsedState }));
+      } catch (err) {
+        console.warn('Failed to parse saved form state', err);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -56,56 +83,59 @@ export default function EditProfilePage() {
         ]);
 
         if (!mounted) return;
-
         if (!meRes.ok) {
           setError('Failed to load profile');
           return;
         }
 
-        const me = await meRes.json();
+        const meJson = await meRes.json();
+        if (!mounted) return;
+        setMe(meJson);
 
         let charitiesData: any[] = [];
         if (charitiesRes.ok) {
           const c = await charitiesRes.json();
-          if (Array.isArray(c)) {
-            charitiesData = c;
-          } else if (Array.isArray((c as any)?.results)) {
-            charitiesData = (c as any).results;
-          }
+          if (Array.isArray(c)) charitiesData = c;
+          else if (Array.isArray((c as any)?.results)) charitiesData = (c as any).results;
         }
 
         let eventsData: any[] = [];
         if (eventsRes.ok) {
           const ev = await eventsRes.json();
-          if (Array.isArray(ev)) {
-            eventsData = ev;
-          } else if (Array.isArray((ev as any)?.results)) {
-            eventsData = (ev as any).results;
-          }
+          if (Array.isArray(ev)) eventsData = ev;
+          else if (Array.isArray((ev as any)?.results)) eventsData = (ev as any).results;
         }
 
-        setValues({
-          displayName: me.displayName || '',
-          avatarUrl: me.avatarUrl || '',
-          udDomain: me.udDomain || '',
-          directoryOptIn: Boolean(me.directoryOptIn),
-          bio: me.bio || '',
-          telegram: me.telegram || '',
-          twitter: me.twitter || '',
-          discord: me.discord || '',
-          linkedin: me.linkedin || '',
-          website: me.website || '',
-          email: me.email || '',
-          facebook: me.facebook || '',
-          instagram: me.instagram || '',
-          featuredCharityId: me.featuredCharityId || '',
-          featuredEventId: me.featuredEventId || '',
-          donationLink: me.donationLink || '',
-          donationWidgetCode: me.donationWidgetCode || '',
-          walletAddress: me.address || undefined,
-        });
+        const nextFromServer: ProfileState = {
+          walletAddress: meJson.address || undefined,
+          displayName: meJson.displayName || '',
+          bio: meJson.bio || '',
+          avatarUrl: meJson.avatarUrl || '',
+          nftAvatarUrl: meJson.nftAvatarUrl || '',
+          udDomain: meJson.udDomain || '',
+          directoryOptIn: Boolean(meJson.directoryOptIn),
+          telegram: meJson.telegram || '',
+          twitter: meJson.twitter || '',
+          discord: meJson.discord || '',
+          linkedin: meJson.linkedin || '',
+          website: meJson.website || '',
+          instagram: meJson.instagram || '',
+          facebook: meJson.facebook || '',
+          whatsapp: meJson.whatsapp || '',
+          phoneApps: Array.isArray(meJson.phoneApps) ? meJson.phoneApps.join(', ') : (meJson.phoneApps || ''),
+          email: meJson.email || '',
+          featuredCharityId: meJson.featuredCharityId || '',
+          activeEventId: meJson.activeEventId || '',
+          donationLink: meJson.donationLink || '',
+          donationWidgetEmbed: meJson.donationWidgetEmbed || null,
+          donationRequests: Array.isArray(meJson.donationRequests) ? meJson.donationRequests : [],
+        };
 
-        setAvatarPreview(me.avatarUrl || null);
+        // Preserve any localStorage draft values already loaded.
+        setValues((prev) => ({ ...nextFromServer, ...prev, walletAddress: meJson.address || undefined }));
+        setServerValues(nextFromServer);
+
+        setAvatarPreview(meJson.avatarUrl || null);
         setCharities(charitiesData as any);
         setEvents(eventsData);
         setError(null);
@@ -122,17 +152,66 @@ export default function EditProfilePage() {
     };
   }, []);
 
+  const isKycLocked = String(me?.kycStatus || '') === 'verified';
+
+  const debouncedSave = useRef(
+    debounce(async (patch: Record<string, any>) => {
+      try {
+        setAutosaveStatus('saving');
+        setAutosaveMessage('Saving…');
+        const res = await fetch('/api/profile', {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        if (res.ok) {
+          setAutosaveStatus('saved');
+          setAutosaveMessage('Saved ✓');
+          setServerValues((prev) => ({ ...prev, ...patch }));
+        } else {
+          const data = await res.json();
+          setAutosaveStatus('error');
+          setAutosaveMessage(data?.message || 'Failed to save');
+        }
+      } catch {
+        setAutosaveStatus('error');
+        setAutosaveMessage('Network error while saving');
+      }
+    }, 1500)
+  ).current;
+
+  const handleFieldChange = (field: string, value: any) => {
+    setValues((prev) => {
+      const updatedValues = { ...prev, [field]: value };
+      localStorage.setItem('profileFormState', JSON.stringify(updatedValues));
+      debouncedSave({ [field]: value });
+      return updatedValues;
+    });
+  };
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/profile/update', {
-        method: 'PUT',
+      // Only send changed fields; do not clobber existing profile with blanks.
+      const patch: Record<string, any> = {};
+      for (const [k, v] of Object.entries(values)) {
+        if (k === 'walletAddress') continue;
+        const prev = (serverValues as any)[k];
+        const next = v;
+        const bothEmpty = (prev === undefined || prev === null || prev === '') && (next === undefined || next === null || next === '');
+        if (bothEmpty) continue;
+        if (JSON.stringify(prev) !== JSON.stringify(next)) patch[k] = next;
+      }
+
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify(patch),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -141,6 +220,8 @@ export default function EditProfilePage() {
         return;
       }
       showToast('Profile updated', 3000);
+      localStorage.removeItem('profileFormState'); // Clear localStorage on successful save
+      setServerValues(values);
       router.refresh?.();
     } catch (err) {
       setError('Network error while saving');
@@ -183,6 +264,9 @@ export default function EditProfilePage() {
     <div className="min-h-screen">
       <main className="max-w-3xl mx-auto p-4 sm:p-6 pt-6">
         <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="text-xs text-slate-400">
+            {autosaveStatus !== 'idle' ? autosaveMessage : null}
+          </div>
           <button onClick={() => router.back()} className="text-sm text-white hover:underline">← Back</button>
           <span className="text-[11px] uppercase tracking-[0.16em]" style={{ color: '#22c55e' }}>
             Profile settings
@@ -290,7 +374,7 @@ export default function EditProfilePage() {
               </div>
               <input
                 value={String(values.displayName ?? '')}
-                onChange={e=>setValues({...values, displayName: e.target.value})}
+                onChange={(e) => handleFieldChange('displayName', e.target.value)}
                 placeholder="Display name"
                 className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               />
@@ -299,7 +383,7 @@ export default function EditProfilePage() {
               <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Bio</label>
               <textarea
                 value={String(values.bio ?? '')}
-                onChange={e=>setValues({...values, bio: e.target.value})}
+                onChange={(e) => handleFieldChange('bio', e.target.value)}
                 placeholder="Short description for your public profile"
                 className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               />
@@ -310,9 +394,10 @@ export default function EditProfilePage() {
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Unstoppable Domain (UD)</label>
                 <input
                   value={String(values.udDomain ?? '')}
-                  onChange={e=>setValues({...values, udDomain: e.target.value})}
+                  onChange={(e) => handleFieldChange('udDomain', e.target.value)}
                   placeholder="yourname.crypto"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  disabled={isKycLocked}
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
                   We verify ownership by resolving the domain to your wallet on save.
@@ -341,9 +426,10 @@ export default function EditProfilePage() {
               <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Telegram</label>
               <input
                 value={String(values.telegram ?? '')}
-                onChange={e=>setValues({...values, telegram: e.target.value})}
+                onChange={(e) => handleFieldChange('telegram', e.target.value)}
                 placeholder="Telegram handle"
                 className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                disabled={isKycLocked}
               />
               {values.__telegramMsg ? <div className="text-sm text-slate-300 mt-1">{values.__telegramMsg}</div> : null}
             </div>
@@ -351,29 +437,32 @@ export default function EditProfilePage() {
               <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Twitter</label>
               <input
                 value={String(values.twitter ?? '')}
-                onChange={e=>setValues({...values, twitter: e.target.value})}
+                onChange={(e) => handleFieldChange('twitter', e.target.value)}
                 placeholder="Twitter handle"
                 className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                disabled={isKycLocked}
               />
               {values.__twitterMsg ? <div className="text-sm text-slate-300 mt-1">{values.__twitterMsg}</div> : null}
             </div>
             <div className="grid gap-3">
               <div>
-                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Email</label>
+                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Email</label>
                 <input
                   value={String(values.email ?? '')}
-                  onChange={e=>setValues({...values, email: e.target.value})}
+                  onChange={(e) => handleFieldChange('email', e.target.value)}
                   placeholder="you@example.com"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  disabled={isKycLocked}
                 />
               </div>
               <div>
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Discord</label>
                 <input
                   value={String(values.discord ?? '')}
-                  onChange={e=>setValues({...values, discord: e.target.value})}
+                  onChange={(e) => handleFieldChange('discord', e.target.value)}
                   placeholder="Discord"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  disabled={isKycLocked}
                 />
               </div>
 
@@ -381,9 +470,10 @@ export default function EditProfilePage() {
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Website</label>
                 <input
                   value={String(values.website ?? '')}
-                  onChange={e=>setValues({...values, website: e.target.value})}
+                  onChange={(e) => handleFieldChange('website', e.target.value)}
                   placeholder="Website"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  disabled={isKycLocked}
                 />
               </div>
 
@@ -391,7 +481,7 @@ export default function EditProfilePage() {
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">LinkedIn</label>
                 <input
                   value={String(values.linkedin ?? '')}
-                  onChange={e=>setValues({...values, linkedin: e.target.value})}
+                  onChange={(e) => handleFieldChange('linkedin', e.target.value)}
                   placeholder="LinkedIn profile URL or handle"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
@@ -401,7 +491,7 @@ export default function EditProfilePage() {
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Facebook</label>
                 <input
                   value={String(values.facebook ?? '')}
-                  onChange={e=>setValues({...values, facebook: e.target.value})}
+                  onChange={(e) => handleFieldChange('facebook', e.target.value)}
                   placeholder="Facebook"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
@@ -411,7 +501,7 @@ export default function EditProfilePage() {
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Instagram</label>
                 <input
                   value={String(values.instagram ?? '')}
-                  onChange={e=>setValues({...values, instagram: e.target.value})}
+                  onChange={(e) => handleFieldChange('instagram', e.target.value)}
                   placeholder="Instagram"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
@@ -421,7 +511,7 @@ export default function EditProfilePage() {
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">WhatsApp</label>
                 <input
                   value={String(values.whatsapp ?? '')}
-                  onChange={e=>setValues({...values, whatsapp: e.target.value})}
+                  onChange={(e) => handleFieldChange('whatsapp', e.target.value)}
                   placeholder="WhatsApp"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
@@ -431,9 +521,10 @@ export default function EditProfilePage() {
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Phone apps</label>
                 <input
                   value={String(values.phoneApps ?? '')}
-                  onChange={e=>setValues({...values, phoneApps: e.target.value})}
+                  onChange={(e) => handleFieldChange('phoneApps', e.target.value)}
                   placeholder="Phone apps (comma separated) e.g. WhatsApp, Signal"
                   className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  disabled={isKycLocked}
                 />
               </div>
             </div>
@@ -509,7 +600,7 @@ export default function EditProfilePage() {
                   disabled={saving}
                   className="w-full sm:w-auto px-5 py-2.5 bg-white text-slate-900 rounded-md text-sm font-semibold shadow-sm hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 border border-slate-200"
                 >
-                  {saving ? 'Saving...' : 'Save changes'}
+                  {saving ? 'Saving...' : 'Save Draft'}
                 </button>
                 <button
                   type="button"

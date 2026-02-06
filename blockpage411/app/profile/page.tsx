@@ -36,6 +36,9 @@ interface MeResponse {
   directoryOptIn?: boolean;
   nftAvatarUrl?: string;
   baseVerifiedAt?: string | null;
+  kycStatus?: string;
+  kycRequestedAt?: string | null;
+  kycVerifiedAt?: string | null;
   socialCredit?: SocialCreditScoreResult;
   socialLinks?: {
     trustScore?: number;
@@ -104,6 +107,8 @@ function ProfilePageInner() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [kycBusy, setKycBusy] = useState(false);
+  const [kycError, setKycError] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   // Optional return target after login; must be a safe, same-site relative path.
@@ -244,6 +249,64 @@ function ProfilePageInner() {
       const msg = e?.message || '';
       setToast(msg || 'Base sign-in cancelled');
       return false;
+    }
+  }
+
+  async function handleKycVerify(): Promise<void> {
+    if (kycBusy) return;
+    setKycBusy(true);
+    setKycError(null);
+    try {
+      // Spec: Base-chain KYC signature. Prefer Coinbase Wallet for signing.
+      if (!isConnected || !connectedWalletAddress) {
+        await connectCoinbase();
+      } else if (providerType !== 'coinbase') {
+        await connectCoinbase();
+      }
+
+      const signer = await getSigner();
+      const addr = (await signer.getAddress()).toLowerCase();
+      if (me?.address && addr !== String(me.address).toLowerCase()) {
+        setKycError('Connected wallet does not match your signed-in profile.');
+        return;
+      }
+
+      const challengeRes = await fetch('/api/kyc/challenge', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const challengeJson = await challengeRes.json().catch(() => ({} as any));
+      if (!challengeRes.ok) {
+        setKycError(challengeJson?.message || 'Failed to start KYC verification');
+        return;
+      }
+
+      const message = String(challengeJson?.message || '');
+      if (!message) {
+        setKycError('KYC challenge missing from server response');
+        return;
+      }
+
+      const signature = await signer.signMessage(message);
+      const verifyRes = await fetch('/api/kyc/verify', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signature }),
+      });
+      const verifyJson = await verifyRes.json().catch(() => ({} as any));
+      if (!verifyRes.ok) {
+        setKycError(verifyJson?.message || 'KYC verification failed');
+        return;
+      }
+
+      await refreshMe();
+      setToast('KYC verification completed.');
+    } catch (e: any) {
+      setKycError(String(e?.message || 'KYC cancelled'));
+    } finally {
+      setKycBusy(false);
     }
   }
 
@@ -441,7 +504,14 @@ function ProfilePageInner() {
       } catch (e: any) {
         const msg = String(e?.message || '');
         if (msg.toLowerCase().includes('not detected') || msg.toLowerCase().includes('provider')) {
-          router.push('/login');
+          const res = await fetch('/api/auth/status', {
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          const js = await res.json();
+          if (!js?.authenticated) {
+            router.push('/login');
+          }
           return;
         }
         throw e;
@@ -758,9 +828,66 @@ function ProfilePageInner() {
                   <p className="text-[11px] font-semibold tracking-[0.18em] uppercase mb-1.5" style={{ color: '#facc15' }}>
                     On-chain identity
                   </p>
-                  <div className="mb-2">
-                    <KYCRequestButton onEnsureBaseSignIn={ensureBaseSignIn} />
-                  </div>
+                    <div className="mb-2">
+                      {/* KYC verify is wallet-only (no email/docs/admin). */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className="px-3 py-1 rounded-md bg-white text-slate-900 font-semibold border border-slate-200 disabled:opacity-60"
+                          disabled={kycBusy || Boolean(me?.kycStatus === 'verified')}
+                          onClick={async () => {
+                            // implemented below via handleKycVerify
+                            await handleKycVerify();
+                          }}
+                        >
+                          {me?.kycStatus === 'verified' ? 'Verified' : kycBusy ? 'Verifying…' : 'Verify / KYC'}
+                        </button>
+                        {me?.kycStatus === 'verified' && (
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-400/40">
+                            Verified
+                          </span>
+                        )}
+                        {kycError && <span className="text-xs text-red-400">{kycError}</span>}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <a
+                        className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-50 hover:border-cyan-400 hover:text-cyan-200"
+                        href="https://www.coinbase.com/"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Coinbase
+                      </a>
+                      <a
+                        className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-50 hover:border-cyan-400 hover:text-cyan-200"
+                        href="https://www.binance.com/"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Binance
+                      </a>
+                      <a
+                        className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-50 hover:border-cyan-400 hover:text-cyan-200"
+                        href="https://uphold.com/"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Uphold
+                      </a>
+                      <a
+                        className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-50 hover:border-cyan-400 hover:text-cyan-200"
+                        href="https://crypto.com/"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Crypto.com
+                      </a>
+                      <span className="text-[11px] text-slate-400">
+                        External credibility links (not authentication)
+                      </span>
+                    </div>
                   <h2 className="text-xl md:text-2xl font-semibold mb-2 leading-tight" style={{ color: '#fefce8' }}>
                     Link your NFT as your profile photo
                   </h2>
@@ -1341,56 +1468,3 @@ function ProfilePageInner() {
     </div>
   );
 }
-
-    function KYCRequestButton({
-      onEnsureBaseSignIn,
-    }: {
-      onEnsureBaseSignIn?: () => Promise<boolean>;
-    }) {
-      const [loading, setLoading] = React.useState(false);
-      const [error, setError] = React.useState<string | null>(null);
-      return (
-        <span className="inline-block">
-          <button
-            className="ml-4 px-3 py-1 rounded-md bg-white text-slate-900 font-semibold border border-slate-200 disabled:opacity-60"
-            disabled={loading}
-            onClick={async () => {
-              setLoading(true);
-              setError(null);
-              try {
-                const res = await fetch('/api/kyc-request', { method: 'POST', credentials: 'include' });
-                const result = await res.json().catch(() => ({}));
-                if (res.ok && (result as any).kycUrl) {
-                  window.open((result as any).kycUrl, '_blank');
-                  return;
-                }
-
-                const message = (result as any).message || 'KYC request failed';
-                // If the server requires Base sign-in, offer an automatic retry.
-                if (/base wallet sign-in required/i.test(message) && onEnsureBaseSignIn) {
-                  const ok = await onEnsureBaseSignIn();
-                  if (ok) {
-                    const retry = await fetch('/api/kyc-request', { method: 'POST', credentials: 'include' });
-                    const retryResult = await retry.json().catch(() => ({}));
-                    if (retry.ok && (retryResult as any).kycUrl) {
-                      window.open((retryResult as any).kycUrl, '_blank');
-                      return;
-                    }
-                    setError((retryResult as any).message || 'KYC request failed');
-                    return;
-                  }
-                }
-                setError(message);
-              } catch {
-                setError('Network error');
-              } finally {
-                setLoading(false);
-              }
-            }}
-          >
-            {loading ? 'Requesting...' : 'Request KYC'}
-          </button>
-          {error && <span className="ml-2 text-red-400 text-xs">{error}</span>}
-        </span>
-      );
-    }

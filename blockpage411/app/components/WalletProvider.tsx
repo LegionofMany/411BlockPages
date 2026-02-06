@@ -23,11 +23,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const api = useMemo<WalletContext>(() => ({
-    open: () => {
+    open: async () => {
       try {
-        router.push('/login');
+        const res = await fetch('/api/auth/status', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const js = await res.json();
+        if (!js?.authenticated) {
+          router.push('/login');
+        }
       } catch (_) {
-        // ignore
+        router.push('/login');
       }
     }
   }), [router]);

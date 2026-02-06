@@ -18,50 +18,25 @@ describe('/api/kyc-request', () => {
     jest.resetAllMocks();
   });
 
-  it('returns 401 when no token', async () => {
+  it('returns 405 when method not allowed', async () => {
+    await jest.isolateModulesAsync(async () => {
+      const handler = (await import('../pages/api/kyc-request')).default;
+      const req: any = makeReq({ method: 'GET', cookies: {} });
+      const res = makeRes();
+      await handler(req as any, res);
+      expect((res as any)._status).toBe(405);
+    });
+  });
+
+  it('returns 410 gone (retired endpoint)', async () => {
     await jest.isolateModulesAsync(async () => {
       const handler = (await import('../pages/api/kyc-request')).default;
       const req: any = makeReq({ method: 'POST', cookies: {} });
       const res = makeRes();
       await handler(req as any, res);
-      expect((res as any)._status).toBe(401);
+      expect((res as any)._status).toBe(410);
+      expect((res as any)._json?.success).toBe(false);
+      expect(String((res as any)._json?.message || '')).toMatch(/retired/i);
     });
-  });
-
-  it('returns 404 when user not found', async () => {
-    jest.doMock('lib/db', () => ({ __esModule: true, default: jest.fn(() => Promise.resolve()) }));
-    jest.doMock('lib/userModel', () => ({ __esModule: true, default: { findOne: jest.fn(() => null) } }));
-    // create a valid JWT token by mocking jsonwebtoken for the isolated module
-    jest.doMock('jsonwebtoken', () => ({ __esModule: true, verify: () => ({ address: '0xnope' }) }));
-
-    await jest.isolateModulesAsync(async () => {
-      const handler = (await import('../pages/api/kyc-request')).default;
-      const req: any = makeReq({ method: 'POST', cookies: { token: 'dummy' } });
-      const res = makeRes();
-      await handler(req as any, res);
-      expect((res as any)._status).toBe(404);
-    });
-    jest.dontMock('jsonwebtoken');
-  });
-
-  it('creates pending state and notifies admins', async () => {
-    jest.doMock('lib/db', () => ({ __esModule: true, default: jest.fn(() => Promise.resolve()) }));
-    const fakeUser: any = { address: '0xabc', kycStatus: 'unknown', baseVerifiedAt: new Date(), save: jest.fn(() => Promise.resolve()) };
-    jest.doMock('lib/userModel', () => ({ __esModule: true, default: { findOne: jest.fn(() => fakeUser) } }));
-    jest.doMock('lib/auditLogModel', () => ({ __esModule: true, default: { create: jest.fn(() => Promise.resolve()) } }));
-    const notifyAdminMock = jest.fn(() => Promise.resolve());
-    jest.doMock('lib/notify', () => ({ __esModule: true, notifyAdmin: notifyAdminMock }));
-
-    jest.doMock('jsonwebtoken', () => ({ __esModule: true, verify: () => ({ address: '0xabc' }) }));
-
-    await jest.isolateModulesAsync(async () => {
-      const handler = (await import('../pages/api/kyc-request')).default;
-      const req: any = makeReq({ method: 'POST', cookies: { token: 'dummy' } });
-      const res = makeRes();
-      await handler(req as any, res);
-      expect((res as any)._status).toBe(200);
-      expect(fakeUser.save).toHaveBeenCalled();
-    });
-    jest.dontMock('jsonwebtoken');
   });
 });
