@@ -372,8 +372,6 @@ function LoginPageInner() {
     };
   }, []);
 
-  if (!mounted) return null;
-
   const eipProvider = getBestEip1193Provider();
   const canAttemptSignIn = Boolean(address && isConnected && eipProvider);
 
@@ -398,6 +396,19 @@ function LoginPageInner() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, canAttemptSignIn]);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-gray-900/80 rounded-2xl shadow-2xl p-8 border-2 border-blue-700">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-white">Loading…</h1>
+            <p className="text-slate-200 mt-2">Preparing wallet sign-in</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const stageText =
     stage === 'nonce'
       ? 'Preparing sign-in…'
