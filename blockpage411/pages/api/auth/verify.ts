@@ -16,7 +16,7 @@ function inferCookieDomain(req: NextApiRequest): string | undefined {
   if (!host || host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return undefined;
   if (host.endsWith('.vercel.app')) return undefined;
   if (host === 'blockpages411.com' || host === 'www.blockpages411.com' || host.endsWith('.blockpages411.com')) {
-    return '.blockpages411.com';
+    return 'blockpages411.com';
   }
   return undefined;
 }
@@ -48,56 +48,60 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   // Prefer DB-backed nonce when available; fall back to cookie-backed nonce.
-  let nonceFromDb: string | null = null;
-  let nonceCreatedAtFromDb: Date | null = null;
-  let dbAvailable = false;
-
-  try {
-    await dbConnect();
-    dbAvailable = true;
-    const user = await User.findOne({ address });
-    if (user) {
-      nonceFromDb = user.nonce;
-      nonceCreatedAtFromDb = new Date(user.nonceCreatedAt);
-    }
-  } catch (e) {
-    dbAvailable = false;
-    const code = (e as any)?.code;
-    if (code !== 'MONGODB_DISABLED' && code !== 'MONGODB_URI_MISSING') {
-      console.warn('AUTH VERIFY: DB unavailable; attempting cookie-based nonce.', (e as any)?.message || e);
-    }
-  }
-
+  // IMPORTANT: Prefer the cookie-backed nonce when available. The nonce route
+  // responds immediately and persists to MongoDB in a background task; if we
+  // prefer DB first, a stale DB nonce can incorrectly fail the login.
   let nonceToUse: string | null = null;
   let nonceIssuedAt: Date | null = null;
 
-  if (nonceFromDb && nonceCreatedAtFromDb) {
-    nonceToUse = nonceFromDb;
-    nonceIssuedAt = nonceCreatedAtFromDb;
-  } else {
-    const cookieToken = req.cookies?.login_nonce;
-    if (!cookieToken) {
-      res.setHeader('Set-Cookie', clearNonceCookie);
-      return res.status(400).json({ message: 'Missing login nonce. Refresh and try again.' });
-    }
+  const cookieToken = req.cookies?.login_nonce;
+  if (cookieToken) {
     try {
       const payload = jwt.verify(cookieToken, JWT_SECRET) as any;
       const cookieAddress = String(payload?.address || '');
       const cookieNonce = String(payload?.nonce || '');
-      if (!cookieAddress || !cookieNonce) {
+      if (cookieAddress && cookieNonce && cookieAddress.toLowerCase() === String(address).toLowerCase()) {
+        nonceToUse = cookieNonce;
+        // jwt.verify already enforces expiry; no timestamp needed here.
+      } else {
+        // Clear mismatched/invalid cookie so the client can request a fresh nonce.
         res.setHeader('Set-Cookie', clearNonceCookie);
-        return res.status(400).json({ message: 'Invalid nonce cookie. Refresh and try again.' });
       }
-      if (cookieAddress.toLowerCase() !== String(address).toLowerCase()) {
-        res.setHeader('Set-Cookie', clearNonceCookie);
-        return res.status(400).json({ message: 'Nonce does not match address. Refresh and try again.' });
-      }
-      nonceToUse = cookieNonce;
-      // jwt.verify already enforces expiry; we keep nonceIssuedAt null here.
     } catch {
+      // Expired or invalid cookie; clear it and fall back to DB nonce if present.
       res.setHeader('Set-Cookie', clearNonceCookie);
-      return res.status(400).json({ message: 'Nonce expired. Please request a new nonce.' });
     }
+  }
+
+  let dbAvailable = false;
+  if (!nonceToUse) {
+    try {
+      await dbConnect();
+      dbAvailable = true;
+      const user = await User.findOne({ address });
+      if (user?.nonce && user?.nonceCreatedAt) {
+        nonceToUse = user.nonce;
+        nonceIssuedAt = new Date(user.nonceCreatedAt);
+      }
+    } catch (e) {
+      dbAvailable = false;
+      const code = (e as any)?.code;
+      if (code !== 'MONGODB_DISABLED' && code !== 'MONGODB_URI_MISSING') {
+        console.warn('AUTH VERIFY: DB unavailable; missing/expired nonce cookie.', (e as any)?.message || e);
+      }
+    }
+  } else {
+    // If we didn't hit the DB above, we may still have it for the upsert step later.
+    try {
+      await dbConnect();
+      dbAvailable = true;
+    } catch {
+      dbAvailable = false;
+    }
+  }
+
+  if (!nonceToUse) {
+    return res.status(400).json({ message: 'Missing login nonce. Refresh and try again.' });
   }
 
   // Check nonce expiry (5 min) only for DB-backed nonce where we have a timestamp.

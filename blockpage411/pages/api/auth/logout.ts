@@ -10,7 +10,7 @@ function inferCookieDomain(req: NextApiRequest): string | undefined {
   if (!host || host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return undefined;
   if (host.endsWith('.vercel.app')) return undefined;
   if (host === 'blockpages411.com' || host === 'www.blockpages411.com' || host.endsWith('.blockpages411.com')) {
-    return '.blockpages411.com';
+    return 'blockpages411.com';
   }
   return undefined;
 }

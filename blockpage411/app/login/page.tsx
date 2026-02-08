@@ -271,6 +271,37 @@ function LoginPageInner() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    const isRetryableNonceError = (message: unknown) => {
+      const m = String(message || '').toLowerCase();
+      return m.includes('nonce expired') || m.includes('missing login nonce');
+    };
+
+    const attemptVerify = async (nonceToUse: string) => {
+      setStage('sign');
+      const message = `Login nonce: ${nonceToUse}`;
+
+      // 2. Sign nonce with the currently connected wallet
+      const signature = await signLoginMessage({ message, address: String(address) });
+      console.log('LOGIN: obtained signature', { signature });
+
+      setStage('verify');
+      const verifyRes = await withTimeout(
+        fetch("/api/auth/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          cache: "no-store",
+          body: JSON.stringify({ address, signature }),
+          signal: controller.signal,
+        }),
+        20_000,
+        'Verify request timed out. Please retry.'
+      );
+      const verifyJson = await verifyRes.json().catch(() => ({} as any));
+      console.log('LOGIN: verify response', verifyRes.status, verifyJson);
+      return { ok: verifyRes.ok, status: verifyRes.status, json: verifyJson };
+    };
+
     try {
       if (!address) throw new Error('Connect a wallet first.');
       console.log('LOGIN: starting handleLogin', { address });
@@ -289,33 +320,17 @@ function LoginPageInner() {
         console.log('LOGIN: received nonce', { nonce: fetched });
       }
 
-      setStage('sign');
-
-      const message = `Login nonce: ${nonceToUse}`;
-
-      // 2. Sign nonce with the currently connected wallet
-      const signature = await signLoginMessage({ message, address });
-      console.log('LOGIN: obtained signature', { signature });
-
-      setStage('verify');
-
-      // 3) Verify signature (sets HttpOnly cookie)
-      const verifyRes = await withTimeout(
-        fetch("/api/auth/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          cache: "no-store",
-          body: JSON.stringify({ address, signature }),
-          signal: controller.signal,
-        }),
-        20_000,
-        'Verify request timed out. Please retry.'
-      );
-      const verifyJson = await verifyRes.json().catch(() => ({} as any));
-      console.log('LOGIN: verify response', verifyRes.status, verifyJson);
-      if (!verifyRes.ok) {
-        throw new Error(verifyJson?.message || verifyRes.statusText || "Verification failed");
+      let verifyAttempt = await attemptVerify(String(nonceToUse));
+      if (!verifyAttempt.ok && verifyAttempt.status === 400 && isRetryableNonceError(verifyAttempt.json?.message)) {
+        console.warn('LOGIN: nonce invalid/expired; fetching fresh nonce and retrying once');
+        const fresh = await fetchNonce({ address, signal: controller.signal });
+        setPrefetchedNonce(fresh);
+        setPrefetchedAt(Date.now());
+        setNonceWarm(true);
+        verifyAttempt = await attemptVerify(fresh);
+      }
+      if (!verifyAttempt.ok) {
+        throw new Error(verifyAttempt.json?.message || "Verification failed");
       }
 
       // Save wallet address for admin panel access
@@ -331,7 +346,10 @@ function LoginPageInner() {
       const target = redirectTo
         ? `/profile?redirectTo=${encodeURIComponent(redirectTo)}`
         : '/profile';
-      router.push(target);
+      // Use a hard navigation so the newly set HttpOnly cookie is definitely
+      // observed by middleware and any RSC fetches on the destination route.
+      window.location.assign(target);
+      return;
     } catch (err: any) {
       // If the user clicked Disconnect or otherwise cancelled, do not show an error.
       const isAbort =

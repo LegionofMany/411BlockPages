@@ -11,11 +11,11 @@ import { redirect } from 'next/navigation';
 export const dynamic = 'force-dynamic';
 
 type PageProps = {
-  params: { chain: string; hash: string };
+  params: Promise<{ chain: string; hash: string }>;
 };
 
 export default async function TxPage(props: PageProps) {
-  const { chain, hash } = props.params;
+  const { chain, hash } = await props.params;
   const chainId = normalizeEvmChainId(chain);
 
   if (!chainId) {
