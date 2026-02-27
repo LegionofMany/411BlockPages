@@ -1,5 +1,35 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
+import { createPublicClient, http } from 'viem';
+import { mainnet, base, polygon, arbitrum, optimism } from 'viem/chains';
+
+const ERC721_ABI = [
+  {
+    type: 'function',
+    name: 'tokenURI',
+    stateMutability: 'view',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'string' }],
+  },
+] as const;
+
+const ERC1155_ABI = [
+  {
+    type: 'function',
+    name: 'uri',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [{ name: '', type: 'string' }],
+  },
+] as const;
+
+type ResolveResult = { imageUrl: string; source: string; details?: Record<string, any> };
+
+function normalizeHttpUrl(url: string): string {
+  const trimmed = String(url || '').trim();
+  if (!trimmed) return trimmed;
+  return trimmed;
+}
 
 function normalizeIpfs(url: string): string {
   const trimmed = String(url || '').trim();
@@ -9,6 +39,165 @@ function normalizeIpfs(url: string): string {
     return `https://ipfs.io/ipfs/${rest}`;
   }
   return trimmed;
+}
+
+function normalizePossibleDataUriToJson(dataUri: string): any | null {
+  const s = String(dataUri || '').trim();
+  if (!s.toLowerCase().startsWith('data:')) return null;
+  // Support: data:application/json;base64,....
+  const m = s.match(/^data:application\/(json|octet-stream);base64,(.+)$/i);
+  if (!m) return null;
+  try {
+    const jsonStr = Buffer.from(m[2], 'base64').toString('utf8');
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
+
+function extractImageUrlFromMetadata(meta: any): string {
+  if (!meta || typeof meta !== 'object') return '';
+  const candidates: any[] = [];
+  // Common fields
+  candidates.push(meta.image, meta.image_url, meta.imageUrl, meta.imageURI, meta.image_uri, meta.image_original_url, meta.display_image_url);
+  // OpenSea-ish nested
+  candidates.push(meta.metadata?.image, meta.metadata?.image_url);
+  // Sometimes nested under properties
+  candidates.push(meta.properties?.image, meta.properties?.image_url);
+
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  return '';
+}
+
+async function fetchMetadataAndExtractImage(url: string): Promise<string> {
+  const u = normalizeIpfs(normalizeHttpUrl(url));
+  if (!/^https?:\/\//i.test(u)) return '';
+  try {
+    const resp = await axios.get(u, {
+      timeout: 9000,
+      headers: {
+        Accept: 'application/json,text/plain;q=0.9,*/*;q=0.8',
+      },
+      // Some gateways require a UA to behave; keep it generic.
+      validateStatus: () => true,
+    });
+    if (resp.status < 200 || resp.status >= 300) return '';
+
+    // Axios may already parse JSON.
+    const data = resp.data;
+    if (typeof data === 'string') {
+      const maybeJson = normalizePossibleDataUriToJson(data);
+      if (maybeJson) {
+        const img = extractImageUrlFromMetadata(maybeJson);
+        return img ? normalizeIpfs(img) : '';
+      }
+      // If it's a string body, try JSON parse.
+      try {
+        const parsed = JSON.parse(data);
+        const img = extractImageUrlFromMetadata(parsed);
+        return img ? normalizeIpfs(img) : '';
+      } catch {
+        return '';
+      }
+    }
+
+    const img = extractImageUrlFromMetadata(data);
+    return img ? normalizeIpfs(img) : '';
+  } catch {
+    return '';
+  }
+}
+
+function getChainClient(chainSlug: string) {
+  const slug = String(chainSlug || '').toLowerCase();
+  const rpc = {
+    ethereum:
+      process.env.ETH_RPC_URL ||
+      process.env.NEXT_PUBLIC_ETH_RPC_URL ||
+      process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL ||
+      process.env.NEXT_PUBLIC_MAINNET_RPC_URL ||
+      'https://cloudflare-eth.com',
+    base: process.env.BASE_RPC_URL || process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org',
+    polygon: process.env.POLYGON_RPC_URL || process.env.NEXT_PUBLIC_POLYGON_RPC_URL || 'https://polygon-rpc.com',
+    arbitrum: process.env.ARBITRUM_RPC_URL || process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+    optimism: process.env.OPTIMISM_RPC_URL || process.env.NEXT_PUBLIC_OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
+  } as const;
+
+  const chainObj =
+    slug === 'base'
+      ? base
+      : slug === 'polygon'
+        ? polygon
+        : slug === 'arbitrum'
+          ? arbitrum
+          : slug === 'optimism'
+            ? optimism
+            : mainnet;
+
+  const rpcUrl = (rpc as any)[slug] || rpc.ethereum;
+  return createPublicClient({ chain: chainObj, transport: http(String(rpcUrl)) });
+}
+
+function expandErc1155UriTemplate(uri: string, tokenId: bigint): string {
+  const template = String(uri || '');
+  if (!template.includes('{id}')) return template;
+  // ERC-1155: {id} is lowercase hex, zero-padded to 64 chars.
+  const hex = tokenId.toString(16).toLowerCase().padStart(64, '0');
+  return template.replaceAll('{id}', hex);
+}
+
+async function resolveOpenSeaViaChain(opts: { chain: string; contract: string; tokenId: string }): Promise<ResolveResult | null> {
+  try {
+    const tokenIdBig = BigInt(opts.tokenId);
+    const client = getChainClient(opts.chain);
+    const address = opts.contract as `0x${string}`;
+
+    // Try ERC-721 first.
+    let tokenUri: string | null = null;
+    try {
+      tokenUri = (await client.readContract({ address, abi: ERC721_ABI, functionName: 'tokenURI', args: [tokenIdBig] })) as any;
+    } catch {
+      tokenUri = null;
+    }
+
+    // Fallback: ERC-1155
+    if (!tokenUri) {
+      try {
+        const raw = (await client.readContract({ address, abi: ERC1155_ABI, functionName: 'uri', args: [tokenIdBig] })) as any;
+        tokenUri = raw ? expandErc1155UriTemplate(String(raw), tokenIdBig) : null;
+      } catch {
+        tokenUri = null;
+      }
+    }
+
+    if (!tokenUri) return null;
+
+    const normalizedTokenUri = normalizeIpfs(String(tokenUri));
+    // tokenURI can itself be a data: JSON
+    const fromData = normalizePossibleDataUriToJson(normalizedTokenUri);
+    if (fromData) {
+      const img = extractImageUrlFromMetadata(fromData);
+      if (img) {
+        return {
+          imageUrl: normalizeIpfs(img),
+          source: 'chain',
+          details: { chain: opts.chain, contract: opts.contract, tokenId: opts.tokenId, tokenUri: 'data:' },
+        };
+      }
+    }
+
+    const img = await fetchMetadataAndExtractImage(normalizedTokenUri);
+    if (!img) return null;
+    return {
+      imageUrl: img,
+      source: 'chain',
+      details: { chain: opts.chain, contract: opts.contract, tokenId: opts.tokenId },
+    };
+  } catch {
+    return null;
+  }
 }
 
 function parseOpenSeaUrl(raw: string): { chain: string; contract: string; tokenId: string } | null {
@@ -59,6 +248,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ imageUrl: normalized, source: 'direct' });
   }
 
+  // If the user pasted a metadata URL (JSON), try extracting the image first.
+  if (/^https?:\/\//i.test(normalized)) {
+    const fromMeta = await fetchMetadataAndExtractImage(normalized);
+    if (fromMeta) {
+      return res.status(200).json({ imageUrl: fromMeta, source: 'metadata' });
+    }
+  }
+
   // OpenSea URL -> OpenSea API
   const parsed = parseOpenSeaUrl(input);
   if (parsed) {
@@ -80,13 +277,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const imageUrlRaw = nft?.image_url || nft?.image_original_url || nft?.display_image_url || nft?.metadata?.image;
       const imageUrl = imageUrlRaw ? normalizeIpfs(String(imageUrlRaw)) : '';
       if (!imageUrl) {
-        return res.status(404).json({ message: 'OpenSea returned no image for that NFT.' });
+        // Fall back to on-chain tokenURI resolution.
+        const chainResolved = await resolveOpenSeaViaChain({ chain, contract, tokenId });
+        if (chainResolved?.imageUrl) {
+          return res.status(200).json({ imageUrl: chainResolved.imageUrl, source: chainResolved.source, chain, contract, tokenId });
+        }
+        return res.status(404).json({ message: 'No image found for that NFT.' });
       }
       return res.status(200).json({ imageUrl, source: 'opensea', chain, contract, tokenId });
     } catch (err: any) {
       const status = err?.response?.status;
       const msg = err?.response?.data?.message || err?.message || 'OpenSea fetch failed';
-      if (status === 429) return res.status(429).json({ message: 'OpenSea rate limited. Try again shortly.' });
+      // If OpenSea is rate-limited or requires an API key, try on-chain resolution.
+      const chainResolved = await resolveOpenSeaViaChain({ chain, contract, tokenId });
+      if (chainResolved?.imageUrl) {
+        return res.status(200).json({ imageUrl: chainResolved.imageUrl, source: chainResolved.source, chain, contract, tokenId });
+      }
+      if (status === 429) return res.status(429).json({ message: 'OpenSea rate limited and on-chain fallback failed. Try again shortly.' });
       return res.status(502).json({ message: msg });
     }
   }

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import dbConnect from 'lib/db';
 import User from 'lib/userModel';
 import Wallet from 'lib/walletModel';
+import { resolveWalletInput } from 'services/resolveWalletInput';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -55,6 +56,49 @@ function getActorAddress(req: NextApiRequest): string | null {
 
 const KYC_LOCKED_FIELDS = new Set<string>(['telegram', 'twitter', 'discord', 'website', 'phoneApps', 'email']);
 
+function parseUdCandidates(raw: unknown): string[] {
+  if (raw == null) return [];
+  const s = String(raw).trim();
+  if (!s) return [];
+
+  // Accept common paste formats like:
+  // - "yourname.crypto"
+  // - "https://ud.me/yourname.crypto"
+  // - multiple lines/commas
+  const tokens = s
+    .split(/[\n,\t\r ]+/g)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => {
+      const v = t.replace(/^@/, '');
+      try {
+        if (/^https?:\/\//i.test(v)) {
+          const u = new URL(v);
+          const last = u.pathname.split('/').filter(Boolean).slice(-1)[0] || '';
+          return (last || '').trim();
+        }
+      } catch {
+        // ignore
+      }
+      // if user pasted like ud.me/<domain> without scheme
+      const m = v.match(/ud\.me\/(.+)$/i);
+      if (m && m[1]) return String(m[1]).split(/[?#]/)[0].trim();
+      return v;
+    })
+    .filter(Boolean);
+
+  // de-dupe while preserving order
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const t of tokens) {
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PATCH') return res.status(405).json({ message: 'Method not allowed' });
 
@@ -83,6 +127,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const body: any = parsed.data;
+
+  // UD ownership verification: if udDomain is provided, ensure it resolves to this wallet.
+  if (Object.prototype.hasOwnProperty.call(body, 'udDomain')) {
+    const rawUd = body.udDomain;
+    const trimmed = rawUd == null ? '' : String(rawUd).trim();
+    if (!trimmed) {
+      // allow clearing
+      body.udDomain = '';
+    } else {
+      const candidates = parseUdCandidates(rawUd);
+      let verified: string | null = null;
+      for (const c of candidates) {
+        try {
+          const resolved = await resolveWalletInput(c);
+          if (resolved?.address && resolved.address.toLowerCase() === actor.toLowerCase()) {
+            verified = c.toLowerCase();
+            break;
+          }
+        } catch {
+          // ignore per-candidate
+        }
+      }
+      if (!verified) {
+        return res.status(400).json({ message: 'UD domain does not resolve to your wallet. Paste your UD domain (e.g. name.crypto) that points to your wallet.' });
+      }
+      body.udDomain = verified;
+    }
+  }
 
   // KYC lock: once verified, freeze sensitive fields.
   if (user.kycStatus === 'verified') {

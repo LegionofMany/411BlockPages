@@ -190,6 +190,60 @@ export default function EditProfilePage() {
     });
   };
 
+  const renderMultiInput = (opts: {
+    field: string;
+    label: string;
+    placeholder: string;
+    type?: React.HTMLInputTypeAttribute;
+    disabled?: boolean;
+    helpText?: string;
+  }) => {
+    const { field, label, placeholder, type = 'text', disabled, helpText } = opts;
+    const raw = String((values as any)[field] ?? '');
+    const lines = raw.length ? raw.split('\n') : [''];
+
+    return (
+      <div>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <label className="block text-[11px] text-slate-300 font-medium uppercase tracking-[0.16em]">{label}</label>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              const next = raw ? `${raw}\n` : '\n';
+              handleFieldChange(field, next);
+            }}
+            className="h-6 w-6 rounded-full border border-emerald-400/50 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label={`Add another ${label}`}
+            title="Add another"
+          >
+            +
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {lines.map((val, idx) => (
+            <input
+              key={`${field}-${idx}`}
+              type={type}
+              value={val}
+              onChange={(e) => {
+                const nextLines = [...lines];
+                nextLines[idx] = e.target.value;
+                handleFieldChange(field, nextLines.join('\n'));
+              }}
+              placeholder={placeholder}
+              className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+              disabled={disabled}
+            />
+          ))}
+        </div>
+
+        {helpText ? <p className="text-[11px] text-slate-400 mt-1">{helpText}</p> : null}
+      </div>
+    );
+  };
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
@@ -389,20 +443,14 @@ export default function EditProfilePage() {
               />
             </div>
 
-            <div className="grid gap-3">
-              <div>
-                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Unstoppable Domain (UD)</label>
-                <input
-                  value={String(values.udDomain ?? '')}
-                  onChange={(e) => handleFieldChange('udDomain', e.target.value)}
-                  placeholder="yourname.crypto"
-                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                  disabled={isKycLocked}
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  We verify ownership by resolving the domain to your wallet on save.
-                </p>
-              </div>
+             <div className="grid gap-3">
+              {renderMultiInput({
+                field: 'udDomain',
+                label: 'Unstoppable Domain (UD)',
+                placeholder: 'yourname.crypto',
+                disabled: isKycLocked,
+                helpText: 'We verify ownership by resolving the domain to your wallet on save.',
+              })}
 
               <div id="phone-book-listing" className="flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded px-3 py-2 scroll-mt-24">
                 <div>
@@ -422,28 +470,11 @@ export default function EditProfilePage() {
                 </button>
               </div>
             </div>
-            <div>
-              <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Telegram</label>
-              <input
-                value={String(values.telegram ?? '')}
-                onChange={(e) => handleFieldChange('telegram', e.target.value)}
-                placeholder="Telegram handle"
-                className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                disabled={isKycLocked}
-              />
-              {values.__telegramMsg ? <div className="text-sm text-slate-300 mt-1">{values.__telegramMsg}</div> : null}
-            </div>
-            <div>
-              <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.16em]">Twitter</label>
-              <input
-                value={String(values.twitter ?? '')}
-                onChange={(e) => handleFieldChange('twitter', e.target.value)}
-                placeholder="Twitter handle"
-                className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                disabled={isKycLocked}
-              />
-              {values.__twitterMsg ? <div className="text-sm text-slate-300 mt-1">{values.__twitterMsg}</div> : null}
-            </div>
+            {renderMultiInput({ field: 'telegram', label: 'Telegram', placeholder: 'Telegram handle', disabled: isKycLocked })}
+            {values.__telegramMsg ? <div className="text-sm text-slate-300 mt-1">{values.__telegramMsg}</div> : null}
+
+            {renderMultiInput({ field: 'twitter', label: 'Twitter', placeholder: 'Twitter handle', disabled: isKycLocked })}
+            {values.__twitterMsg ? <div className="text-sm text-slate-300 mt-1">{values.__twitterMsg}</div> : null}
             <div className="grid gap-3">
               <div>
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Email</label>
@@ -455,67 +486,17 @@ export default function EditProfilePage() {
                   disabled={isKycLocked}
                 />
               </div>
-              <div>
-                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Discord</label>
-                <input
-                  value={String(values.discord ?? '')}
-                  onChange={(e) => handleFieldChange('discord', e.target.value)}
-                  placeholder="Discord"
-                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                  disabled={isKycLocked}
-                />
-              </div>
+              {renderMultiInput({ field: 'discord', label: 'Discord', placeholder: 'Discord', disabled: isKycLocked })}
 
-              <div>
-                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Website</label>
-                <input
-                  value={String(values.website ?? '')}
-                  onChange={(e) => handleFieldChange('website', e.target.value)}
-                  placeholder="Website"
-                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                  disabled={isKycLocked}
-                />
-              </div>
+              {renderMultiInput({ field: 'website', label: 'Website', placeholder: 'https://your-site.xyz', type: 'url', disabled: isKycLocked })}
 
-              <div>
-                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">LinkedIn</label>
-                <input
-                  value={String(values.linkedin ?? '')}
-                  onChange={(e) => handleFieldChange('linkedin', e.target.value)}
-                  placeholder="LinkedIn profile URL or handle"
-                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                />
-              </div>
+              {renderMultiInput({ field: 'linkedin', label: 'LinkedIn', placeholder: 'LinkedIn profile URL or handle' })}
 
-              <div>
-                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Facebook</label>
-                <input
-                  value={String(values.facebook ?? '')}
-                  onChange={(e) => handleFieldChange('facebook', e.target.value)}
-                  placeholder="Facebook"
-                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                />
-              </div>
+              {renderMultiInput({ field: 'facebook', label: 'Facebook', placeholder: 'Facebook profile URL or handle' })}
 
-              <div>
-                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Instagram</label>
-                <input
-                  value={String(values.instagram ?? '')}
-                  onChange={(e) => handleFieldChange('instagram', e.target.value)}
-                  placeholder="Instagram"
-                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                />
-              </div>
+              {renderMultiInput({ field: 'instagram', label: 'Instagram', placeholder: 'Instagram profile URL or handle' })}
 
-              <div>
-                <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">WhatsApp</label>
-                <input
-                  value={String(values.whatsapp ?? '')}
-                  onChange={(e) => handleFieldChange('whatsapp', e.target.value)}
-                  placeholder="WhatsApp"
-                  className="w-full rounded-full bg-black/40 px-4 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                />
-              </div>
+              {renderMultiInput({ field: 'whatsapp', label: 'WhatsApp', placeholder: 'WhatsApp link or handle' })}
 
               <div>
                 <label className="block text-[11px] text-slate-300 mb-1 font-medium uppercase tracking-[0.12em]">Phone apps</label>
@@ -803,7 +784,7 @@ export default function EditProfilePage() {
                         }
 
                         if (url) {
-                          setValues((prev: ProfileState) => ({ ...prev, avatarUrl: url }));
+                          handleFieldChange('avatarUrl', url);
                           setAvatarPreview(url);
                           setCropModalOpen(false);
                           setRawFile(null);
