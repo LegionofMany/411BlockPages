@@ -6,6 +6,7 @@ import { computeTrustScore } from 'services/trustScoreService';
 import { computeSocialCreditScore } from 'services/socialCreditScore';
 import { resolveNames } from 'services/nameResolution';
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'crypto';
 
 interface JwtPayload {
   address: string;
@@ -13,6 +14,10 @@ interface JwtPayload {
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const DEBUG_AUTH = process.env.DEBUG_AUTH === 'true';
+
+function generateNonce() {
+  return randomBytes(16).toString('hex');
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (DEBUG_AUTH) console.log('API/ME: cookies', req.cookies);
@@ -48,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const now = new Date();
     user = await User.create({
       address: userAddress,
-      nonce: '',
+      nonce: generateNonce(),
       nonceCreatedAt: now,
       createdAt: now,
       updatedAt: now,

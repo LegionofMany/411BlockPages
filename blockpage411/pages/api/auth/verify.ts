@@ -4,8 +4,13 @@ import User from 'lib/userModel';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
 import { verifyMessage } from 'ethers';
+import { randomBytes } from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
+
+function generateNonce() {
+  return randomBytes(16).toString('hex');
+}
 
 function inferCookieDomain(req: NextApiRequest): string | undefined {
   const explicit = process.env.COOKIE_DOMAIN;
@@ -132,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const now = new Date();
       const existing = await User.findOne({ address });
       if (!existing) {
-        await User.create({ address, nonce: '', nonceCreatedAt: now });
+        await User.create({ address, nonce: generateNonce(), nonceCreatedAt: now });
       }
     } catch (e) {
       console.warn('AUTH VERIFY: failed to upsert user after successful verify.', (e as any)?.message || e);

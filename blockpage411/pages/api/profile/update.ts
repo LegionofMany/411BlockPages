@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from 'lib/db';
 import User from 'lib/userModel';
 import Wallet from 'lib/walletModel';
+import { randomBytes } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import jwt from 'jsonwebtoken';
@@ -9,6 +10,10 @@ import { z } from 'zod';
 import { resolveWalletInput } from 'services/resolveWalletInput';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
+
+function generateNonce() {
+  return randomBytes(16).toString('hex');
+}
 
 function parseUdCandidates(raw: unknown): string[] {
   if (raw == null) return [];
@@ -165,7 +170,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     user = (updated as any) || user;
   } else {
     // Create new user document with minimal required fields
-    const createObj: any = { address: walletAddress, nonce: '', nonceCreatedAt: now, profileUpdateHistory: [now], ...update, createdAt: now, updatedAt: now };
+    const createObj: any = { address: walletAddress, nonce: generateNonce(), nonceCreatedAt: now, profileUpdateHistory: [now], ...update, createdAt: now, updatedAt: now };
     user = await User.create(createObj);
   }
 

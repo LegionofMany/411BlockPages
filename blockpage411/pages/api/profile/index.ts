@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import dbConnect from 'lib/db';
@@ -9,6 +10,10 @@ import { resolveWalletInput } from 'services/resolveWalletInput';
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 type UserProfile = import('../../../lib/types').UserProfile;
+
+function generateNonce() {
+  return randomBytes(16).toString('hex');
+}
 
 // Intentionally lenient: draft saves should not be blocked by strict validation.
 const DraftProfileSchema = z.object({
@@ -116,7 +121,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const now = new Date();
     let user = await User.findOne({ address: actor });
     if (!user) {
-      user = await User.create({ address: actor, nonce: '', nonceCreatedAt: now, createdAt: now, updatedAt: now, profileUpdateHistory: [] });
+      user = await User.create({
+        address: actor,
+        nonce: generateNonce(),
+        nonceCreatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        profileUpdateHistory: [],
+      });
     }
 
     // Rate limit: max 5 profile updates per day (draft autosave can be noisy, but we keep existing limit).
@@ -236,6 +248,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         success: false,
         code: 'MONGOOSE_VALIDATION_ERROR',
         message: 'Validation failed for one or more fields.',
+        errors: err?.errors
+          ? Object.values(err.errors).map((e: any) => ({
+              path: typeof e?.path === 'string' ? e.path : undefined,
+              message: typeof e?.message === 'string' ? e.message : undefined,
+              kind: typeof e?.kind === 'string' ? e.kind : undefined,
+            }))
+          : undefined,
       });
     }
 
