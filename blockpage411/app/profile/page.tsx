@@ -1,5 +1,5 @@
 "use client";
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -132,6 +132,7 @@ function ProfilePageInner() {
   const [riskCategory, setRiskCategory] = useState<RiskCategory | null>(null);
 
   const [nftInput, setNftInput] = useState('');
+  const nftInputDirtyRef = useRef(false);
   const [nftError, setNftError] = useState<string | null>(null);
   const [nftImageUrl, setNftImageUrl] = useState<string | null>(null);
   const [nftSource, setNftSource] = useState<'opensea' | 'rarible' | 'ud' | 'custom' | null>(null);
@@ -163,7 +164,10 @@ function ProfilePageInner() {
       setMe(data);
       if (data.nftAvatarUrl) {
         setNftImageUrl(data.nftAvatarUrl);
-        setNftInput(data.nftAvatarUrl);
+        // Don't clobber the input if the user is typing/pasting.
+        if (!nftInputDirtyRef.current) {
+          setNftInput(data.nftAvatarUrl);
+        }
         setNftSource(null);
       }
       try {
@@ -923,10 +927,15 @@ function ProfilePageInner() {
                       <input
                         type="url"
                         value={nftInput}
-                        onChange={(e) => setNftInput(e.target.value)}
+                        onChange={(e) => {
+                          nftInputDirtyRef.current = true;
+                          setNftInput(e.target.value);
+                        }}
                         placeholder="Paste image URL from your NFT metadata"
-                        className="flex-1 rounded-full bg-black/50 px-4 py-2 text-xs md:text-sm placeholder:text-amber-200/60 focus:outline-none focus:ring-1 focus:ring-emerald-300"
-                        style={{ color: '#fefce8' }}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        className="flex-1 rounded-full border border-emerald-300/30 bg-black/50 px-4 py-2 text-xs md:text-sm text-slate-100 caret-emerald-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-300"
                       />
                       <button
                         type="button"
