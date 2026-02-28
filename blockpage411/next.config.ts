@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
+      // Avatar placeholder referenced throughout the UI.
+      {
+        source: '/default-avatar.png',
+        destination: '/api/default-avatar',
+      },
       // Keep the public URL /wallet/:address, but serve it from a non-conflicting
       // route so we can also support /wallet/:chain/:address.
       {

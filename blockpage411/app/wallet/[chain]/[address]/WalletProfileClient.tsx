@@ -41,17 +41,6 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   const [followed, setFollowed] = useState(false);
 
   useEffect(() => {
-    const suggested = data && typeof (data as any)?.suggestedChain === 'string' ? String((data as any).suggestedChain) : '';
-    if (suggested && suggested !== chain) {
-      try {
-        router.replace(`/wallet/${encodeURIComponent(suggested)}/${encodeURIComponent(address)}`);
-      } catch {
-        // ignore
-      }
-    }
-  }, [data, chain, address, router]);
-
-  useEffect(() => {
     if (typeof window !== 'undefined') {
       const envAdmins = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '').split(',').map(a => a.toLowerCase().trim());
       const currentAddress = (address || '').toLowerCase();

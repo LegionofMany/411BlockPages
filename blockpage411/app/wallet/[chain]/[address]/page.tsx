@@ -102,10 +102,6 @@ export default async function WalletProfilePage({ params }: Props) {
       );
     }
     const data = await res.json();
-    const suggested = typeof data?.suggestedChain === 'string' ? data.suggestedChain : null;
-    if (suggested && suggested !== effectiveChain) {
-      redirect(`/wallet/${encodeURIComponent(suggested)}/${encodeURIComponent(address)}`);
-    }
     const jsonLd = {
       "@context": "https://schema.org",
       "@type": "ProfilePage",
