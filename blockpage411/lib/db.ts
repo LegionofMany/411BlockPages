@@ -130,7 +130,11 @@ async function dbConnect() {
 
         // Allow retries on subsequent requests (important in dev when connectivity changes).
         cached.promise = null;
-        throw err;
+        const wrapped = makeDbError('Failed to connect to MongoDB.', 'MONGODB_CONNECT_FAILED') as Error & {
+          cause?: unknown;
+        };
+        wrapped.cause = err;
+        throw wrapped;
       }
     })();
   }

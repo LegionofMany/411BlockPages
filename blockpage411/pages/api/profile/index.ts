@@ -221,15 +221,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (err: any) {
     const code = typeof err?.code === 'string' ? err.code : undefined;
 
+    // Mongoose/mongo errors we can safely classify.
+    const name = typeof err?.name === 'string' ? err.name : undefined;
+    if (name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        code: 'MONGOOSE_CAST_ERROR',
+        message: 'Invalid value for one or more fields.',
+        field: typeof err?.path === 'string' ? err.path : undefined,
+      });
+    }
+    if (name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        code: 'MONGOOSE_VALIDATION_ERROR',
+        message: 'Validation failed for one or more fields.',
+      });
+    }
+
     // dbConnect() throws typed errors we can safely surface.
-    if (code === 'MONGODB_URI_MISSING' || code === 'MONGODB_DISABLED') {
+    if (code === 'MONGODB_URI_MISSING' || code === 'MONGODB_DISABLED' || code === 'MONGODB_CONNECT_FAILED') {
       return res.status(503).json({
         success: false,
         code,
         message:
           code === 'MONGODB_URI_MISSING'
             ? 'Server is missing MONGODB_URI configuration.'
-            : 'Server has MongoDB disabled via environment settings.',
+            : code === 'MONGODB_DISABLED'
+              ? 'Server has MongoDB disabled via environment settings.'
+              : 'Server could not connect to MongoDB.',
       });
     }
 
