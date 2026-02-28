@@ -105,116 +105,145 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const actor = getActorAddress(req);
   if (!actor) return res.status(401).json({ message: 'Not authenticated' });
 
-  const parsed = DraftProfileSchema.safeParse(req.body || {});
-  if (!parsed.success) {
-    return res.status(400).json({ message: 'Invalid payload', errors: parsed.error.flatten() });
-  }
+  try {
+    const parsed = DraftProfileSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({ message: 'Invalid payload', errors: parsed.error.flatten() });
+    }
 
-  await dbConnect();
+    await dbConnect();
 
-  const now = new Date();
-  let user = await User.findOne({ address: actor });
-  if (!user) {
-    user = await User.create({ address: actor, nonce: '', nonceCreatedAt: now, createdAt: now, updatedAt: now, profileUpdateHistory: [] });
-  }
+    const now = new Date();
+    let user = await User.findOne({ address: actor });
+    if (!user) {
+      user = await User.create({ address: actor, nonce: '', nonceCreatedAt: now, createdAt: now, updatedAt: now, profileUpdateHistory: [] });
+    }
 
-  // Rate limit: max 5 profile updates per day (draft autosave can be noisy, but we keep existing limit).
-  user.profileUpdateHistory = (user.profileUpdateHistory || []).filter(
-    (d: Date) => now.getTime() - new Date(d).getTime() < 24 * 60 * 60 * 1000
-  );
-  if (user.profileUpdateHistory.length >= 5) {
-    return res.status(429).json({ message: 'Profile update limit reached (5 per day)' });
-  }
+    // Rate limit: max 5 profile updates per day (draft autosave can be noisy, but we keep existing limit).
+    user.profileUpdateHistory = (user.profileUpdateHistory || []).filter(
+      (d: Date) => now.getTime() - new Date(d).getTime() < 24 * 60 * 60 * 1000
+    );
+    if (user.profileUpdateHistory.length >= 5) {
+      return res.status(429).json({ message: 'Profile update limit reached (5 per day)' });
+    }
 
-  const body: any = parsed.data;
+    const body: any = parsed.data;
 
-  // UD ownership verification: if udDomain is provided, ensure it resolves to this wallet.
-  if (Object.prototype.hasOwnProperty.call(body, 'udDomain')) {
-    const rawUd = body.udDomain;
-    const trimmed = rawUd == null ? '' : String(rawUd).trim();
-    if (!trimmed) {
-      // allow clearing
-      body.udDomain = '';
-    } else {
-      const candidates = parseUdCandidates(rawUd);
-      let verified: string | null = null;
-      for (const c of candidates) {
-        try {
-          const resolved = await resolveWalletInput(c);
-          if (resolved?.address && resolved.address.toLowerCase() === actor.toLowerCase()) {
-            verified = c.toLowerCase();
-            break;
+    // UD ownership verification: if udDomain is provided, ensure it resolves to this wallet.
+    if (Object.prototype.hasOwnProperty.call(body, 'udDomain')) {
+      const rawUd = body.udDomain;
+      const trimmed = rawUd == null ? '' : String(rawUd).trim();
+      if (!trimmed) {
+        // allow clearing
+        body.udDomain = '';
+      } else {
+        const candidates = parseUdCandidates(rawUd);
+        let verified: string | null = null;
+        for (const c of candidates) {
+          try {
+            const resolved = await resolveWalletInput(c);
+            if (resolved?.address && resolved.address.toLowerCase() === actor.toLowerCase()) {
+              verified = c.toLowerCase();
+              break;
+            }
+          } catch {
+            // ignore per-candidate
           }
-        } catch {
-          // ignore per-candidate
+        }
+        if (!verified) {
+          return res.status(400).json({ message: 'UD domain does not resolve to your wallet. Paste your UD domain (e.g. name.crypto) that points to your wallet.' });
+        }
+        body.udDomain = verified;
+      }
+    }
+
+    // KYC lock: once verified, freeze sensitive fields.
+    if (user.kycStatus === 'verified') {
+      for (const key of Object.keys(body)) {
+        if (KYC_LOCKED_FIELDS.has(key) && body[key] !== undefined) {
+          return res.status(403).json({ message: `Cannot update ${key} after KYC verification` });
         }
       }
-      if (!verified) {
-        return res.status(400).json({ message: 'UD domain does not resolve to your wallet. Paste your UD domain (e.g. name.crypto) that points to your wallet.' });
+    }
+
+    const setObj: Record<string, any> = {};
+    const unsetObj: Record<string, any> = {};
+
+    for (const [key, rawVal] of Object.entries(body)) {
+      if (rawVal === undefined) continue;
+
+      // Normalize phoneApps.
+      let val: any = rawVal;
+      if (key === 'phoneApps') {
+        if (typeof val === 'string') {
+          val = val
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
       }
-      body.udDomain = verified;
-    }
-  }
 
-  // KYC lock: once verified, freeze sensitive fields.
-  if (user.kycStatus === 'verified') {
-    for (const key of Object.keys(body)) {
-      if (KYC_LOCKED_FIELDS.has(key) && body[key] !== undefined) {
-        return res.status(403).json({ message: `Cannot update ${key} after KYC verification` });
+      const shouldClear =
+        val === null ||
+        (typeof val === 'string' && val.trim() === '') ||
+        (key === 'donationWidgetEmbed' && typeof val === 'object' && val && !val.widgetId && !val.charityId);
+
+      if (shouldClear) {
+        unsetObj[key] = 1;
+        continue;
       }
+
+      setObj[key] = val;
     }
-  }
 
-  const setObj: Record<string, any> = {};
-  const unsetObj: Record<string, any> = {};
+    setObj.updatedAt = now;
+    user.profileUpdateHistory.push(now);
 
-  for (const [key, rawVal] of Object.entries(body)) {
-    if (rawVal === undefined) continue;
+    const updateDoc: any = { $set: setObj };
+    if (Object.keys(unsetObj).length) updateDoc.$unset = unsetObj;
 
-    // Normalize phoneApps.
-    let val: any = rawVal;
-    if (key === 'phoneApps') {
-      if (typeof val === 'string') {
-        val = val
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean);
+    const updated = await User.findOneAndUpdate({ address: actor }, updateDoc, { new: true });
+
+    // Best-effort mirror for Wallet socials.
+    try {
+      const walletUpdate: any = {};
+      if (setObj.displayName) walletUpdate['socials.displayName'] = setObj.displayName;
+      if (setObj.avatarUrl || setObj.nftAvatarUrl) walletUpdate['socials.avatarUrl'] = setObj.avatarUrl || setObj.nftAvatarUrl;
+      if (setObj.bio) walletUpdate['socials.bio'] = setObj.bio;
+      if (Object.keys(walletUpdate).length > 0) {
+        await Wallet.updateMany({ address: actor }, { $set: walletUpdate });
       }
+    } catch {
+      // non-fatal
     }
 
-    const shouldClear =
-      val === null ||
-      (typeof val === 'string' && val.trim() === '') ||
-      (key === 'donationWidgetEmbed' && typeof val === 'object' && val && !val.widgetId && !val.charityId);
+    return res.status(200).json({ success: true, profile: updated || user });
+  } catch (err: any) {
+    const code = typeof err?.code === 'string' ? err.code : undefined;
 
-    if (shouldClear) {
-      unsetObj[key] = 1;
-      continue;
+    // dbConnect() throws typed errors we can safely surface.
+    if (code === 'MONGODB_URI_MISSING' || code === 'MONGODB_DISABLED') {
+      return res.status(503).json({
+        success: false,
+        code,
+        message:
+          code === 'MONGODB_URI_MISSING'
+            ? 'Server is missing MONGODB_URI configuration.'
+            : 'Server has MongoDB disabled via environment settings.',
+      });
     }
 
-    setObj[key] = val;
+    console.error('PATCH /api/profile failed', {
+      actor,
+      message: err?.message,
+      name: err?.name,
+      code,
+    });
+
+    return res.status(500).json({
+      success: false,
+      code: 'PROFILE_PATCH_FAILED',
+      message: 'Internal server error while saving profile.',
+    });
   }
-
-  setObj.updatedAt = now;
-  user.profileUpdateHistory.push(now);
-
-  const updateDoc: any = { $set: setObj };
-  if (Object.keys(unsetObj).length) updateDoc.$unset = unsetObj;
-
-  const updated = await User.findOneAndUpdate({ address: actor }, updateDoc, { new: true });
-
-  // Best-effort mirror for Wallet socials.
-  try {
-    const walletUpdate: any = {};
-    if (setObj.displayName) walletUpdate['socials.displayName'] = setObj.displayName;
-    if (setObj.avatarUrl || setObj.nftAvatarUrl) walletUpdate['socials.avatarUrl'] = setObj.avatarUrl || setObj.nftAvatarUrl;
-    if (setObj.bio) walletUpdate['socials.bio'] = setObj.bio;
-    if (Object.keys(walletUpdate).length > 0) {
-      await Wallet.updateMany({ address: actor }, { $set: walletUpdate });
-    }
-  } catch {
-    // non-fatal
-  }
-
-  return res.status(200).json({ success: true, profile: updated || user });
 }

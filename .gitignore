@@ -57,3 +57,6 @@ secrets.*
 # Exclude MongoDB dump
 *.bson
 *.mongodump
+
+# Local docs (do not commit)
+blockpage411/userAdmin.md

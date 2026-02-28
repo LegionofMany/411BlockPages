@@ -170,9 +170,11 @@ export default function EditProfilePage() {
           setAutosaveMessage('Saved ✓');
           setServerValues((prev) => ({ ...prev, ...patch }));
         } else {
-          const data = await res.json();
+          const data = await res.json().catch(() => null as any);
           setAutosaveStatus('error');
-          setAutosaveMessage(data?.message || 'Failed to save');
+          const msg = data?.message || data?.error || `Failed to save (${res.status})`;
+          const code = data?.code ? ` [${String(data.code)}]` : '';
+          setAutosaveMessage(`${msg}${code}`);
         }
       } catch {
         setAutosaveStatus('error');

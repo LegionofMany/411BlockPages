@@ -28,6 +28,9 @@
 .DS_Store
 *.pem
 
+# local docs
+/userAdmin.md
+
 # debug
 npm-debug.log*
 yarn-debug.log*
