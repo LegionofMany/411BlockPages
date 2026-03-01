@@ -163,7 +163,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
         if (!verified) {
-          return res.status(400).json({ message: 'UD domain does not resolve to your wallet. Paste your UD domain (e.g. name.crypto) that points to your wallet.' });
+          return res
+            .status(400)
+            .json({
+              message:
+                'UD domain does not resolve to your wallet. Ensure your domain\'s crypto.ETH.address record points to your connected wallet, then paste the domain (e.g. name.crypto) or a ud.me link.',
+            });
         }
         body.udDomain = verified;
       }
