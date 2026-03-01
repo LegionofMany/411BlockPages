@@ -25,6 +25,15 @@ const ERC1155_ABI = [
 
 type ResolveResult = { imageUrl: string; source: string; details?: Record<string, any> };
 
+const MAX_TOTAL_MS = 8_000;
+function remainingMs(startedAt: number) {
+  return Math.max(0, MAX_TOTAL_MS - (Date.now() - startedAt));
+}
+
+function isAxiosTimeout(err: any) {
+  return err?.code === 'ECONNABORTED' || String(err?.message || '').toLowerCase().includes('timeout');
+}
+
 function normalizeHttpUrl(url: string): string {
   const trimmed = String(url || '').trim();
   if (!trimmed) return trimmed;
@@ -71,12 +80,12 @@ function extractImageUrlFromMetadata(meta: any): string {
   return '';
 }
 
-async function fetchMetadataAndExtractImage(url: string): Promise<string> {
+async function fetchMetadataAndExtractImage(url: string, timeoutMs = 4000): Promise<string> {
   const u = normalizeIpfs(normalizeHttpUrl(url));
   if (!/^https?:\/\//i.test(u)) return '';
   try {
     const resp = await axios.get(u, {
-      timeout: 9000,
+      timeout: Math.max(500, timeoutMs),
       headers: {
         Accept: 'application/json,text/plain;q=0.9,*/*;q=0.8',
       },
@@ -110,7 +119,7 @@ async function fetchMetadataAndExtractImage(url: string): Promise<string> {
   }
 }
 
-function getChainClient(chainSlug: string) {
+function getChainClient(chainSlug: string, timeoutMs?: number) {
   const slug = String(chainSlug || '').toLowerCase();
   const rpc = {
     ethereum:
@@ -137,7 +146,10 @@ function getChainClient(chainSlug: string) {
             : mainnet;
 
   const rpcUrl = (rpc as any)[slug] || rpc.ethereum;
-  return createPublicClient({ chain: chainObj, transport: http(String(rpcUrl)) });
+  // Keep timeouts short to avoid serverless timeouts; allow overriding via env.
+  const fallbackTimeout = Number(process.env.NFT_RESOLVE_RPC_TIMEOUT_MS || 3500);
+  const timeout = Number.isFinite(timeoutMs as number) ? Number(timeoutMs) : fallbackTimeout;
+  return createPublicClient({ chain: chainObj, transport: http(String(rpcUrl), { timeout }) });
 }
 
 function expandErc1155UriTemplate(uri: string, tokenId: bigint): string {
@@ -148,10 +160,23 @@ function expandErc1155UriTemplate(uri: string, tokenId: bigint): string {
   return template.replaceAll('{id}', hex);
 }
 
-async function resolveOpenSeaViaChain(opts: { chain: string; contract: string; tokenId: string }): Promise<ResolveResult | null> {
+async function resolveOpenSeaViaChain(opts: {
+  chain: string;
+  contract: string;
+  tokenId: string;
+  startedAt: number;
+}): Promise<ResolveResult | null> {
   try {
+    const remain = remainingMs(opts.startedAt);
+    // This fallback is best-effort; keep it fast and bounded.
+    if (remain < 3000) return null;
+
+    const rpcTimeout = Math.max(600, Math.min(1000, remain - 2200));
+    const metadataTimeout = Math.max(600, Math.min(2000, remain - rpcTimeout * 2 - 300));
+    if (rpcTimeout < 600 || metadataTimeout < 600) return null;
+
     const tokenIdBig = BigInt(opts.tokenId);
-    const client = getChainClient(opts.chain);
+    const client = getChainClient(opts.chain, rpcTimeout);
     const address = opts.contract as `0x${string}`;
 
     // Try ERC-721 first.
@@ -188,7 +213,7 @@ async function resolveOpenSeaViaChain(opts: { chain: string; contract: string; t
       }
     }
 
-    const img = await fetchMetadataAndExtractImage(normalizedTokenUri);
+    const img = await fetchMetadataAndExtractImage(normalizedTokenUri, metadataTimeout);
     if (!img) return null;
     return {
       imageUrl: img,
@@ -239,6 +264,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
+  const startedAt = Date.now();
+
   const input = String((req.body || {}).input || '').trim();
   if (!input) return res.status(400).json({ message: 'input is required' });
 
@@ -248,15 +275,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ imageUrl: normalized, source: 'direct' });
   }
 
-  // If the user pasted a metadata URL (JSON), try extracting the image first.
-  if (/^https?:\/\//i.test(normalized)) {
-    const fromMeta = await fetchMetadataAndExtractImage(normalized);
-    if (fromMeta) {
-      return res.status(200).json({ imageUrl: fromMeta, source: 'metadata' });
-    }
-  }
-
-  // OpenSea URL -> OpenSea API
+  // OpenSea URL -> OpenSea API / on-chain fallback
+  // IMPORTANT: Handle this before attempting metadata fetch, since OpenSea asset pages are HTML and
+  // metadata probing can waste time and trigger serverless timeouts.
   const parsed = parseOpenSeaUrl(input);
   if (parsed) {
     const chain = normalizeOpenSeaChain(parsed.chain);
@@ -264,37 +285,80 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const tokenId = parsed.tokenId;
 
     const url = `https://api.opensea.io/api/v2/chain/${encodeURIComponent(chain)}/contract/${encodeURIComponent(contract)}/nfts/${encodeURIComponent(tokenId)}`;
+
+    // Keep OpenSea fetch short; if it times out, don't attempt additional slow fallbacks.
+    const openSeaTimeout = Math.min(3500, Math.max(1000, remainingMs(startedAt) - 500));
+    if (openSeaTimeout <= 1000) {
+      return res.status(504).json({ message: 'NFT resolve timed out. Please try again.' });
+    }
+
     try {
       const resp = await axios.get(url, {
-        timeout: 9000,
+        timeout: openSeaTimeout,
         headers: {
           Accept: 'application/json',
           ...(process.env.OPENSEA_API_KEY ? { 'x-api-key': process.env.OPENSEA_API_KEY } : {}),
         },
+        validateStatus: () => true,
       });
 
-      const nft = (resp.data && (resp.data.nft || resp.data)) as any;
-      const imageUrlRaw = nft?.image_url || nft?.image_original_url || nft?.display_image_url || nft?.metadata?.image;
-      const imageUrl = imageUrlRaw ? normalizeIpfs(String(imageUrlRaw)) : '';
-      if (!imageUrl) {
-        // Fall back to on-chain tokenURI resolution.
-        const chainResolved = await resolveOpenSeaViaChain({ chain, contract, tokenId });
-        if (chainResolved?.imageUrl) {
-          return res.status(200).json({ imageUrl: chainResolved.imageUrl, source: chainResolved.source, chain, contract, tokenId });
+      if (resp.status >= 200 && resp.status < 300) {
+        const nft = (resp.data && (resp.data.nft || resp.data)) as any;
+        const imageUrlRaw = nft?.image_url || nft?.image_original_url || nft?.display_image_url || nft?.metadata?.image;
+        const imageUrl = imageUrlRaw ? normalizeIpfs(String(imageUrlRaw)) : '';
+        if (imageUrl) {
+          return res.status(200).json({ imageUrl, source: 'opensea', chain, contract, tokenId });
         }
-        return res.status(404).json({ message: 'No image found for that NFT.' });
       }
-      return res.status(200).json({ imageUrl, source: 'opensea', chain, contract, tokenId });
-    } catch (err: any) {
-      const status = err?.response?.status;
-      const msg = err?.response?.data?.message || err?.message || 'OpenSea fetch failed';
-      // If OpenSea is rate-limited or requires an API key, try on-chain resolution.
-      const chainResolved = await resolveOpenSeaViaChain({ chain, contract, tokenId });
+
+      // OpenSea didn't give us an image (or non-2xx). Try on-chain if we still have time.
+      if (remainingMs(startedAt) < 3000) {
+        return res.status(504).json({ message: 'NFT resolve timed out. Please try again.' });
+      }
+
+      const chainResolved = await resolveOpenSeaViaChain({ chain, contract, tokenId, startedAt });
       if (chainResolved?.imageUrl) {
         return res.status(200).json({ imageUrl: chainResolved.imageUrl, source: chainResolved.source, chain, contract, tokenId });
       }
+
+      if (resp.status === 429) {
+        return res.status(429).json({ message: 'OpenSea rate limited and on-chain fallback failed. Try again shortly.' });
+      }
+
+      // Treat 404 from OpenSea as "not found" when chain fallback also fails.
+      if (resp.status === 404) return res.status(404).json({ message: 'No image found for that NFT.' });
+
+      const msg = (resp.data as any)?.message || 'OpenSea fetch failed.';
+      return res.status(502).json({ message: msg });
+    } catch (err: any) {
+      if (isAxiosTimeout(err)) {
+        return res.status(504).json({ message: 'NFT resolve timed out. Please try again.' });
+      }
+
+      // For other OpenSea failures, attempt on-chain fallback if we still have time.
+      if (remainingMs(startedAt) >= 3000) {
+        const chainResolved = await resolveOpenSeaViaChain({ chain, contract, tokenId, startedAt });
+        if (chainResolved?.imageUrl) {
+          return res.status(200).json({ imageUrl: chainResolved.imageUrl, source: chainResolved.source, chain, contract, tokenId });
+        }
+      }
+
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message || err?.message || 'OpenSea fetch failed';
       if (status === 429) return res.status(429).json({ message: 'OpenSea rate limited and on-chain fallback failed. Try again shortly.' });
       return res.status(502).json({ message: msg });
+    }
+  }
+
+  // If the user pasted a metadata URL (JSON), try extracting the image first.
+  if (/^https?:\/\//i.test(normalized)) {
+    if (remainingMs(startedAt) < 1500) {
+      return res.status(504).json({ message: 'NFT resolve timed out. Please try again.' });
+    }
+    const metaTimeout = Math.min(3000, Math.max(800, remainingMs(startedAt) - 500));
+    const fromMeta = await fetchMetadataAndExtractImage(normalized, metaTimeout);
+    if (fromMeta) {
+      return res.status(200).json({ imageUrl: fromMeta, source: 'metadata' });
     }
   }
 
