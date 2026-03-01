@@ -19,7 +19,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!address) return res.status(401).json({ message: 'Invalid token payload' });
 
   // build allowed admins list from env
-  const allowedRaw = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const adminEnvRaw = process.env.ADMIN_WALLETS || process.env.NEXT_PUBLIC_ADMIN_WALLETS || '';
+  const allowedRaw = adminEnvRaw.split(',').map(s => s.trim()).filter(Boolean);
   const allowedNormalized = allowedRaw.map(a => {
     try { return getAddress(a); } catch { return a.toLowerCase(); }
   });
