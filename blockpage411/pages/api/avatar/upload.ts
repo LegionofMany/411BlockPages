@@ -8,10 +8,17 @@ import sharp from 'sharp';
 // Cloudinary support for persistent storage on Vercel
 import { v2 as cloudinary } from 'cloudinary';
 
+const IS_VERCEL = !!process.env.VERCEL;
+const IS_PROD = process.env.NODE_ENV === 'production';
+const REQUIRE_PERSISTENT_STORAGE = IS_VERCEL || IS_PROD;
+
+let cloudinaryConfigured = false;
 if (process.env.CLOUDINARY_URL) {
   try {
     cloudinary.config({ url: process.env.CLOUDINARY_URL });
+    cloudinaryConfigured = true;
   } catch (e) {
+    cloudinaryConfigured = false;
     console.warn('Invalid CLOUDINARY_URL', e);
   }
 }
@@ -80,8 +87,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Processed image exceeds maximum allowed size' });
     }
 
-    // If Cloudinary is configured, upload there (recommended for Vercel)
-    if (process.env.CLOUDINARY_URL) {
+    // If Cloudinary is configured, upload there (required on Vercel)
+    if (process.env.CLOUDINARY_URL && cloudinaryConfigured) {
       try {
         const uploadResult: any = await new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream({ folder: 'avatars', format: 'webp' }, (error, result) => {
@@ -93,9 +100,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // cloudinary returns secure_url
         return res.status(200).json({ url: uploadResult.secure_url, size: buffer.length, provider: 'cloudinary' });
       } catch (e: any) {
-        console.warn('Cloudinary upload failed, falling back to local storage', e && e.message ? e.message : e);
-        // continue to local storage fallback
+        const msg = e && e.message ? e.message : String(e);
+        console.warn('Cloudinary upload failed', msg);
+        if (REQUIRE_PERSISTENT_STORAGE) {
+          return res.status(500).json({
+            message: 'Avatar upload storage is misconfigured (Cloudinary upload failed). Set a valid CLOUDINARY_URL on the server, or configure NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME + NEXT_PUBLIC_CLOUDINARY_UNSIGNED_PRESET for client uploads.',
+          });
+        }
+        // dev-only: fall back to local storage
       }
+    } else if (REQUIRE_PERSISTENT_STORAGE) {
+      return res.status(500).json({
+        message: 'Avatar upload storage is not configured. Set CLOUDINARY_URL on the server, or configure NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME + NEXT_PUBLIC_CLOUDINARY_UNSIGNED_PRESET for client uploads.',
+      });
     }
 
     // Fallback: store under public/uploads/avatars (works for local/dev)
@@ -120,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (err: any) {
     console.error('/api/avatar/upload error', err && err.message ? err.message : err);
     if (err && err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File is too large (max 3 MB)' });
+      return res.status(400).json({ message: 'File is too large (max 2 MB)' });
     }
     return res.status(500).json({ message: 'Upload failed' });
   }

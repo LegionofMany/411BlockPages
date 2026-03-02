@@ -137,6 +137,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let user = await User.findOne({ address: walletAddress });
   const now = new Date();
 
+  const previousAvatarUrl: string | null = user ? ((user as any).avatarUrl || null) : null;
+
   const kycLockedFields = new Set(['telegram', 'twitter', 'discord', 'website', 'phoneApps', 'email']);
 
   if (user) {
@@ -182,10 +184,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // If the incoming update contains a new avatarUrl, and the user had a previous uploaded avatar
   // stored under our uploads folder, remove the old file to avoid orphaned files.
   try {
-    if (update.avatarUrl && user && (user as any).avatarUrl && (user as any).avatarUrl !== update.avatarUrl) {
-      const prevUrl: string = (user as any).avatarUrl;
-      // We only remove files that were uploaded to our avatars folder: /uploads/avatars/<filename>
-      const match = prevUrl.match(/\/uploads\/avatars\/(.+)$/);
+    if (update.avatarUrl && previousAvatarUrl && previousAvatarUrl !== update.avatarUrl) {
+      // We only remove files that were uploaded to our local avatars folder.
+      // Supported URL shapes:
+      // - /uploads/avatars/<filename>
+      // - /api/avatar/<filename>
+      const match = previousAvatarUrl.match(/\/(?:uploads\/avatars|api\/avatar)\/(.+)$/);
       if (match && match[1]) {
         const prevFilename = path.basename(match[1]);
         const prevPath = path.join(process.cwd(), 'public', 'uploads', 'avatars', prevFilename);
