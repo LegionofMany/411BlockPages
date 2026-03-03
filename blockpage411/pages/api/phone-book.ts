@@ -41,6 +41,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end('Method Not Allowed');
   }
 
+  // Directory entries can change (avatars/names), so avoid caching.
+  try { res.setHeader('Cache-Control', 'no-store'); } catch {}
+
   const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
   const skip = (page - 1) * limit;

@@ -31,6 +31,7 @@ function looksLikeImageUrl(url: unknown): url is string {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ message: 'Method not allowed' });
+  try { res.setHeader('Cache-Control', 'no-store'); } catch {}
   const { address } = req.query as { address?: string };
   if (!address) return res.status(400).json({ message: 'Address required' });
   const norm = String(address).toLowerCase();

@@ -68,6 +68,9 @@ async function resolveDomainToAddress(name: string): Promise<{ address: string; 
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Search results should never be cached (avatars/names may change frequently).
+  try { res.setHeader('Cache-Control', 'no-store'); } catch {}
+
   let { q, chain } = req.query;
   // Ensure q and chain are always strings
   q = Array.isArray(q) ? q[0] : q;
@@ -175,12 +178,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const candidateAvatarUrl = ws?.avatarUrl || u?.avatarUrl || u?.nftAvatarUrl || undefined;
       const avatarUrl = looksLikeImageUrl(candidateAvatarUrl) ? candidateAvatarUrl : undefined;
 
-      if (!displayName && !avatarUrl) return ws || undefined;
-      return {
-        ...(ws || {}),
-        ...(displayName ? { displayName } : {}),
-        ...(avatarUrl ? { avatarUrl } : {}),
-      };
+      if (!displayName && !avatarUrl) return undefined;
+      const clean: { displayName?: string; avatarUrl?: string } = {};
+      if (displayName) clean.displayName = displayName;
+      if (avatarUrl) clean.avatarUrl = avatarUrl;
+      return clean;
     })(),
     trustScore: w.trustScore,
     riskScore: w.riskScore,
@@ -230,7 +232,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const displayName = typeof u?.displayName === 'string' ? u.displayName : undefined;
         const candidateAvatarUrl = typeof u?.avatarUrl === 'string' ? u.avatarUrl : (typeof u?.nftAvatarUrl === 'string' ? u.nftAvatarUrl : undefined);
         const avatarUrl = looksLikeImageUrl(candidateAvatarUrl) ? candidateAvatarUrl : undefined;
-        if (displayName || avatarUrl) socials = { ...(displayName ? { displayName } : {}), ...(avatarUrl ? { avatarUrl } : {}) };
+        if (displayName || avatarUrl) {
+          socials = {};
+          if (displayName) socials.displayName = displayName;
+          if (avatarUrl) socials.avatarUrl = avatarUrl;
+        }
       } catch {
         socials = undefined;
       }
