@@ -205,11 +205,41 @@ export default function EditProfilePage() {
     }, 1500)
   ).current;
 
-  const handleFieldChange = (field: string, value: any) => {
+  const savePatchNow = async (patch: Record<string, any>) => {
+    try {
+      setAutosaveStatus('saving');
+      setAutosaveMessage('Saving…');
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (res.ok) {
+        setAutosaveStatus('saved');
+        setAutosaveMessage('Saved ✓');
+        setServerValues((prev) => ({ ...prev, ...patch }));
+        return { ok: true as const };
+      }
+
+      const data = await res.json().catch(() => null as any);
+      const msg = data?.message || data?.error || `Failed to save (${res.status})`;
+      const code = data?.code ? ` [${String(data.code)}]` : '';
+      setAutosaveStatus('error');
+      setAutosaveMessage(`${msg}${code}`);
+      return { ok: false as const, message: `${msg}${code}` };
+    } catch {
+      setAutosaveStatus('error');
+      setAutosaveMessage('Network error while saving');
+      return { ok: false as const, message: 'Network error while saving' };
+    }
+  };
+
+  const handleFieldChange = (field: string, value: any, opts?: { skipSave?: boolean }) => {
     setValues((prev) => {
       const updatedValues = { ...prev, [field]: value };
       localStorage.setItem('profileFormState', JSON.stringify(updatedValues));
-      debouncedSave({ [field]: value });
+      if (!opts?.skipSave) debouncedSave({ [field]: value });
       return updatedValues;
     });
   };
@@ -808,8 +838,18 @@ export default function EditProfilePage() {
                         }
 
                         if (url) {
-                          handleFieldChange('avatarUrl', url);
+                          // Update UI immediately, but persist to the server right away.
+                          // Relying on the debounced autosave here can lose the update if the user navigates quickly.
+                          handleFieldChange('avatarUrl', url, { skipSave: true });
                           setAvatarPreview(url);
+
+                          const saved = await savePatchNow({ avatarUrl: url });
+                          if (!saved.ok) {
+                            setUploadError(`Uploaded, but could not save avatar to profile. ${saved.message}`);
+                            setUploading(false);
+                            return;
+                          }
+
                           setCropModalOpen(false);
                           setRawFile(null);
                         }
