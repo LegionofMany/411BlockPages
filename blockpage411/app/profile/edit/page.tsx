@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Cropper from 'react-easy-crop';
 import Slider from 'rc-slider';
+import { createPortal } from 'react-dom';
 import { showToast } from '../../components/simpleToast';
 import Skeleton from '../../components/ui/Skeleton';
 
@@ -52,7 +53,10 @@ export default function EditProfilePage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [avatarPendingUpload, setAvatarPendingUpload] = useState(false);
+  const [avatarDebug, setAvatarDebug] = useState<string>('');
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [portalReady, setPortalReady] = useState(false);
 
   // Cloudinary env (optional)
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -69,6 +73,10 @@ export default function EditProfilePage() {
         console.warn('Failed to parse saved form state', err);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    setPortalReady(true);
   }, []);
 
   useEffect(() => {
@@ -425,21 +433,25 @@ export default function EditProfilePage() {
                   )}
                 </div>
                 <div className="flex-1 flex flex-col gap-1.5 text-xs w-full">
-                  <label
-                    htmlFor="avatarFile"
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
                     className="inline-flex w-full sm:w-max justify-center sm:justify-start cursor-pointer items-center rounded-full border border-emerald-400/50 bg-emerald-500/10 px-3 py-2 font-medium text-emerald-200 hover:bg-emerald-500/20"
                   >
                     Change photo
-                  </label>
+                  </button>
                   <input
                     id="avatarFile"
+                    ref={fileInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     onChange={async (e) => {
                       setUploadError(null);
                       setAvatarPendingUpload(false);
+                      setAvatarDebug('');
                       const f = e.target.files && e.target.files[0];
                       if (!f) return;
+                      setAvatarDebug(`Selected file: ${f.name} (${Math.round(f.size / 1024)} KB)`);
                       const MAX_BYTES = MAX_CLIENT_FILE_BYTES; // 2 MB
                       const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
                       if (!allowed.includes((f.type || '').toLowerCase())) { setUploadError('Invalid file type. Allowed: jpg, png, webp'); return; }
@@ -456,8 +468,10 @@ export default function EditProfilePage() {
                         setAvatarPreview(origUrl);
                         setCropModalOpen(true);
                         setAvatarPendingUpload(true);
+                        setAvatarDebug((prev) => prev ? `${prev} · cropModalOpen=true` : 'cropModalOpen=true');
                       } catch {
                         // If even object URLs fail, fall back to upload-only path below.
+                        setAvatarDebug((prev) => prev ? `${prev} · objectURL failed` : 'objectURL failed');
                       }
 
                       try {
@@ -526,8 +540,10 @@ export default function EditProfilePage() {
                             return;
                           }
                           setAvatarPendingUpload(false);
+                          setAvatarDebug((prev) => prev ? `${prev} · uploaded+saved` : 'uploaded+saved');
                         } catch {
                           setUploadError('Failed to process image for cropping');
+                          setAvatarDebug((prev) => prev ? `${prev} · upload fallback failed` : 'upload fallback failed');
                         }
                       }
                     }}
@@ -538,6 +554,17 @@ export default function EditProfilePage() {
                     <div className="text-[11px] text-amber-300">
                       Photo selected but not uploaded yet — open the crop dialog and click Apply.
                     </div>
+                  )}
+
+                  {/* Debug hint: if this shows rawFile but no modal, the overlay was blocked by layout */}
+                  {rawFile && (
+                    <div className="text-[10px] text-slate-500">
+                      Selected: {rawFile.name} · Crop dialog: {cropModalOpen ? 'open' : 'closed'}
+                    </div>
+                  )}
+
+                  {avatarDebug && (
+                    <div className="text-[10px] text-slate-500">{avatarDebug}</div>
                   )}
 
                   {avatarPendingUpload && rawFile && !cropModalOpen && (
@@ -727,37 +754,60 @@ export default function EditProfilePage() {
           </form>
         )}
       </main>
-      {cropModalOpen && rawFile && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          tabIndex={-1}
-          ref={modalRef}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setCropModalOpen(false);
-              setRawFile(null);
-              setAvatarPendingUpload(false);
-            }
-            if (e.key === 'Enter') {
-              const applyBtn = document.getElementById('crop-apply-btn') as HTMLButtonElement | null;
-              applyBtn?.click();
-            }
-          }}
-        >
-          <div className="bg-slate-900 p-4 rounded sm:rounded max-w-3xl w-full h-full sm:h-auto sm:my-auto max-h-[95vh] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Crop avatar">
-            <div className="relative h-[60vh] sm:h-[420px] bg-black">
-              <Cropper
-                image={avatarPreview || ''}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                objectFit="contain"
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={(_c, croppedPixels) => setCroppedAreaPixels(croppedPixels)}
-              />
-            </div>
+      {portalReady && cropModalOpen && rawFile
+        ? createPortal(
+          <div
+            ref={modalRef}
+            tabIndex={-1}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setCropModalOpen(false);
+                setRawFile(null);
+                setAvatarPendingUpload(false);
+              }
+              if (e.key === 'Enter') {
+                const applyBtn = document.getElementById('crop-apply-btn') as HTMLButtonElement | null;
+                applyBtn?.click();
+              }
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 2147483647,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(0,0,0,0.70)',
+              padding: 12,
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Crop avatar"
+              style={{
+                background: '#0f172a',
+                borderRadius: 12,
+                width: 'min(100%, 980px)',
+                maxHeight: '95vh',
+                overflowY: 'auto',
+                padding: 16,
+                border: '1px solid rgba(148,163,184,0.25)',
+              }}
+            >
+              <div style={{ position: 'relative', height: 'min(60vh, 420px)', background: '#000' }}>
+                <Cropper
+                  image={avatarPreview || ''}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropShape="round"
+                  objectFit="contain"
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={(_c, croppedPixels) => setCroppedAreaPixels(croppedPixels)}
+                />
+              </div>
             <div className="mt-3 flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex-1">
@@ -949,8 +999,10 @@ export default function EditProfilePage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )
+        : null}
     </div>
   );
 }
