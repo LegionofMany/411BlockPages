@@ -313,6 +313,15 @@ export default function WalletSearchBar({
                             className="h-8 w-8 rounded-full object-cover border border-white/10"
                             onError={(e) => {
                               const img = e.currentTarget as HTMLImageElement;
+                              try {
+                                const src = img?.getAttribute('src') || img?.src;
+                                if (src && !String(src).endsWith('/default-avatar.png')) {
+                                  // eslint-disable-next-line no-console
+                                  console.warn('Suggestion avatar failed to load:', src);
+                                }
+                              } catch {
+                                // ignore
+                              }
                               if (img && img.src && !img.src.endsWith('/default-avatar.png')) {
                                 img.src = '/default-avatar.png';
                               }

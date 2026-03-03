@@ -132,10 +132,32 @@ export default function EditProfilePage() {
         };
 
         // Preserve any localStorage draft values already loaded.
-        setValues((prev) => ({ ...nextFromServer, ...prev, walletAddress: meJson.address || undefined }));
+        setValues((prev) => {
+          // Merge strategy: let non-empty draft values override server,
+          // but do NOT allow blank draft fields to wipe out a real server value.
+          const merged: ProfileState = { ...nextFromServer, ...prev, walletAddress: meJson.address || undefined };
+
+          const preferServerWhenBlank: (keyof ProfileState)[] = [
+            'avatarUrl',
+            'nftAvatarUrl',
+          ];
+
+          for (const key of preferServerWhenBlank) {
+            const draftVal = (prev as any)?.[key];
+            const serverVal = (nextFromServer as any)?.[key];
+            const draftBlank = draftVal === '' || draftVal === null || draftVal === undefined;
+            const serverPresent = serverVal !== '' && serverVal !== null && serverVal !== undefined;
+            if (draftBlank && serverPresent) {
+              (merged as any)[key] = serverVal;
+            }
+          }
+
+          // Keep the avatar preview in sync with the effective merged avatar.
+          setAvatarPreview((merged as any).avatarUrl || null);
+          return merged;
+        });
         setServerValues(nextFromServer);
 
-        setAvatarPreview(meJson.avatarUrl || null);
         setCharities(charitiesData as any);
         setEvents(eventsData);
         setError(null);

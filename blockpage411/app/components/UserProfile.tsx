@@ -43,6 +43,15 @@ export default function UserProfile({ walletAddress, compact = false, chain }: {
         className="h-10 w-10 rounded-full object-cover"
         onError={(e) => {
           const img = e.currentTarget as HTMLImageElement;
+          try {
+            const src = img?.getAttribute('src') || img?.src;
+            if (src && !String(src).endsWith('/default-avatar.png')) {
+              // eslint-disable-next-line no-console
+              console.warn('Avatar image failed to load:', src);
+            }
+          } catch {
+            // ignore
+          }
           if (img && img.src && !img.src.endsWith('/default-avatar.png')) {
             img.src = '/default-avatar.png';
           }
