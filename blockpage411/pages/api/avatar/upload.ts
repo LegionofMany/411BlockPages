@@ -7,10 +7,43 @@ import formidable from 'formidable';
 import sharp from 'sharp';
 // Cloudinary support for persistent storage on Vercel
 import { v2 as cloudinary } from 'cloudinary';
+import jwt from 'jsonwebtoken';
+import dbConnect from 'lib/db';
+import User from 'lib/userModel';
 
 const IS_VERCEL = !!process.env.VERCEL;
 const IS_PROD = process.env.NODE_ENV === 'production';
 const REQUIRE_PERSISTENT_STORAGE = IS_VERCEL || IS_PROD;
+
+const JWT_SECRET = process.env.JWT_SECRET as string;
+
+function getActorAddressFromCookie(req: NextApiRequest): string | null {
+  const token = req.cookies?.token;
+  if (!token) return null;
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as any;
+    const addr = payload && typeof payload === 'object' ? String(payload.address || '') : '';
+    return addr ? addr.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function persistAvatarUrlForActor(req: NextApiRequest, avatarUrl: string): Promise<boolean> {
+  const actor = getActorAddressFromCookie(req);
+  if (!actor) return false;
+  try {
+    await dbConnect();
+    await User.updateOne(
+      { address: actor },
+      { $set: { avatarUrl, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 let cloudinaryConfigured = false;
 if (process.env.CLOUDINARY_URL) {
@@ -98,7 +131,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           stream.end(buffer);
         });
         // cloudinary returns secure_url
-        return res.status(200).json({ url: uploadResult.secure_url, size: buffer.length, provider: 'cloudinary' });
+        const url = uploadResult.secure_url;
+        const savedToProfile = await persistAvatarUrlForActor(req, url);
+        return res.status(200).json({ url, size: buffer.length, provider: 'cloudinary', savedToProfile });
       } catch (e: any) {
         const msg = e && e.message ? e.message : String(e);
         console.warn('Cloudinary upload failed', msg);
@@ -133,7 +168,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Return a served API URL so we can attach caching headers and control access
     const publicUrl = `/api/avatar/${encodeURIComponent(filename)}`;
-    return res.status(200).json({ url: publicUrl, size: buffer.length, provider: 'local' });
+    const savedToProfile = await persistAvatarUrlForActor(req, publicUrl);
+    return res.status(200).json({ url: publicUrl, size: buffer.length, provider: 'local', savedToProfile });
   } catch (err: any) {
     console.error('/api/avatar/upload error', err && err.message ? err.message : err);
     if (err && err.code === 'LIMIT_FILE_SIZE') {

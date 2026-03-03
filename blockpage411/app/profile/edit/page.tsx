@@ -51,6 +51,7 @@ export default function EditProfilePage() {
   const [previewSize, setPreviewSize] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [avatarPendingUpload, setAvatarPendingUpload] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
   // Cloudinary env (optional)
@@ -436,6 +437,7 @@ export default function EditProfilePage() {
                     accept="image/jpeg,image/png,image/webp"
                     onChange={async (e) => {
                       setUploadError(null);
+                      setAvatarPendingUpload(false);
                       const f = e.target.files && e.target.files[0];
                       if (!f) return;
                       const MAX_BYTES = MAX_CLIENT_FILE_BYTES; // 2 MB
@@ -470,13 +472,57 @@ export default function EditProfilePage() {
                         setRawFile(fileToUse);
                         setAvatarPreview(previewUrl);
                         setCropModalOpen(true);
+                        setAvatarPendingUpload(true);
                       } catch (err) {
-                        setUploadError('Failed to process image for cropping');
+                        // If cropping setup fails (device/browser quirks), fall back to direct upload.
+                        try {
+                          const fd = new FormData();
+                          fd.append('file', f);
+
+                          let url: string | undefined;
+
+                          if (cloudName && uploadPreset) {
+                            const cloudFd = new FormData();
+                            cloudFd.append('file', f);
+                            cloudFd.append('upload_preset', uploadPreset);
+                            const cloudUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+                            const res = await fetch(cloudUrl, { method: 'POST', body: cloudFd });
+                            const json = await res.json();
+                            if (res.ok && json.secure_url) url = json.secure_url;
+                          }
+
+                          if (!url) {
+                            const upRes = await fetch('/api/avatar/upload', { method: 'POST', body: fd });
+                            const upJson = await upRes.json();
+                            if (upRes.ok && upJson.url) url = upJson.url;
+                          }
+
+                          if (!url) {
+                            setUploadError('Could not open cropper and upload failed.');
+                            return;
+                          }
+
+                          handleFieldChange('avatarUrl', url, { skipSave: true });
+                          setAvatarPreview(url);
+                          const saved = await savePatchNow({ avatarUrl: url });
+                          if (!saved.ok) {
+                            setUploadError(`Uploaded, but could not save avatar to profile. ${saved.message}`);
+                            return;
+                          }
+                          setAvatarPendingUpload(false);
+                        } catch {
+                          setUploadError('Failed to process image for cropping');
+                        }
                       }
                     }}
                     className="hidden"
                   />
-                  <div className="text-xs text-slate-400">Recommended: square image. Max 2 MB. We resize to 256×256.</div>
+                  <div className="text-xs text-slate-400">Recommended: square image. Max 2 MB. After selecting a file, scroll the crop dialog and click Apply to upload.</div>
+                  {avatarPendingUpload && (
+                    <div className="text-[11px] text-amber-300">
+                      Photo selected but not uploaded yet — open the crop dialog and click Apply.
+                    </div>
+                  )}
                   {uploadError && <div className="text-[11px] text-red-400">{uploadError}</div>}
                 </div>
               </div>
@@ -664,6 +710,7 @@ export default function EditProfilePage() {
             if (e.key === 'Escape') {
               setCropModalOpen(false);
               setRawFile(null);
+              setAvatarPendingUpload(false);
             }
             if (e.key === 'Enter') {
               const applyBtn = document.getElementById('crop-apply-btn') as HTMLButtonElement | null;
@@ -726,19 +773,20 @@ export default function EditProfilePage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between mt-2">
-                <div className="text-[11px] text-slate-400">
-                  Drag to reposition; use zoom to fine-tune your circular avatar. We will try to optimize the final avatar to be ≤150 KB for faster page loads.
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-xs text-slate-400 mr-3">Optimizing to ≤150 KB</div>
-                  <button
-                    id="crop-apply-btn"
-                    type="button"
-                    disabled={uploading}
-                    aria-disabled={uploading}
-                    className={`px-3 py-1 rounded font-semibold ${uploading ? 'bg-slate-600 text-slate-300 cursor-not-allowed' : 'bg-emerald-500 text-black'}`}
-                    onClick={async () => {
+              <div className="sticky bottom-0 bg-slate-900 pt-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-slate-400">
+                    Drag to reposition; use zoom to fine-tune your circular avatar. We will try to optimize the final avatar to be ≤150 KB for faster page loads.
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs text-slate-400 mr-3">Optimizing to ≤150 KB</div>
+                    <button
+                      id="crop-apply-btn"
+                      type="button"
+                      disabled={uploading}
+                      aria-disabled={uploading}
+                      className={`px-3 py-1 rounded font-semibold ${uploading ? 'bg-slate-600 text-slate-300 cursor-not-allowed' : 'bg-emerald-500 text-black'}`}
+                      onClick={async () => {
                       try {
                         setUploading(true);
                         setUploadError(null);
@@ -853,6 +901,7 @@ export default function EditProfilePage() {
 
                           setCropModalOpen(false);
                           setRawFile(null);
+                          setAvatarPendingUpload(false);
                         }
 
                         setUploading(false);
@@ -865,10 +914,11 @@ export default function EditProfilePage() {
                         }
                         setUploading(false);
                       }
-                    }}
-                  >
-                    Apply
-                  </button>
+                      }}
+                    >
+                      Apply
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
