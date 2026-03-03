@@ -311,6 +311,12 @@ export default function WalletSearchBar({
                             src={avatar}
                             alt=""
                             className="h-8 w-8 rounded-full object-cover border border-white/10"
+                            onError={(e) => {
+                              const img = e.currentTarget as HTMLImageElement;
+                              if (img && img.src && !img.src.endsWith('/default-avatar.png')) {
+                                img.src = '/default-avatar.png';
+                              }
+                            }}
                           />
                         ) : (
                           <div className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[11px] font-semibold text-slate-50">

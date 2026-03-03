@@ -13,7 +13,7 @@ export default function UserProfile({ walletAddress, compact = false, chain }: {
       if (!walletAddress) return;
       setLoading(true);
       try {
-        const res = await fetch(`/api/profile/${encodeURIComponent(walletAddress)}`);
+        const res = await fetch(`/api/profile/${encodeURIComponent(walletAddress)}`, { cache: 'no-store' });
         if (!res.ok) { setProfile(null); return; }
         const data = await res.json();
         if (!mounted) return;
@@ -37,7 +37,17 @@ export default function UserProfile({ walletAddress, compact = false, chain }: {
 
   return (
     <div className={`flex items-center gap-3 ${compact ? 'text-sm' : ''}`}>
-      <img src={profile.avatarUrl || '/default-avatar.png'} alt="avatar" className="h-10 w-10 rounded-full object-cover" />
+      <img
+        src={profile.avatarUrl || '/default-avatar.png'}
+        alt="avatar"
+        className="h-10 w-10 rounded-full object-cover"
+        onError={(e) => {
+          const img = e.currentTarget as HTMLImageElement;
+          if (img && img.src && !img.src.endsWith('/default-avatar.png')) {
+            img.src = '/default-avatar.png';
+          }
+        }}
+      />
       <div className="flex flex-col">
         <button onClick={() => {
             const defaultChain = chain || (process.env.NEXT_PUBLIC_DEFAULT_CHAIN as string) || 'eth';

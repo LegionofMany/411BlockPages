@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '../../lib/db';
 import Wallet from '../../lib/walletModel';
+import User from '../../lib/userModel';
 import { EVM_CHAIN_PRIORITY, normalizeEvmChainId, type EvmChainId } from '../../lib/evmChains';
 import { parseSearchInput } from '../../lib/search/input';
 import { fetchEvmTxByHash } from '../../lib/evmTxLookup';
@@ -100,6 +101,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   console.log('SEARCH API: query', query);
   const results = await Wallet.find(query).limit(20);
   console.log('SEARCH API: found', results.length, 'results');
+
+  // Best-effort: hydrate socials (displayName/avatarUrl) from User profiles.
+  // This ensures search results can show the uploaded avatar even when Wallet.socials
+  // hasn't been created/mirrored yet.
+  let userByAddr = new Map<string, { displayName?: string; avatarUrl?: string; nftAvatarUrl?: string }>();
+  try {
+    const addrs = Array.from(
+      new Set(
+        (results || [])
+          .map((w: any) => String(w?.address || '').toLowerCase())
+          .filter(Boolean)
+      )
+    );
+    if (addrs.length) {
+      const users = (await User.find({ address: { $in: addrs } })
+        .select('address displayName avatarUrl nftAvatarUrl')
+        .lean()) as any[];
+      for (const u of users || []) {
+        const a = String(u?.address || '').toLowerCase();
+        if (!a) continue;
+        userByAddr.set(a, {
+          displayName: typeof u?.displayName === 'string' ? u.displayName : undefined,
+          avatarUrl: typeof u?.avatarUrl === 'string' ? u.avatarUrl : undefined,
+          nftAvatarUrl: typeof u?.nftAvatarUrl === 'string' ? u.nftAvatarUrl : undefined,
+        });
+      }
+    }
+  } catch {
+    userByAddr = new Map();
+  }
+
   let profiles = results.map((w: WalletDoc) => ({
     address: w.address,
     chain: w.chain,
@@ -112,7 +144,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     flagsCount: w.flagsCount || (w.flags ? w.flags.length : 0),
     flagsSummary: (w.flags || []).slice(0, 3).map((f) => (f && f.reason ? String(f.reason).slice(0, 80) : 'flag')),
     kycStatus: w.kycStatus,
-    socials: w.socials || undefined,
+    socials: (() => {
+      const addrLc = String(w.address || '').toLowerCase();
+      const u = addrLc ? userByAddr.get(addrLc) : undefined;
+      const ws = w.socials || undefined;
+
+      const displayName = ws?.displayName || u?.displayName || undefined;
+      const avatarUrl = ws?.avatarUrl || u?.avatarUrl || u?.nftAvatarUrl || undefined;
+
+      if (!displayName && !avatarUrl) return ws || undefined;
+      return {
+        ...(ws || {}),
+        ...(displayName ? { displayName } : {}),
+        ...(avatarUrl ? { avatarUrl } : {}),
+      };
+    })(),
     trustScore: w.trustScore,
     riskScore: w.riskScore,
     statusTags: getStatusTags(w),
@@ -152,6 +198,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (selectedChain) {
+      // Best-effort: include User profile socials for exact-address searches even when
+      // no Wallet document exists yet.
+      let socials: { displayName?: string; avatarUrl?: string } | undefined;
+      try {
+        const addrLc = String(input || '').toLowerCase();
+        const u = (await User.findOne({ address: addrLc }).select('displayName avatarUrl nftAvatarUrl').lean()) as any;
+        const displayName = typeof u?.displayName === 'string' ? u.displayName : undefined;
+        const avatarUrl = typeof u?.avatarUrl === 'string' ? u.avatarUrl : (typeof u?.nftAvatarUrl === 'string' ? u.nftAvatarUrl : undefined);
+        if (displayName || avatarUrl) socials = { ...(displayName ? { displayName } : {}), ...(avatarUrl ? { avatarUrl } : {}) };
+      } catch {
+        socials = undefined;
+      }
+
       profiles = [
         {
           address: input,
@@ -164,7 +223,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           flagsCount: 0,
           flagsSummary: [],
           kycStatus: 'unverified',
-          socials: undefined,
+          socials,
           trustScore: 0,
           riskScore: 0,
           statusTags: [],
