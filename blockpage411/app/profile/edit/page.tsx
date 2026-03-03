@@ -444,7 +444,25 @@ export default function EditProfilePage() {
                       const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
                       if (!allowed.includes((f.type || '').toLowerCase())) { setUploadError('Invalid file type. Allowed: jpg, png, webp'); return; }
                       if (f.size > MAX_BYTES) { setUploadError('File is too large (max 2 MB)'); return; }
+
+                      // Always open the crop dialog immediately so the user can proceed,
+                      // even if image preprocessing fails on some devices/browsers.
                       try {
+                        const origUrl = URL.createObjectURL(f);
+                        setCrop({ x: 0, y: 0 });
+                        setZoom(1);
+                        setCroppedAreaPixels(null);
+                        setRawFile(f);
+                        setAvatarPreview(origUrl);
+                        setCropModalOpen(true);
+                        setAvatarPendingUpload(true);
+                      } catch {
+                        // If even object URLs fail, fall back to upload-only path below.
+                      }
+
+                      try {
+                        // Best-effort: if the file is extremely large in pixels,
+                        // downscale it before cropping to avoid browser memory issues.
                         const origUrl = URL.createObjectURL(f);
                         const img = await createImage(origUrl);
                         const MAX_SIDE = 4096;
@@ -465,16 +483,14 @@ export default function EditProfilePage() {
                             URL.revokeObjectURL(origUrl);
                           }
                         }
-                        // Reset crop state for a fresh, controllable experience
-                        setCrop({ x: 0, y: 0 });
-                        setZoom(1);
-                        setCroppedAreaPixels(null);
-                        setRawFile(fileToUse);
-                        setAvatarPreview(previewUrl);
-                        setCropModalOpen(true);
-                        setAvatarPendingUpload(true);
+                        // If we downscaled, update the modal to use the smaller preview.
+                        if (fileToUse !== f || previewUrl !== origUrl) {
+                          setRawFile(fileToUse);
+                          setAvatarPreview(previewUrl);
+                        }
                       } catch (err) {
-                        // If cropping setup fails (device/browser quirks), fall back to direct upload.
+                        // If preprocessing fails, keep the crop dialog open (already opened above).
+                        // As a backup, attempt a direct upload so the user isn't blocked.
                         try {
                           const fd = new FormData();
                           fd.append('file', f);
@@ -522,6 +538,16 @@ export default function EditProfilePage() {
                     <div className="text-[11px] text-amber-300">
                       Photo selected but not uploaded yet — open the crop dialog and click Apply.
                     </div>
+                  )}
+
+                  {avatarPendingUpload && rawFile && !cropModalOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setCropModalOpen(true)}
+                      className="text-[11px] underline text-emerald-200 hover:text-emerald-100 w-max"
+                    >
+                      Open crop dialog
+                    </button>
                   )}
                   {uploadError && <div className="text-[11px] text-red-400">{uploadError}</div>}
                 </div>
