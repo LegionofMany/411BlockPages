@@ -671,7 +671,7 @@ export default function EditProfilePage() {
             }
           }}
         >
-          <div className="bg-slate-900 p-4 rounded sm:rounded max-w-3xl w-full h-full sm:h-auto sm:my-auto" role="dialog" aria-modal="true" aria-label="Crop avatar">
+          <div className="bg-slate-900 p-4 rounded sm:rounded max-w-3xl w-full h-full sm:h-auto sm:my-auto max-h-[95vh] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Crop avatar">
             <div className="relative h-[60vh] sm:h-[420px] bg-black">
               <Cropper
                 image={avatarPreview || ''}
@@ -732,15 +732,12 @@ export default function EditProfilePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-xs text-slate-400 mr-3">Optimizing to ≤150 KB</div>
-                  {!croppedAreaPixels && (
-                    <div className="text-xs text-slate-400 mr-2">Adjust crop and zoom to enable Apply</div>
-                  )}
                   <button
                     id="crop-apply-btn"
                     type="button"
-                    disabled={!croppedAreaPixels || uploading}
-                    aria-disabled={!croppedAreaPixels || uploading}
-                    className={`px-3 py-1 rounded font-semibold ${(!croppedAreaPixels || uploading) ? 'bg-slate-600 text-slate-300 cursor-not-allowed' : 'bg-emerald-500 text-black'}`}
+                    disabled={uploading}
+                    aria-disabled={uploading}
+                    className={`px-3 py-1 rounded font-semibold ${uploading ? 'bg-slate-600 text-slate-300 cursor-not-allowed' : 'bg-emerald-500 text-black'}`}
                     onClick={async () => {
                       try {
                         setUploading(true);
@@ -755,11 +752,15 @@ export default function EditProfilePage() {
                         let finalQuality = quality;
                         let usedSize = outputSize;
 
+                        // If the user hasn't adjusted the crop, react-easy-crop may not have emitted pixels yet.
+                        // In that case we fall back to a centered square crop.
+                        const cropPixels = croppedAreaPixels || null;
+
                         for (const size of trySizes) {
                           let attemptQuality = quality;
                           // try reducing quality until under limit or minimum
                           for (let i = 0; i < 12; i++) {
-                            const b = await getCroppedImg(avatarPreview || '', croppedAreaPixels, size, attemptQuality);
+                            const b = await getCroppedImg(avatarPreview || '', cropPixels, size, attemptQuality);
                             if (!b) break;
                             if (b.size <= TARGET_AVATAR_MAX_BYTES) {
                               finalBlob = b;
@@ -789,7 +790,7 @@ export default function EditProfilePage() {
                         if (finalBlob.size > TARGET_AVATAR_MAX_BYTES) {
                           // best-effort: attempt one last pass to force 128px and lower quality
                           try {
-                            const forced = await getCroppedImg(avatarPreview || '', croppedAreaPixels, 128, Math.max(minQuality, finalQuality - 0.05));
+                            const forced = await getCroppedImg(avatarPreview || '', cropPixels, 128, Math.max(minQuality, finalQuality - 0.05));
                             if (forced && forced.size <= TARGET_AVATAR_MAX_BYTES) {
                               finalBlob = forced;
                               setPreviewSize(finalBlob.size);
@@ -918,8 +919,42 @@ async function requestAllVerifications(
 
 // Helper to create cropped image blob from source image and crop box
 async function getCroppedImg(imageSrc: string, pixelCrop: any, size = 256, quality = 0.9): Promise<Blob | null> {
-  if (!imageSrc || !pixelCrop) return null;
+  if (!imageSrc) return null;
   const image = await createImage(imageSrc);
+
+  const crop = (() => {
+    const pc = pixelCrop && typeof pixelCrop === 'object' ? pixelCrop : null;
+    const hasNumbers =
+      pc &&
+      Number.isFinite(pc.x) &&
+      Number.isFinite(pc.y) &&
+      Number.isFinite(pc.width) &&
+      Number.isFinite(pc.height) &&
+      pc.width > 0 &&
+      pc.height > 0;
+
+    if (hasNumbers) {
+      return {
+        x: Number(pc.x),
+        y: Number(pc.y),
+        width: Number(pc.width),
+        height: Number(pc.height),
+      };
+    }
+
+    const w = image.naturalWidth || (image as any).width || 0;
+    const h = image.naturalHeight || (image as any).height || 0;
+    if (!w || !h) return null;
+    const side = Math.min(w, h);
+    return {
+      x: Math.max(0, Math.floor((w - side) / 2)),
+      y: Math.max(0, Math.floor((h - side) / 2)),
+      width: side,
+      height: side,
+    };
+  })();
+
+  if (!crop) return null;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -929,10 +964,10 @@ async function getCroppedImg(imageSrc: string, pixelCrop: any, size = 256, quali
   // draw the cropped area to the canvas at target size
   const scaleX = image.naturalWidth / (image.width || image.naturalWidth);
   const scaleY = image.naturalHeight / (image.height || image.naturalHeight);
-  const sx = pixelCrop.x * scaleX;
-  const sy = pixelCrop.y * scaleY;
-  const sWidth = pixelCrop.width * scaleX;
-  const sHeight = pixelCrop.height * scaleY;
+  const sx = crop.x * scaleX;
+  const sy = crop.y * scaleY;
+  const sWidth = crop.width * scaleX;
+  const sHeight = crop.height * scaleY;
 
   ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, size, size);
 
