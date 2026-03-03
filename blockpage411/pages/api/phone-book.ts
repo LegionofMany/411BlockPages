@@ -13,6 +13,28 @@ function safeString(v: unknown, max = 500): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
+function looksLikeMetadataUrl(url: string): boolean {
+  const u = url.trim().toLowerCase();
+  if (!u) return false;
+  if (u.endsWith('.json')) return true;
+  if (u.includes('/metadata/') && u.includes('.json')) return true;
+  if (u.includes('metadata') && u.includes('.json')) return true;
+  return false;
+}
+
+function looksLikeImageUrl(url: unknown): url is string {
+  if (typeof url !== 'string') return false;
+  const u = url.trim();
+  if (!u) return false;
+  const lc = u.toLowerCase();
+  if (looksLikeMetadataUrl(lc)) return false;
+  if (lc.startsWith('data:image/')) return true;
+  if (lc.startsWith('/uploads/avatars/') || lc.startsWith('/api/avatar/') || lc.startsWith('/avatars/')) return true;
+  if (/\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i.test(lc)) return true;
+  if (lc.startsWith('http://') || lc.startsWith('https://')) return true;
+  return false;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -90,7 +112,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const results = (Array.isArray(items) ? items : []).map((u: any) => ({
     address: safeString(u?.address, 64).toLowerCase(),
     displayName: safeString(u?.displayName, 64) || null,
-    avatarUrl: safeString(u?.avatarUrl || u?.nftAvatarUrl || '', 500) || null,
+    avatarUrl: (() => {
+      const a = u?.avatarUrl;
+      const n = u?.nftAvatarUrl;
+      const best = looksLikeImageUrl(a) ? a : (looksLikeImageUrl(n) ? n : '');
+      return safeString(best || '', 500) || null;
+    })(),
     udDomain: safeString(u?.udDomain, 255) || null,
     bio: safeString(u?.bio, 500) || null,
     website: safeString(u?.website, 500) || null,

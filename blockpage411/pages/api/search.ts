@@ -24,6 +24,28 @@ type WalletDoc = {
   trustScore?: number;
   riskScore?: number;
 };
+
+function looksLikeMetadataUrl(url: string): boolean {
+  const u = url.trim().toLowerCase();
+  if (!u) return false;
+  if (u.endsWith('.json')) return true;
+  if (u.includes('/metadata/') && u.includes('.json')) return true;
+  if (u.includes('metadata') && u.includes('.json')) return true;
+  return false;
+}
+
+function looksLikeImageUrl(url: unknown): url is string {
+  if (typeof url !== 'string') return false;
+  const u = url.trim();
+  if (!u) return false;
+  const lc = u.toLowerCase();
+  if (looksLikeMetadataUrl(lc)) return false;
+  if (lc.startsWith('data:image/')) return true;
+  if (lc.startsWith('/uploads/avatars/') || lc.startsWith('/api/avatar/') || lc.startsWith('/avatars/')) return true;
+  if (/\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i.test(lc)) return true;
+  if (lc.startsWith('http://') || lc.startsWith('https://')) return true;
+  return false;
+}
 // Helper to get status tags for a wallet
 function getStatusTags(wallet: WalletDoc) {
   const tags: string[] = [];
@@ -150,7 +172,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const ws = w.socials || undefined;
 
       const displayName = ws?.displayName || u?.displayName || undefined;
-      const avatarUrl = ws?.avatarUrl || u?.avatarUrl || u?.nftAvatarUrl || undefined;
+      const candidateAvatarUrl = ws?.avatarUrl || u?.avatarUrl || u?.nftAvatarUrl || undefined;
+      const avatarUrl = looksLikeImageUrl(candidateAvatarUrl) ? candidateAvatarUrl : undefined;
 
       if (!displayName && !avatarUrl) return ws || undefined;
       return {
@@ -205,7 +228,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const addrLc = String(input || '').toLowerCase();
         const u = (await User.findOne({ address: addrLc }).select('displayName avatarUrl nftAvatarUrl').lean()) as any;
         const displayName = typeof u?.displayName === 'string' ? u.displayName : undefined;
-        const avatarUrl = typeof u?.avatarUrl === 'string' ? u.avatarUrl : (typeof u?.nftAvatarUrl === 'string' ? u.nftAvatarUrl : undefined);
+        const candidateAvatarUrl = typeof u?.avatarUrl === 'string' ? u.avatarUrl : (typeof u?.nftAvatarUrl === 'string' ? u.nftAvatarUrl : undefined);
+        const avatarUrl = looksLikeImageUrl(candidateAvatarUrl) ? candidateAvatarUrl : undefined;
         if (displayName || avatarUrl) socials = { ...(displayName ? { displayName } : {}), ...(avatarUrl ? { avatarUrl } : {}) };
       } catch {
         socials = undefined;

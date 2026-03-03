@@ -3,6 +3,32 @@ import dbConnect from 'lib/db';
 import User from 'lib/userModel';
 import WalletRisk from 'lib/walletriskmodel';
 
+function looksLikeMetadataUrl(url: string): boolean {
+  const u = url.trim().toLowerCase();
+  if (!u) return false;
+  // Common NFT metadata patterns
+  if (u.endsWith('.json')) return true;
+  if (u.includes('/metadata/') && u.includes('.json')) return true;
+  if (u.includes('metadata') && u.includes('.json')) return true;
+  return false;
+}
+
+function looksLikeImageUrl(url: unknown): url is string {
+  if (typeof url !== 'string') return false;
+  const u = url.trim();
+  if (!u) return false;
+  const lc = u.toLowerCase();
+  if (looksLikeMetadataUrl(lc)) return false;
+  if (lc.startsWith('data:image/')) return true;
+  if (lc.startsWith('/uploads/avatars/') || lc.startsWith('/api/avatar/') || lc.startsWith('/avatars/')) return true;
+  // If it has a typical image extension, accept.
+  if (/\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i.test(lc)) return true;
+  // Otherwise, accept common CDN-hosted images (Cloudinary URLs often end with an image extension,
+  // but allow it as a best-effort when not clearly metadata).
+  if (lc.startsWith('http://') || lc.startsWith('https://')) return true;
+  return false;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ message: 'Method not allowed' });
   const { address } = req.query as { address?: string };
@@ -16,7 +42,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ? {
         address: user.address,
         displayName: user.displayName,
-        avatarUrl: user.avatarUrl || user.nftAvatarUrl,
+        // Prefer uploaded avatarUrl, only fall back to nftAvatarUrl when it looks like an actual image.
+        avatarUrl: (() => {
+          const a = user.avatarUrl;
+          const n = user.nftAvatarUrl;
+          if (looksLikeImageUrl(a)) return a;
+          if (looksLikeImageUrl(n)) return n;
+          return null;
+        })(),
         udDomain: user.udDomain,
         directoryOptIn: Boolean(user.directoryOptIn),
         bio: user.bio,
