@@ -881,7 +881,8 @@ function ProfilePageInner() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <a
-                        className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 hover:border-amber-200/80 hover:text-amber-50 transition-colors"
+                        className="inline-flex items-center rounded-full border !border-amber-300/50 !bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold !text-amber-100 hover:!bg-amber-400/20 hover:!border-amber-200/80 hover:!text-amber-50 visited:!text-amber-100 !no-underline transition-colors"
+                        style={{ color: '#fef3c7', WebkitTextFillColor: '#fef3c7' }}
                         href="https://www.coinbase.com/"
                         target="_blank"
                         rel="noreferrer"
@@ -889,7 +890,8 @@ function ProfilePageInner() {
                         Coinbase
                       </a>
                       <a
-                        className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 hover:border-amber-200/80 hover:text-amber-50 transition-colors"
+                        className="inline-flex items-center rounded-full border !border-amber-300/50 !bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold !text-amber-100 hover:!bg-amber-400/20 hover:!border-amber-200/80 hover:!text-amber-50 visited:!text-amber-100 !no-underline transition-colors"
+                        style={{ color: '#fef3c7', WebkitTextFillColor: '#fef3c7' }}
                         href="https://www.binance.com/"
                         target="_blank"
                         rel="noreferrer"
@@ -897,7 +899,8 @@ function ProfilePageInner() {
                         Binance
                       </a>
                       <a
-                        className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 hover:border-amber-200/80 hover:text-amber-50 transition-colors"
+                        className="inline-flex items-center rounded-full border !border-amber-300/50 !bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold !text-amber-100 hover:!bg-amber-400/20 hover:!border-amber-200/80 hover:!text-amber-50 visited:!text-amber-100 !no-underline transition-colors"
+                        style={{ color: '#fef3c7', WebkitTextFillColor: '#fef3c7' }}
                         href="https://uphold.com/"
                         target="_blank"
                         rel="noreferrer"
@@ -905,7 +908,8 @@ function ProfilePageInner() {
                         Uphold
                       </a>
                       <a
-                        className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 hover:border-amber-200/80 hover:text-amber-50 transition-colors"
+                        className="inline-flex items-center rounded-full border !border-amber-300/50 !bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold !text-amber-100 hover:!bg-amber-400/20 hover:!border-amber-200/80 hover:!text-amber-50 visited:!text-amber-100 !no-underline transition-colors"
+                        style={{ color: '#fef3c7', WebkitTextFillColor: '#fef3c7' }}
                         href="https://crypto.com/"
                         target="_blank"
                         rel="noreferrer"
