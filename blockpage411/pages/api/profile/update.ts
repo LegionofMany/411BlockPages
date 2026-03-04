@@ -11,6 +11,13 @@ import { resolveWalletInput } from 'services/resolveWalletInput';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
+const PROFILE_UPDATE_LIMIT_PER_DAY = (() => {
+  const raw = process.env.PROFILE_UPDATE_LIMIT_PER_DAY;
+  const n = raw == null ? 50 : Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 50;
+  return Math.floor(n);
+})();
+
 function generateNonce() {
   return randomBytes(16).toString('hex');
 }
@@ -144,7 +151,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (user) {
     user.profileUpdateHistory = user.profileUpdateHistory || [];
     user.profileUpdateHistory = user.profileUpdateHistory.filter((d: Date) => now.getTime() - new Date(d).getTime() < 24 * 60 * 60 * 1000);
-    if (user.profileUpdateHistory.length >= 5) return res.status(429).json({ message: 'Profile update limit reached (5 per day)' });
+    if (user.profileUpdateHistory.length >= PROFILE_UPDATE_LIMIT_PER_DAY) {
+      return res.status(429).json({
+        code: 'PROFILE_UPDATE_LIMIT',
+        message: `Profile update limit reached (${PROFILE_UPDATE_LIMIT_PER_DAY} per day)`,
+        limitPerDay: PROFILE_UPDATE_LIMIT_PER_DAY,
+      });
+    }
     user.profileUpdateHistory.push(now);
 
     // KYC lock: once verified, freeze sensitive fields.
