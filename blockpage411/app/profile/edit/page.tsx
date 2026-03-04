@@ -433,13 +433,54 @@ export default function EditProfilePage() {
                   )}
                 </div>
                 <div className="flex-1 flex flex-col gap-1.5 text-xs w-full">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex w-full sm:w-max justify-center sm:justify-start cursor-pointer items-center rounded-full border border-emerald-400/50 bg-emerald-500/10 px-3 py-2 font-medium text-emerald-200 hover:bg-emerald-500/20"
-                  >
-                    Change photo
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex w-full sm:w-max justify-center sm:justify-start cursor-pointer items-center rounded-full border border-emerald-400/50 bg-emerald-500/10 px-3 py-2 font-medium text-emerald-200 hover:bg-emerald-500/20"
+                    >
+                      Change photo
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!avatarPreview && !String(values.avatarUrl || '').trim()}
+                      onClick={async () => {
+                        const prevAvatarUrl = (values as any).avatarUrl;
+                        const prevPreview = avatarPreview;
+
+                        setUploadError(null);
+                        setAvatarPendingUpload(false);
+                        setRawFile(null);
+                        setCropModalOpen(false);
+                        setAvatarDebug('');
+
+                        // Clear local UI immediately.
+                        handleFieldChange('avatarUrl', null, { skipSave: true });
+                        setAvatarPreview(null);
+                        try {
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        } catch {
+                          // ignore
+                        }
+
+                        const saved = await savePatchNow({ avatarUrl: null });
+                        if (!saved.ok) {
+                          // Roll back if the server save fails.
+                          handleFieldChange('avatarUrl', prevAvatarUrl, { skipSave: true });
+                          const fallback = typeof prevPreview === 'string' && prevPreview ? prevPreview : (typeof prevAvatarUrl === 'string' && prevAvatarUrl.trim() ? prevAvatarUrl : null);
+                          setAvatarPreview(fallback);
+                          setUploadError(`Could not remove photo. ${saved.message}`);
+                          return;
+                        }
+
+                        showToast('Profile photo removed', 3000);
+                      }}
+                      className="inline-flex w-full sm:w-max justify-center sm:justify-start cursor-pointer items-center rounded-full border border-red-400/40 bg-red-500/10 px-3 py-2 font-medium text-red-200 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Remove photo
+                    </button>
+                  </div>
                   <input
                     id="avatarFile"
                     ref={fileInputRef}
