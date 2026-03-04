@@ -7,6 +7,16 @@ export default function UserProfile({ walletAddress, compact = false, chain }: {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  function proxiedAvatarSrc(src: string) {
+    const s = String(src || '');
+    if (!s) return s;
+    // Avoid browser privacy warnings by fetching Cloudinary images via our origin.
+    if (s.startsWith('https://res.cloudinary.com/')) {
+      return `/_next/image?url=${encodeURIComponent(s)}&w=96&q=75`;
+    }
+    return s;
+  }
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -38,7 +48,7 @@ export default function UserProfile({ walletAddress, compact = false, chain }: {
   return (
     <div className={`flex items-center gap-3 ${compact ? 'text-sm' : ''}`}>
       <img
-        src={profile.avatarUrl || '/default-avatar.png'}
+        src={proxiedAvatarSrc(profile.avatarUrl || '/default-avatar.png')}
         alt="avatar"
         className="h-10 w-10 rounded-full object-cover"
         onError={(e) => {
@@ -52,9 +62,7 @@ export default function UserProfile({ walletAddress, compact = false, chain }: {
           } catch {
             // ignore
           }
-          if (img && img.src && !img.src.endsWith('/default-avatar.png')) {
-            img.src = '/default-avatar.png';
-          }
+          if (img && img.src && !img.src.endsWith('/default-avatar.png')) img.src = '/default-avatar.png';
         }}
       />
       <div className="flex flex-col">

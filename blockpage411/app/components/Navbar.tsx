@@ -56,6 +56,16 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     return pathname === href || pathname.startsWith(href + '/') || pathname.startsWith(href);
   };
 
+  function proxiedAvatarSrc(src: string) {
+    const s = String(src || '');
+    if (!s) return s;
+    // Avoid browser privacy warnings by fetching Cloudinary images via our origin.
+    if (s.startsWith('https://res.cloudinary.com/')) {
+      return `/_next/image?url=${encodeURIComponent(s)}&w=96&q=75`;
+    }
+    return s;
+  }
+
   // focus trap and accessibility for mobile drawer
   const drawerRef = React.useRef<HTMLDivElement | null>(null);
   const prevActiveRef = React.useRef<Element | null>(null);
@@ -280,7 +290,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
             >
               {nftAvatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={nftAvatarUrl} alt="My NFT avatar" className="w-full h-full object-cover" />
+                <img src={proxiedAvatarSrc(nftAvatarUrl)} alt="My NFT avatar" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-lg" aria-hidden="true">📸</div>
               )}
@@ -315,7 +325,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
             >
               {nftAvatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={nftAvatarUrl} alt="My NFT avatar" className="w-full h-full object-cover" />
+                <img src={proxiedAvatarSrc(nftAvatarUrl)} alt="My NFT avatar" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-base" aria-hidden="true">📸</div>
               )}

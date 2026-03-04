@@ -141,6 +141,16 @@ function ProfilePageInner() {
   const [nftsLoading, setNftsLoading] = useState(false);
   const [nftsError, setNftsError] = useState<string | null>(null);
 
+  function proxiedImageSrc(src: string) {
+    const s = String(src || '');
+    if (!s) return s;
+    // Avoid browser privacy warnings by fetching Cloudinary images via our origin.
+    if (s.startsWith('https://res.cloudinary.com/')) {
+      return `/_next/image?url=${encodeURIComponent(s)}&w=768&q=80`;
+    }
+    return s;
+  }
+
   async function detectNftChain(): Promise<string> {
     try {
       const chainIdHex = (await evmProvider?.request({ method: 'eth_chainId' })) as any;
@@ -975,7 +985,7 @@ function ProfilePageInner() {
                       {nftImageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={nftImageUrl}
+                          src={proxiedImageSrc(nftImageUrl)}
                           alt="Linked NFT avatar"
                           className="h-full w-full object-cover"
                           onError={() => {
@@ -1051,7 +1061,7 @@ function ProfilePageInner() {
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={item.image}
+                          src={proxiedImageSrc(item.image)}
                           alt={item.name}
                           className="h-28 w-full object-cover group-hover:opacity-95"
                         />

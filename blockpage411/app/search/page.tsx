@@ -108,6 +108,16 @@ export default function SearchPage() {
     return () => { cancelled = true; };
   }, []);
 
+  function proxiedAvatarSrc(src: string) {
+    const s = String(src || '');
+    if (!s) return s;
+    // Avoid browser privacy warnings by fetching Cloudinary images via our origin.
+    if (s.startsWith('https://res.cloudinary.com/')) {
+      return `/_next/image?url=${encodeURIComponent(s)}&w=128&q=75`;
+    }
+    return s;
+  }
+
   return (
     <div
       className="min-h-screen flex flex-col"
@@ -388,7 +398,7 @@ export default function SearchPage() {
                   {nftAvatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={nftAvatarUrl}
+                      src={proxiedAvatarSrc(nftAvatarUrl)}
                       alt="My NFT avatar"
                       className="w-full h-full object-cover"
                     />
