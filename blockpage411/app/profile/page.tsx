@@ -603,7 +603,21 @@ function ProfilePageInner() {
       setNftError('Paste an NFT image URL to continue.');
       return;
     }
-    const raw = nftInput.trim();
+    let raw = nftInput.trim();
+    // Allow first-party paths like /test-nft.svg (convert to absolute).
+    if (raw.startsWith('/')) {
+      try {
+        raw = new URL(raw, window.location.origin).toString();
+      } catch {
+        // ignore; will fail validation below
+      }
+    }
+
+    // Prevent mixed-content images on HTTPS pages.
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && /^http:\/\//i.test(raw)) {
+      setNftError('This page is HTTPS, so http:// image URLs are blocked. Use an https:// URL (or a first-party path like /test-nft.svg).');
+      return;
+    }
 
     const isDirectImage = /^https?:\/\//i.test(raw) && /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(raw);
     const isIpfs = /^ipfs:\/\//i.test(raw);
