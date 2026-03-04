@@ -879,7 +879,7 @@ function ProfilePageInner() {
                       </div>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
                       <a
                         className="inline-flex items-center rounded-full border !border-amber-300/50 !bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold !text-amber-100 hover:!bg-amber-400/20 hover:!border-amber-200/80 hover:!text-amber-50 visited:!text-amber-100 !no-underline transition-colors"
                         style={{ color: '#fef3c7', WebkitTextFillColor: '#fef3c7' }}
