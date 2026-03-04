@@ -881,7 +881,7 @@ function ProfilePageInner() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <a
-                        className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-50 hover:border-cyan-400 hover:text-cyan-200"
+                        className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 hover:border-amber-200/80 hover:text-amber-50 transition-colors"
                         href="https://www.coinbase.com/"
                         target="_blank"
                         rel="noreferrer"
@@ -889,7 +889,7 @@ function ProfilePageInner() {
                         Coinbase
                       </a>
                       <a
-                        className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-50 hover:border-cyan-400 hover:text-cyan-200"
+                        className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 hover:border-amber-200/80 hover:text-amber-50 transition-colors"
                         href="https://www.binance.com/"
                         target="_blank"
                         rel="noreferrer"
@@ -897,7 +897,7 @@ function ProfilePageInner() {
                         Binance
                       </a>
                       <a
-                        className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-50 hover:border-cyan-400 hover:text-cyan-200"
+                        className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 hover:border-amber-200/80 hover:text-amber-50 transition-colors"
                         href="https://uphold.com/"
                         target="_blank"
                         rel="noreferrer"
@@ -905,14 +905,14 @@ function ProfilePageInner() {
                         Uphold
                       </a>
                       <a
-                        className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-50 hover:border-cyan-400 hover:text-cyan-200"
+                        className="inline-flex items-center rounded-full border border-amber-300/50 bg-amber-400/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 hover:border-amber-200/80 hover:text-amber-50 transition-colors"
                         href="https://crypto.com/"
                         target="_blank"
                         rel="noreferrer"
                       >
                         Crypto.com
                       </a>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[11px] text-amber-100/80">
                         External credibility links (not authentication)
                       </span>
                     </div>
@@ -965,24 +965,9 @@ function ProfilePageInner() {
                         type="button"
                         onClick={handleApplyNft}
                         aria-label="Link NFT photo"
-                        className="inline-flex items-center justify-center rounded-full border border-amber-300/60 px-4 py-2 text-xs md:text-sm font-semibold bg-amber-400/10 hover:bg-amber-400/20 whitespace-nowrap"
-                        style={{
-                          color: '#fef9c3',
-                          WebkitTextFillColor: '#fef9c3',
-                          opacity: 1,
-                        }}
+                        className="inline-flex items-center justify-center rounded-full border border-amber-200/80 px-4 py-2 text-xs md:text-sm font-semibold bg-amber-400 text-slate-950 hover:bg-amber-300 whitespace-nowrap shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
                       >
-                        <span
-                          style={{
-                            color: '#fef9c3',
-                            WebkitTextFillColor: '#fef9c3',
-                            opacity: 1,
-                            display: 'block',
-                            lineHeight: 1.1,
-                          }}
-                        >
-                          Link NFT photo
-                        </span>
+                        Link NFT photo
                       </button>
                     </div>
                     {nftError && (
