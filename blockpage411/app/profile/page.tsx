@@ -964,6 +964,12 @@ function ProfilePageInner() {
                           src={nftImageUrl}
                           alt="Linked NFT avatar"
                           className="h-full w-full object-cover"
+                          onError={() => {
+                            setNftError(
+                              'Could not load that NFT image URL. Try a direct image URL (png/jpg/webp), an IPFS gateway URL, or an OpenSea asset link.'
+                            );
+                            setNftImageUrl(null);
+                          }}
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center px-4 text-center">

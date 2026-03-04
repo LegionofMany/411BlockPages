@@ -80,6 +80,42 @@ function extractImageUrlFromMetadata(meta: any): string {
   return '';
 }
 
+function looksLikeImageUrlByExtension(url: string): boolean {
+  const u = String(url || '').trim();
+  return /^https?:\/\//i.test(u) && /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(u);
+}
+
+function contentTypeLooksLikeImage(contentType: unknown): boolean {
+  const ct = String(contentType || '').toLowerCase();
+  return ct.startsWith('image/');
+}
+
+async function probeUrlIsImage(url: string, timeoutMs = 2500): Promise<boolean> {
+  const u = normalizeIpfs(normalizeHttpUrl(url));
+  if (!/^https?:\/\//i.test(u)) return false;
+  try {
+    const resp = await axios.get(u, {
+      timeout: Math.max(500, timeoutMs),
+      responseType: 'stream',
+      headers: {
+        Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      },
+      validateStatus: () => true,
+      maxRedirects: 3,
+    });
+    try {
+      // We only need headers; stop reading the body.
+      (resp.data as any)?.destroy?.();
+    } catch {
+      // ignore
+    }
+    if (resp.status < 200 || resp.status >= 300) return false;
+    return contentTypeLooksLikeImage((resp.headers as any)?.['content-type']);
+  } catch {
+    return false;
+  }
+}
+
 async function fetchMetadataAndExtractImage(url: string, timeoutMs = 4000): Promise<string> {
   const u = normalizeIpfs(normalizeHttpUrl(url));
   if (!/^https?:\/\//i.test(u)) return '';
@@ -93,6 +129,11 @@ async function fetchMetadataAndExtractImage(url: string, timeoutMs = 4000): Prom
       validateStatus: () => true,
     });
     if (resp.status < 200 || resp.status >= 300) return '';
+
+    // If the URL is actually an image (common for IPFS gateways without extensions), accept it.
+    if (contentTypeLooksLikeImage((resp.headers as any)?.['content-type'])) {
+      return u;
+    }
 
     // Axios may already parse JSON.
     const data = resp.data;
@@ -254,8 +295,21 @@ function parseOpenSeaUrl(raw: string): { chain: string; contract: string; tokenI
 function normalizeOpenSeaChain(chain?: string): string {
   const c = String(chain || '').toLowerCase();
   if (!c) return 'ethereum';
+  const aliases: Record<string, string> = {
+    eth: 'ethereum',
+    ethereum: 'ethereum',
+    matic: 'polygon',
+    polygon: 'polygon',
+    arb: 'arbitrum',
+    arbitrum: 'arbitrum',
+    op: 'optimism',
+    optimism: 'optimism',
+    base: 'base',
+  };
+  const normalized = aliases[c];
+  if (!normalized) return '';
   const allowed = new Set(['ethereum', 'base', 'polygon', 'arbitrum', 'optimism']);
-  return allowed.has(c) ? c : 'ethereum';
+  return allowed.has(normalized) ? normalized : '';
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -271,7 +325,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Direct image / ipfs link
   const normalized = normalizeIpfs(input);
-  if (/^https?:\/\//i.test(normalized) && /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(normalized)) {
+  if (looksLikeImageUrlByExtension(normalized)) {
     return res.status(200).json({ imageUrl: normalized, source: 'direct' });
   }
 
@@ -281,6 +335,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const parsed = parseOpenSeaUrl(input);
   if (parsed) {
     const chain = normalizeOpenSeaChain(parsed.chain);
+    if (!chain) {
+      return res.status(400).json({ message: 'Unsupported OpenSea chain in URL. Supported: ethereum, polygon, base, arbitrum, optimism.' });
+    }
     const contract = parsed.contract;
     const tokenId = parsed.tokenId;
 
@@ -362,9 +419,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // If it's a URL but not an image and not OpenSea, try to accept as-is.
+  // If it's a URL that doesn't look like an image and isn't metadata JSON, it might still be an image.
   if (/^https?:\/\//i.test(normalized)) {
-    return res.status(200).json({ imageUrl: normalized, source: 'url' });
+    const remain = remainingMs(startedAt);
+    if (remain < 1200) {
+      return res.status(504).json({ message: 'NFT resolve timed out. Please try again.' });
+    }
+    const probeTimeout = Math.min(2500, Math.max(700, remain - 500));
+    const ok = await probeUrlIsImage(normalized, probeTimeout);
+    if (ok) {
+      return res.status(200).json({ imageUrl: normalized, source: 'content-type' });
+    }
+    return res.status(400).json({ message: 'That URL did not resolve to an image. Paste a direct image URL, an IPFS URL, an OpenSea asset link, or a metadata JSON URL with an image field.' });
   }
 
   return res.status(400).json({ message: 'Unsupported NFT input. Paste an OpenSea asset link or a direct image/IPFS URL.' });
