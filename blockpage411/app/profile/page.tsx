@@ -964,10 +964,25 @@ function ProfilePageInner() {
                       <button
                         type="button"
                         onClick={handleApplyNft}
-                        className="inline-flex items-center justify-center rounded-full border border-amber-300/60 px-4 py-2 text-xs md:text-sm font-semibold bg-amber-400/10 hover:bg-amber-400/20"
-                        style={{ color: '#fef9c3' }}
+                        aria-label="Link NFT photo"
+                        className="inline-flex items-center justify-center rounded-full border border-amber-300/60 px-4 py-2 text-xs md:text-sm font-semibold bg-amber-400/10 hover:bg-amber-400/20 whitespace-nowrap"
+                        style={{
+                          color: '#fef9c3',
+                          WebkitTextFillColor: '#fef9c3',
+                          opacity: 1,
+                        }}
                       >
-                        Link NFT photo
+                        <span
+                          style={{
+                            color: '#fef9c3',
+                            WebkitTextFillColor: '#fef9c3',
+                            opacity: 1,
+                            display: 'block',
+                            lineHeight: 1.1,
+                          }}
+                        >
+                          Link NFT photo
+                        </span>
                       </button>
                     </div>
                     {nftError && (
