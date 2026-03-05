@@ -632,6 +632,14 @@ function ProfilePageInner() {
     const isDirectImage = /^https?:\/\//i.test(raw) && /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(raw);
     const isIpfs = /^ipfs:\/\//i.test(raw);
     const isOpenSea = /opensea\.io\/(.+\/)?assets\//i.test(raw);
+    const isOpenSeaProfile = /^https?:\/\/(?:www\.)?opensea\.io\/0x[a-f0-9]{40}\/?(?:\?.*)?$/i.test(raw);
+
+    if (isOpenSeaProfile) {
+      setNftError(
+        'That looks like an OpenSea profile/address URL (not an NFT asset). Paste an OpenSea asset URL like https://opensea.io/assets/ethereum/<contract>/<tokenId> (or /assets/<chain>/<contract>/<tokenId>), or paste the direct image/metadata/IPFS URL from the NFT.'
+      );
+      return;
+    }
 
     const persist = (imageUrl: string, source: 'opensea' | 'rarible' | 'ud' | 'custom' | null) => {
       setNftImageUrl(imageUrl);

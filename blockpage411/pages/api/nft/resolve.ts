@@ -292,6 +292,63 @@ function parseOpenSeaUrl(raw: string): { chain: string; contract: string; tokenI
   }
 }
 
+function parseOpenSeaProfileUrl(raw: string): { address: string } | null {
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+    if (!host.endsWith('opensea.io')) return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length !== 1) return null;
+    const candidate = parts[0];
+    if (!/^0x[a-f0-9]{40}$/i.test(candidate)) return null;
+    return { address: candidate.toLowerCase() };
+  } catch {
+    return null;
+  }
+}
+
+function extractImageFromHtml(html: string): string {
+  const s = String(html || '');
+  if (!s) return '';
+
+  // Prefer og:image then twitter:image.
+  const og = s.match(/<meta\s+[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i);
+  if (og && og[1]) return og[1].replace(/&amp;/g, '&').trim();
+  const tw = s.match(/<meta\s+[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i);
+  if (tw && tw[1]) return tw[1].replace(/&amp;/g, '&').trim();
+  return '';
+}
+
+async function resolveOpenSeaProfileImage(url: string, startedAt: number): Promise<string> {
+  const remain = remainingMs(startedAt);
+  if (remain < 1500) return '';
+  const htmlTimeout = Math.min(2500, Math.max(900, remain - 500));
+  try {
+    const resp = await axios.get(url, {
+      timeout: htmlTimeout,
+      headers: {
+        Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (compatible; Blockpage411/1.0; +https://www.blockpages411.com)',
+      },
+      validateStatus: () => true,
+      maxRedirects: 3,
+    });
+    if (resp.status < 200 || resp.status >= 300) return '';
+    if (typeof resp.data !== 'string') return '';
+    const img = extractImageFromHtml(resp.data);
+    if (!img) return '';
+    const normalized = normalizeIpfs(normalizeHttpUrl(img));
+
+    // Validate it really is an image URL.
+    if (looksLikeImageUrlByExtension(normalized)) return normalized;
+    const probeTimeout = Math.min(1800, Math.max(700, remainingMs(startedAt) - 400));
+    const ok = await probeUrlIsImage(normalized, probeTimeout);
+    return ok ? normalized : '';
+  } catch {
+    return '';
+  }
+}
+
 function normalizeOpenSeaChain(chain?: string): string {
   const c = String(chain || '').toLowerCase();
   if (!c) return 'ethereum';
@@ -327,6 +384,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const normalized = normalizeIpfs(input);
   if (looksLikeImageUrlByExtension(normalized)) {
     return res.status(200).json({ imageUrl: normalized, source: 'direct' });
+  }
+
+  // OpenSea profile/address URL (e.g. https://opensea.io/0x...) -> extract og:image
+  // Users commonly paste this by mistake; handle it gracefully.
+  const osProfile = parseOpenSeaProfileUrl(input);
+  if (osProfile) {
+    const img = await resolveOpenSeaProfileImage(input, startedAt);
+    if (img) {
+      return res.status(200).json({ imageUrl: img, source: 'opensea-profile', address: osProfile.address });
+    }
+    // OpenSea often blocks server-side HTML scraping and the official account API requires an API key.
+    // Provide a specific error so the user knows what to paste instead.
+    return res.status(400).json({
+      message:
+        'That looks like an OpenSea profile/address URL (not an NFT asset). Paste an OpenSea asset URL like https://opensea.io/assets/ethereum/<contract>/<tokenId> (or /assets/<chain>/<contract>/<tokenId>), or paste the direct image/metadata/IPFS URL from the NFT.',
+    });
   }
 
   // OpenSea URL -> OpenSea API / on-chain fallback
