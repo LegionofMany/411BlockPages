@@ -33,6 +33,29 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     setOpen(false);
   }, [pathname]);
 
+  // Keep the "My NFT" avatar chip in sync when the user links/clears it on /profile.
+  useEffect(() => {
+    function onNftAvatarUpdated(e: Event) {
+      const ce = e as CustomEvent<{ nftAvatarUrl?: string | null }>;
+      const next = ce?.detail?.nftAvatarUrl;
+      if (next === null) {
+        setNftAvatarUrl(null);
+        return;
+      }
+      if (typeof next === 'string') {
+        const trimmed = next.trim();
+        setNftAvatarUrl(trimmed ? trimmed : null);
+      }
+    }
+
+    try {
+      window.addEventListener('bp411:nft-avatar-url', onNftAvatarUpdated as any);
+      return () => window.removeEventListener('bp411:nft-avatar-url', onNftAvatarUpdated as any);
+    } catch {
+      return;
+    }
+  }, []);
+
   // navigation items - include all top-level routes and a couple useful legacy/admin links
   const navItems: Array<{ href: string; label: string; Icon?: React.FC; show?: boolean }> = [
     { href: '/', label: 'Home', Icon: IconHome },
@@ -163,7 +186,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
         }
         const data = await res.json();
         if (cancelled) return;
-        if (data?.nftAvatarUrl) setNftAvatarUrl(data.nftAvatarUrl);
+        setNftAvatarUrl(typeof data?.nftAvatarUrl === 'string' && data.nftAvatarUrl.trim() ? data.nftAvatarUrl : null);
         const envAdmins = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '')
           .split(',')
           .map((w) => w.trim().toLowerCase())

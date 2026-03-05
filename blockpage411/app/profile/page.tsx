@@ -657,6 +657,11 @@ function ProfilePageInner() {
             return;
           }
           setToast('NFT photo linked to your profile');
+          try {
+            window.dispatchEvent(new CustomEvent('bp411:nft-avatar-url', { detail: { nftAvatarUrl: imageUrl } }));
+          } catch {
+            // ignore
+          }
         })
         .catch(() => {
           setNftError('Network error while saving NFT photo');
@@ -699,6 +704,47 @@ function ProfilePageInner() {
         setNftError('Network error while resolving NFT metadata');
       }
     })();
+  }
+
+  function handleClearNft() {
+    setNftError(null);
+    const addr = me?.address || walletAddress;
+    if (!addr) {
+      setNftError('Connect your wallet first to manage your NFT photo.');
+      return;
+    }
+
+    const prevImage = nftImageUrl;
+    const prevSource = nftSource;
+    setNftImageUrl(null);
+    setNftSource(null);
+
+    fetch('/api/profile/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ walletAddress: addr, nftAvatarUrl: null }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setNftError(data?.message || 'Failed to clear NFT photo');
+          setNftImageUrl(prevImage);
+          setNftSource(prevSource);
+          return;
+        }
+        setToast('NFT photo cleared');
+        try {
+          window.dispatchEvent(new CustomEvent('bp411:nft-avatar-url', { detail: { nftAvatarUrl: null } }));
+        } catch {
+          // ignore
+        }
+      })
+      .catch(() => {
+        setNftError('Network error while clearing NFT photo');
+        setNftImageUrl(prevImage);
+        setNftSource(prevSource);
+      });
   }
 
   function handleCopyLink(url: string) {
@@ -981,6 +1027,16 @@ function ProfilePageInner() {
                       >
                         Link NFT photo
                       </button>
+                      {nftImageUrl && (
+                        <button
+                          type="button"
+                          onClick={handleClearNft}
+                          aria-label="Clear NFT photo"
+                          className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-black/40 px-4 py-2 text-xs md:text-sm font-semibold text-slate-100 hover:bg-black/60 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
                     {nftError && (
                       <p className="mt-1 text-[11px]" style={{ color: '#fecaca' }}>{nftError}</p>

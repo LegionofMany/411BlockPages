@@ -218,14 +218,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // mirror key profile fields to Wallet.socials where appropriate
   try {
-    const walletUpdate: any = {};
-    if (update.displayName) walletUpdate['socials.displayName'] = update.displayName;
-    if (update.avatarUrl || update.nftAvatarUrl) walletUpdate['socials.avatarUrl'] = update.avatarUrl || update.nftAvatarUrl;
-    if (update.bio) walletUpdate['socials.bio'] = update.bio;
-    if (Object.keys(walletUpdate).length > 0) {
+    const $set: any = {};
+    const $unset: any = {};
+
+    const shouldClear = (v: any) => v === null || (typeof v === 'string' && v.trim() === '');
+
+    if (Object.prototype.hasOwnProperty.call(update, 'displayName') && update.displayName !== undefined) {
+      if (shouldClear(update.displayName)) $unset['socials.displayName'] = 1;
+      else $set['socials.displayName'] = update.displayName;
+    }
+
+    // Keep wallet avatar in sync even when the user clears avatarUrl/nftAvatarUrl.
+    if (
+      (Object.prototype.hasOwnProperty.call(update, 'avatarUrl') && update.avatarUrl !== undefined) ||
+      (Object.prototype.hasOwnProperty.call(update, 'nftAvatarUrl') && update.nftAvatarUrl !== undefined)
+    ) {
+      const desired = update.avatarUrl ?? update.nftAvatarUrl;
+      if (shouldClear(desired)) $unset['socials.avatarUrl'] = 1;
+      else $set['socials.avatarUrl'] = desired;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(update, 'bio') && update.bio !== undefined) {
+      if (shouldClear(update.bio)) $unset['socials.bio'] = 1;
+      else $set['socials.bio'] = update.bio;
+    }
+
+    if (Object.keys($set).length > 0 || Object.keys($unset).length > 0) {
+      const updateDoc: any = {};
+      if (Object.keys($set).length) updateDoc.$set = $set;
+      if (Object.keys($unset).length) updateDoc.$unset = $unset;
       // prefer returning the promise; some test mocks may not provide .exec()
-      const q = Wallet.updateMany({ address: walletAddress }, { $set: walletUpdate });
-      if (typeof (q as any).exec === 'function') await (q as any).exec(); else await q;
+      const q = Wallet.updateMany({ address: walletAddress }, updateDoc);
+      if (typeof (q as any).exec === 'function') await (q as any).exec();
+      else await q;
     }
   } catch (err) {
     // ignore wallet mirror failures
