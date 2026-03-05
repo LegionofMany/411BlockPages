@@ -274,8 +274,9 @@ function parseOpenSeaUrl(raw: string): { chain: string; contract: string; tokenI
     // Known patterns:
     // - /assets/<chain>/<contract>/<tokenId>
     // - /assets/<contract>/<tokenId> (older)
+    // - /item/<chain>/<contract>/<tokenId> (newer OpenSea URLs)
     const parts = u.pathname.split('/').filter(Boolean);
-    const idx = parts.indexOf('assets');
+    const idx = parts.indexOf('assets') !== -1 ? parts.indexOf('assets') : parts.indexOf('item');
     if (idx === -1) return null;
     const rest = parts.slice(idx + 1);
     if (rest.length >= 3) {

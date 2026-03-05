@@ -631,7 +631,7 @@ function ProfilePageInner() {
 
     const isDirectImage = /^https?:\/\//i.test(raw) && /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(raw);
     const isIpfs = /^ipfs:\/\//i.test(raw);
-    const isOpenSea = /opensea\.io\/(.+\/)?assets\//i.test(raw);
+    const isOpenSea = /opensea\.io\/(.+\/)?(assets|item)\//i.test(raw);
     const isOpenSeaProfile = /^https?:\/\/(?:www\.)?opensea\.io\/0x[a-f0-9]{40}\/?(?:\?.*)?$/i.test(raw);
 
     if (isOpenSeaProfile) {
