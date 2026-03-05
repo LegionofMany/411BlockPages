@@ -140,11 +140,14 @@ export default function WalletProfileClient({ initialData, chain, address }: { i
   return (
     <div className="min-h-screen flex flex-col items-center">
       <main className="flex-1 w-full max-w-3xl px-4 py-8 mt-16" style={{ width: '100%', maxWidth: '920px' }}>
-        <div className="rounded-xl shadow-md p-6" style={{ background: 'linear-gradient(180deg, #061026 0%, #071630 100%)', border: '1px solid rgba(99,102,241,0.06)', boxShadow: '0 6px 18px rgba(2,6,23,0.6)' }}>
+        <div className="rounded-3xl border border-emerald-400/15 bg-gradient-to-b from-slate-950/70 via-slate-950/55 to-black/60 shadow-xl shadow-black/30 p-6">
           <V5UpgradeInfo />
           <div className="mb-4">
             <UserProfile walletAddress={address} chain={chain} />
-            <div className="text-sm text-slate-400 mt-2">Chain: {chain}</div>
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-black/30 px-3 py-1 text-[11px] font-semibold text-emerald-100/90">
+              <span className="uppercase tracking-[0.16em] text-emerald-200/80">Chain</span>
+              <span className="font-mono text-emerald-50">{chain}</span>
+            </div>
           </div>
 
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
