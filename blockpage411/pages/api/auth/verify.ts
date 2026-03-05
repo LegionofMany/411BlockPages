@@ -7,6 +7,7 @@ import { verifyMessage } from 'ethers';
 import { randomBytes } from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
+const DEBUG_AUTH = process.env.DEBUG_AUTH === 'true';
 
 function generateNonce() {
   return randomBytes(16).toString('hex');
@@ -28,7 +29,7 @@ function inferCookieDomain(req: NextApiRequest): string | undefined {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Avoid logging signatures or other sensitive fields.
-  console.log('AUTH VERIFY: method', req.method, 'address', (req.body as any)?.address);
+  if (DEBUG_AUTH) console.log('AUTH VERIFY: method', req.method, 'address', (req.body as any)?.address);
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }

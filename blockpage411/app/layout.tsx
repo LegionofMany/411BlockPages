@@ -36,8 +36,6 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <AuthGate />
             </Suspense>
-            {/* Ensure html[lang] is set for assistive tech and automated audits */}
-            <script dangerouslySetInnerHTML={{ __html: "if(!document.documentElement.lang)document.documentElement.lang='en';" }} />
             {/* Accessible skip link: hidden until focused for keyboard users */}
             <a
               href="#content"

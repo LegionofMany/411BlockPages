@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { withAdminAuth } from '../../../lib/adminMiddleware';
+import { getVerifiedAdminAddress, withAdminAuth } from '../../../lib/adminMiddleware';
 import dbConnect from 'lib/db';
 import autoPromote from 'lib/autoPromote';
 import AdminAction from 'lib/adminActionModel';
@@ -15,7 +15,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse){
     const result = await autoPromote.promoteCandidates(candidates);
     // record audit actions for each promoted provider
     try{
-      const admin = (req.headers['x-admin-address'] || '').toString();
+      const admin = getVerifiedAdminAddress(req) || 'admin';
       if (Array.isArray(result.promotedIds) && result.promotedIds.length){
         const now = new Date();
         const actions = result.promotedIds.map(id => ({ admin: admin || 'unknown', action: 'promote_provider', target: String(id), reason: `auto_promote: promoted by criteria minReports=${minReports} minUnique=${minUniqueReporters}`, timestamp: now }));

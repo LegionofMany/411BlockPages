@@ -15,8 +15,12 @@ const AdminAutoPromotePage: React.FC = () => {
     setLoading(true);
     setResults(null);
     try{
-      const admin = typeof window !== 'undefined' ? (localStorage.getItem('wallet') || '') : '';
-  const res = await fetch('/api/admin/auto-promote', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-address': admin }, body: JSON.stringify({ dryRun }) });
+      const res = await fetch('/api/admin/auto-promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun }),
+      });
   const json = await res.json();
   if (!res.ok) throw new Error((json && (json as { message?: string }).message) || 'Request failed');
   setResults(json as AutoPromoteResult);
@@ -39,8 +43,7 @@ const AdminAutoPromotePage: React.FC = () => {
         <button className="btn-primary" onClick={() => run(false)} disabled={loading}>Run</button>
         <button className="btn-secondary" onClick={async () => {
           try{
-            const admin = typeof window !== 'undefined' ? (localStorage.getItem('wallet') || '') : '';
-            const resp = await fetch('/api/admin/promoted-providers.csv', { method: 'GET', headers: { 'x-admin-address': admin } });
+            const resp = await fetch('/api/admin/promoted-providers.csv', { method: 'GET', credentials: 'include' });
             if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'Failed to download CSV'); }
             const blob = await resp.blob();
             const url = URL.createObjectURL(blob);

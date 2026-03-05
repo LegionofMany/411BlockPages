@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { withAdminAuth } from '../../../../../lib/adminMiddleware';
+import { getVerifiedAdminAddress, withAdminAuth } from '../../../../../lib/adminMiddleware';
 import dbConnect from '../../../../../lib/db';
 import { Schema, models, model } from 'mongoose';
 
@@ -27,7 +27,7 @@ export default withAdminAuth(async function handler(req: NextApiRequest, res: Ne
   // Audit log and email notification (best-effort)
   try {
     const AuditLog = require('../../../../../lib/auditLogModel').default;
-    await AuditLog.create({ type: 'appeal.review', actor: req.headers['x-admin-address'] || 'unknown', target: a.address, action: action, meta: { appealId: a._id } });
+    await AuditLog.create({ type: 'appeal.review', actor: getVerifiedAdminAddress(req) || 'unknown', target: a.address, action: action, meta: { appealId: a._id } });
   } catch (e) { console.warn('audit log failed', e); }
 
   try {

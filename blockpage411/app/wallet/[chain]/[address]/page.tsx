@@ -94,9 +94,10 @@ export default async function WalletProfilePage({ params }: Props) {
         "name": `${address} on ${chain} — Blockpage411`,
         "url": siteOrigin ? `${siteOrigin.replace(/\/$/, '')}/wallet/${effectiveChain}/${encodeURIComponent(address)}` : `/wallet/${effectiveChain}/${encodeURIComponent(address)}`
       };
+      const jsonLdHtml = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
       return (
         <>
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml }} />
           <WalletProfileClient initialData={null} chain={effectiveChain} address={address} />
         </>
       );
@@ -110,9 +111,10 @@ export default async function WalletProfilePage({ params }: Props) {
       "description": data?.shortSummary || null,
       "sameAs": data?.socials ? Object.values(data.socials).filter(Boolean) : undefined
     };
+    const jsonLdHtml = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
     return (
       <>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml }} />
         <WalletProfileClient initialData={data} chain={effectiveChain} address={address} />
       </>
     );

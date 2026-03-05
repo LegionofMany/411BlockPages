@@ -27,5 +27,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
   const isAdmin = allowedNormalized.map(a => a.toLowerCase()).includes((address || '').toLowerCase());
 
-  res.status(200).json({ isAdmin, address, allowed: allowedRaw });
+  // Do not return the admin allowlist in production APIs.
+  res.status(200).json({ isAdmin, address });
 }

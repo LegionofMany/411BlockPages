@@ -1,15 +1,37 @@
 import type { NextApiRequest } from 'next';
 import jwt from 'jsonwebtoken';
 import * as cookie from 'cookie';
+import { getAddress } from 'ethers';
+
+function normalizeAddress(addr: string): string {
+  try {
+    return getAddress(addr);
+  } catch {
+    return (addr || '').toLowerCase().trim();
+  }
+}
+
+function getAdminAllowList(): string[] {
+  const raw = process.env.ADMIN_WALLETS || process.env.NEXT_PUBLIC_ADMIN_WALLETS || '';
+  return raw
+    .split(',')
+    .map((s) => normalizeAddress(s))
+    .filter(Boolean)
+    .map((s) => s.toLowerCase());
+}
 
 export function isAdminRequest(req: NextApiRequest): boolean {
-  // Accept either header name for compatibility with various callers
-  const adminHeader = (req.headers['x-admin-wallet'] || req.headers['x-admin-address']) as string | undefined;
-  const adminList = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || '')
-    .split(',')
-    .map(s => s.trim().toLowerCase())
-    .filter(Boolean);
-  if (adminHeader && adminList.includes(adminHeader.toLowerCase())) return true;
+  const adminList = getAdminAllowList();
+
+  // Development escape hatch only: allow header-based admin checks for local tooling.
+  // In production, headers are spoofable and must never grant admin access.
+  if (process.env.NODE_ENV === 'development') {
+    const adminHeader = (req.headers['x-admin-wallet'] || req.headers['x-admin-address']) as string | undefined;
+    if (adminHeader) {
+      const normalized = normalizeAddress(adminHeader).toLowerCase();
+      if (normalized && adminList.includes(normalized)) return true;
+    }
+  }
 
   // Check Authorization header (Bearer token)
   const auth = (req.headers.authorization || '') as string;
@@ -28,9 +50,11 @@ export function isAdminRequest(req: NextApiRequest): boolean {
       const payload = jwt.verify(token, process.env.JWT_SECRET || '') as unknown;
       if (typeof payload === 'object' && payload !== null) {
         const p = payload as Record<string, unknown>;
-        if (p['admin'] === true) return true;
         const addr = p['address'];
-        if (addr && typeof addr === 'string' && adminList.includes(addr.toLowerCase())) return true;
+        if (addr && typeof addr === 'string') {
+          const normalized = normalizeAddress(addr).toLowerCase();
+          if (normalized && adminList.includes(normalized)) return true;
+        }
       }
     } catch {
       // invalid token => not admin

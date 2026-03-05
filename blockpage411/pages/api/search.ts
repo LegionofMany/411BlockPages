@@ -123,9 +123,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (chain) query.chain = String(chain);
   // Do not filter out blacklisted here — return a safe public summary including blacklist flag.
-  console.log('SEARCH API: query', query);
+  const DEBUG_SEARCH = process.env.DEBUG_SEARCH === 'true';
+  if (DEBUG_SEARCH) console.log('SEARCH API: query', query);
   const results = await Wallet.find(query).limit(20);
-  console.log('SEARCH API: found', results.length, 'results');
+  if (DEBUG_SEARCH) console.log('SEARCH API: found', results.length, 'results');
 
   // Best-effort: hydrate socials (displayName/avatarUrl) from User profiles.
   // This ensures search results can show the uploaded avatar even when Wallet.socials

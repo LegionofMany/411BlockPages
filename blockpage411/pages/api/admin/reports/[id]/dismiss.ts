@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { withAdminAuth } from 'lib/adminMiddleware';
+import { getVerifiedAdminAddress, withAdminAuth } from 'lib/adminMiddleware';
 import dbConnect from 'lib/db';
 import Report from 'lib/reportModel';
 import Wallet from 'lib/walletModel';
@@ -9,7 +9,7 @@ import getTransporter from 'lib/mailer';
 
 export default withAdminAuth(async function handler(req: NextApiRequest, res: NextApiResponse){
   const { id } = req.query;
-  const admin = req.headers['x-admin-address']?.toString().toLowerCase();
+  const admin = getVerifiedAdminAddress(req) || 'admin';
   if (!id) return res.status(400).json({ message: 'id required' });
   await dbConnect();
   const report = await Report.findById(String(id));

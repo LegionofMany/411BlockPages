@@ -49,8 +49,13 @@ export async function setRequestContext(req: { headers?: Record<string, unknown>
       try{
         if (req?.url) scope.setTag('url', String(req.url));
         if (req?.method) scope.setTag('method', String(req.method));
-        const admin = req?.headers && (req.headers['x-admin-address'] || req.headers['x-admin-wallet']);
-        if (admin) scope.setUser({ id: String(admin) });
+        const verifiedAdmin = (req as any)?.__bp_adminAddress;
+        if (verifiedAdmin) {
+          scope.setUser({ id: String(verifiedAdmin) });
+        } else if (process.env.NODE_ENV === 'development') {
+          const admin = req?.headers && (req.headers['x-admin-address'] || req.headers['x-admin-wallet']);
+          if (admin) scope.setUser({ id: String(admin) });
+        }
         if (extras) scope.setContext('extras', extras);
       }catch(e){}
     });
@@ -67,8 +72,13 @@ export async function withSentryScope<T = unknown>(req: { headers?: Record<strin
         try{
           if (req?.url) scope.setTag('url', String(req.url));
           if (req?.method) scope.setTag('method', String(req.method));
-          const admin = req?.headers && (req.headers['x-admin-address'] || req.headers['x-admin-wallet']);
-          if (admin) scope.setUser({ id: String(admin) });
+          const verifiedAdmin = (req as any)?.__bp_adminAddress;
+          if (verifiedAdmin) {
+            scope.setUser({ id: String(verifiedAdmin) });
+          } else if (process.env.NODE_ENV === 'development') {
+            const admin = req?.headers && (req.headers['x-admin-address'] || req.headers['x-admin-wallet']);
+            if (admin) scope.setUser({ id: String(admin) });
+          }
           return await cb();
         }catch(err){
           throw err;

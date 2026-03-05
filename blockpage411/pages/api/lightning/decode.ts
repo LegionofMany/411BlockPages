@@ -1,5 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import bolt11 from 'bolt11';
+// `moduleResolution: bundler` does not reliably resolve older CJS packages without
+// modern `exports` fields. `require()` avoids TS module-resolution while still
+// working at runtime in Node.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const bolt11 = require('bolt11') as { decode: (invoice: string) => unknown };
 import { bech32 } from 'bech32';
 
 type InvoiceNetwork = 'mainnet' | 'testnet' | 'regtest' | 'unknown';

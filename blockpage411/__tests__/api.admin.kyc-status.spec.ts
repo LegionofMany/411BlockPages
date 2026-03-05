@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import jwt from 'jsonwebtoken';
 
 function makeReq(opts: Partial<NextApiRequest>): NextApiRequest {
   return opts as NextApiRequest;
@@ -16,11 +17,24 @@ describe('/api/admin/kyc-status', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.resetAllMocks();
-    process.env.ADMIN_WALLETS = '0xtestadmin';
+    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.ADMIN_WALLETS = '0x1111111111111111111111111111111111111111';
   });
 
+  function makeAdminReq(opts: Partial<NextApiRequest>): NextApiRequest {
+    const token = jwt.sign(
+      { address: '0x1111111111111111111111111111111111111111' },
+      process.env.JWT_SECRET as string
+    );
+    return makeReq({
+      ...opts,
+      cookies: { ...(opts as any).cookies, token } as any,
+      headers: { ...(opts.headers as any), cookie: `token=${token}` } as any,
+    });
+  }
+
   it('returns 400 when required fields missing', async () => {
-    const req: any = makeReq({ method: 'PATCH', headers: { 'x-admin-address': '0xtestadmin' } });
+    const req: any = makeAdminReq({ method: 'PATCH' });
     await jest.isolateModulesAsync(async () => {
       const handler = (await import('../pages/api/admin/kyc-status')).default;
       const res = makeRes();
@@ -32,7 +46,7 @@ describe('/api/admin/kyc-status', () => {
   it('returns 404 when wallet not found', async () => {
     jest.doMock('lib/db', () => ({ __esModule: true, default: jest.fn(() => Promise.resolve()) }));
     jest.doMock('lib/walletModel', () => ({ __esModule: true, default: { findOne: jest.fn(() => null) } }));
-    const req: any = makeReq({ method: 'PATCH', headers: { 'x-admin-address': '0xtestadmin' }, body: { address: '0x1111111111111111111111111111111111111111', chain: 'eth', kycStatus: 'verified' } });
+    const req: any = makeAdminReq({ method: 'PATCH', body: { address: '0x1111111111111111111111111111111111111111', chain: 'eth', kycStatus: 'verified' } });
     await jest.isolateModulesAsync(async () => {
       const handler = (await import('../pages/api/admin/kyc-status')).default;
       const res = makeRes();
@@ -55,7 +69,7 @@ describe('/api/admin/kyc-status', () => {
     const sendKycMock = jest.fn(() => Promise.resolve());
     const sendKycPath = require.resolve('../utils/sendKycEmail');
     jest.doMock(sendKycPath, () => ({ __esModule: true, default: sendKycMock, sendKycEmail: sendKycMock }));
-    const req: any = makeReq({ method: 'PATCH', headers: { 'x-admin-address': '0xtestadmin' }, body: { address: '0x1111111111111111111111111111111111111111', chain: 'eth', kycStatus: 'verified' } });
+    const req: any = makeAdminReq({ method: 'PATCH', body: { address: '0x1111111111111111111111111111111111111111', chain: 'eth', kycStatus: 'verified' } });
 
     await jest.isolateModulesAsync(async () => {
       const handler = (await import('../pages/api/admin/kyc-status')).default;

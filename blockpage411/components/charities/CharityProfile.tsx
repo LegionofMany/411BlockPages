@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import DonateModal, { CharityWallet } from "./DonateModal";
 import { isTrustedGivingBlockEmbed } from "../../utils/embed";
 import { explorerUrlFor } from "../../lib/explorer";
+import { sanitizeHtml } from "../../utils/sanitizeHtml";
 
 export interface CharityDetail {
   _id?: string;
@@ -168,7 +169,7 @@ export default function CharityProfile({ charity }: Props) {
           <div
             className={`text-sm leading-relaxed text-emerald-50/90 charity-safe-text ${expanded ? '' : 'line-clamp-4 md:line-clamp-none'}`}
             id={`charity-desc-${String(charity._id || charity.charityId || charity.givingBlockId || charity.name)}`}
-            dangerouslySetInnerHTML={{ __html: charity.description }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(charity.description) }}
             style={safeTextStyle}
           />
           <button

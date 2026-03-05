@@ -45,7 +45,7 @@ export default function AdminGate({
           </div>
 
           <div className="mt-4 text-xs text-slate-300">
-            Admins are controlled by <span className="font-mono">NEXT_PUBLIC_ADMIN_WALLETS</span>. Set your wallet in localStorage as <span className="font-mono">wallet</span> (or connect via the app), then refresh.
+            Admins are controlled by <span className="font-mono">ADMIN_WALLETS</span>/<span className="font-mono">NEXT_PUBLIC_ADMIN_WALLETS</span>. You must also be logged in with that wallet so the server can verify your session.
           </div>
         </div>
       </div>

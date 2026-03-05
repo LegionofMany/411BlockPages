@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dbConnect from '../../../lib/db';
 import Wallet from '../../../lib/walletModel';
-import { withAdminAuth } from '../../../lib/adminMiddleware';
+import { getVerifiedAdminAddress, withAdminAuth } from '../../../lib/adminMiddleware';
 import AuditLog from '../../../lib/auditLogModel';
 import notifyEmail from '../../../lib/notifyEmail';
 import sendKycEmail from '../../../utils/sendKycEmail';
@@ -49,7 +49,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
       await AuditLog.create({
         type: 'kyc.update',
-        actor: (req.headers['x-admin-address'] as string) || 'admin',
+        actor: getVerifiedAdminAddress(req) || 'admin',
         target: sanitizedAddress,
         action: kycStatus === 'verified' ? 'verify' : kycStatus === 'rejected' ? 'reject' : 'set-pending',
         meta: { chain: sanitizedChain, kycStatus },

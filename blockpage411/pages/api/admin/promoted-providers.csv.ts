@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { withAdminAuth } from '../../../lib/adminMiddleware';
+import { getVerifiedAdminAddress, withAdminAuth } from '../../../lib/adminMiddleware';
 import dbConnect from 'lib/db';
 import Provider from 'lib/providerModel';
 import AdminAction from 'lib/adminActionModel';
@@ -57,7 +57,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse){
     const csv = toCsv(rows);
     // record export in audit log
     try{
-      const admin = (req.headers['x-admin-address'] || '').toString();
+      const admin = getVerifiedAdminAddress(req) || 'admin';
       // best-effort audit logging
       await recordAdminAction({ admin: admin || 'unknown', action: 'export_promoted_providers', target: '', reason: `export_count=${providers.length}` });
     }catch(ae){

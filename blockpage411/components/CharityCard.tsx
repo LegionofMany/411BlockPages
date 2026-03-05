@@ -4,6 +4,7 @@ import Image from 'next/image';
 import DonationQR from './DonationQR';
 import { explorerUrlFor } from '../lib/explorer';
 import { isTrustedGivingBlockEmbed } from '../utils/embed';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 export default function CharityCard({ charity }: { charity: Record<string, unknown> }) {
   const [showEmbed, setShowEmbed] = useState(false);
@@ -62,7 +63,7 @@ export default function CharityCard({ charity }: { charity: Record<string, unkno
       </div>
   <div
     className="mt-3 text-sm text-slate-300 charity-safe-text line-clamp-3"
-    dangerouslySetInnerHTML={{ __html: String(charity.description ?? '') }}
+    dangerouslySetInnerHTML={{ __html: sanitizeHtml(charity.description) }}
     style={safeTextStyle}
   />
 

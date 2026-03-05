@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { sanitizeHtml } from "../../utils/sanitizeHtml";
 
 export interface CharitySummary {
   _id?: string;
@@ -60,7 +61,7 @@ export default function CharityCard({ charity }: Props) {
               <div
                 id={`desc-${String(id)}`}
                 className={`mt-2 text-xs leading-snug text-emerald-50/90 charity-safe-text ${expanded ? '' : 'line-clamp-4 md:line-clamp-2'}`}
-                dangerouslySetInnerHTML={{ __html: charity.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(charity.description) }}
                 style={safeTextStyle}
               />
               <button

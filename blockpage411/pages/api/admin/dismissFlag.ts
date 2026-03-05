@@ -3,15 +3,12 @@ import dbConnect from '../../../lib/db';
 import Wallet from '../../../lib/walletModel';
 import AdminAction from '../../../lib/adminActionModel';
 import recordAdminAction from '../../../lib/logAdminAction';
-import { withAdminAuth } from '../../../lib/adminMiddleware';
-
-const ADMIN_WALLETS = process.env.ADMIN_WALLETS?.split(',').map(a => a.toLowerCase().trim()) || [];
+import { getVerifiedAdminAddress, withAdminAuth } from '../../../lib/adminMiddleware';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
   const { wallet, flagId } = req.body;
-  const admin = req.headers['x-admin-address']?.toString().toLowerCase();
-  if (!admin || !ADMIN_WALLETS.includes(admin)) return res.status(403).json({ message: 'Not authorized' });
+  const admin = getVerifiedAdminAddress(req) || 'admin';
   if (!wallet || !flagId) return res.status(400).json({ message: 'Missing wallet or flagId' });
   await dbConnect();
   // Remove flag from Wallet
