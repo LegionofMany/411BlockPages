@@ -2,6 +2,10 @@
   "name": "blockpage411",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "packageManager": "npm@10.9.3",
   "scripts": {
     "dev": "next dev",
     "dev:poll": "node scripts/dev_poll.js",
