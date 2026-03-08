@@ -1,4 +1,35 @@
-import DOMPurify from 'isomorphic-dompurify';
+let cachedDomPurify: any | null | undefined;
+
+function getDomPurify(): any | null {
+  if (cachedDomPurify !== undefined) return cachedDomPurify;
+
+  // On the server (including during `next build` static generation), avoid
+  // loading DOMPurify/JSDOM. The UI that uses this helper mostly sanitizes
+  // content fetched client-side, so a server fallback is sufficient and keeps
+  // builds fast and deterministic.
+  if (typeof window === 'undefined') {
+    cachedDomPurify = null;
+    return cachedDomPurify;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('isomorphic-dompurify');
+    cachedDomPurify = (mod && (mod.default || mod)) || null;
+  } catch {
+    cachedDomPurify = null;
+  }
+  return cachedDomPurify;
+}
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 const DEFAULT_ALLOWED_TAGS = [
   'a',
@@ -22,6 +53,12 @@ const DEFAULT_ALLOWED_ATTR = ['href', 'title', 'target', 'rel'];
 export function sanitizeHtml(input: unknown): string {
   const html = typeof input === 'string' ? input : '';
   if (!html) return '';
+
+  const DOMPurify = getDomPurify();
+  if (!DOMPurify) {
+    // Server/build fallback: do not allow raw HTML through.
+    return escapeHtml(html);
+  }
 
   // DOMPurify will also remove event handlers like onclick and unsafe URLs.
   const sanitized = DOMPurify.sanitize(html, {

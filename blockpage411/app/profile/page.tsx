@@ -88,7 +88,13 @@ function ProfilePageInner() {
   const [activeEvent, setActiveEvent] = useState<EventItem | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [walletMeta, setWalletMeta] = useState({ chain: 'eth', exchangeSource: '', storageType: '' });
+  const [walletMeta, setWalletMeta] = useState({
+    chain: 'eth',
+    exchangeSource: '',
+    exchangeOther: '',
+    storageType: '',
+    storageOther: '',
+  });
   const [metadataOptions, setMetadataOptions] = useState<{ exchanges: string[]; coldWallets: string[]; softWallets: string[] }>({
     exchanges: [],
     coldWallets: [],
@@ -488,14 +494,16 @@ function ProfilePageInner() {
     if (!me?.address) return;
     setSavingWalletMeta(true);
     try {
+      const exchangeSource = walletMeta.exchangeSource === 'Other' ? walletMeta.exchangeOther : walletMeta.exchangeSource;
+      const storageType = walletMeta.storageType === 'Other' ? walletMeta.storageOther : walletMeta.storageType;
       const res = await fetch('/api/wallet/updateMetadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           chain: walletMeta.chain,
-          exchangeSource: walletMeta.exchangeSource,
-          storageType: walletMeta.storageType,
+          exchangeSource,
+          storageType,
         }),
       });
       await res.json();
@@ -581,25 +589,46 @@ function ProfilePageInner() {
       setNftError('Selected NFT has no image.');
       return;
     }
-    setNftImageUrl(item.image);
-    setNftInput(item.image);
+    const selectedImage = item.image;
+    const prevImage = nftImageUrl;
+    const prevInput = nftInput;
+    const prevSource = nftSource;
+
+    // Optimistic UI, but revert if persistence fails.
+    setNftImageUrl(selectedImage);
+    setNftInput(selectedImage);
     setNftSource(item.source);
+
     fetch('/api/profile/update', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ walletAddress: me?.address || walletAddress, nftAvatarUrl: item.image }),
+      body: JSON.stringify({ walletAddress: me?.address || walletAddress, nftAvatarUrl: selectedImage }),
     })
       .then(async (res) => {
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           setNftError(data?.message || 'Failed to save NFT photo');
+          // Only revert if the UI is still showing this selection.
+          setNftImageUrl((cur) => (cur === selectedImage ? prevImage : cur));
+          setNftSource((cur) => (cur === item.source ? prevSource : cur));
+          setNftInput((cur) => (cur === selectedImage ? prevInput : cur));
           return;
         }
         setToast('NFT photo linked to your profile');
+        try {
+          window.dispatchEvent(new CustomEvent('bp411:nft-avatar-url', { detail: { nftAvatarUrl: selectedImage } }));
+        } catch {
+          // ignore
+        }
+        // Pull latest from server so returning to other pages reflects persistence.
+        void refreshMe();
       })
       .catch(() => {
         setNftError('Network error while saving NFT photo');
+        setNftImageUrl((cur) => (cur === selectedImage ? prevImage : cur));
+        setNftSource((cur) => (cur === item.source ? prevSource : cur));
+        setNftInput((cur) => (cur === selectedImage ? prevInput : cur));
       });
   }
 
@@ -662,6 +691,7 @@ function ProfilePageInner() {
           } catch {
             // ignore
           }
+          void refreshMe();
         })
         .catch(() => {
           setNftError('Network error while saving NFT photo');
@@ -1014,6 +1044,7 @@ function ProfilePageInner() {
                           setNftInput(e.target.value);
                         }}
                         placeholder="Paste image URL from your NFT metadata"
+                        autoComplete="off"
                         autoCapitalize="none"
                         autoCorrect="off"
                         spellCheck={false}
@@ -1343,6 +1374,11 @@ function ProfilePageInner() {
                     onChange={(e) => setWalletMeta({ ...walletMeta, chain: e.target.value })}
                   >
                     <option value="eth">Ethereum</option>
+                    <option value="polygon">Polygon</option>
+                    <option value="base">Base</option>
+                    <option value="arbitrum">Arbitrum</option>
+                    <option value="optimism">Optimism</option>
+                    <option value="bsc">BSC</option>
                     <option value="btc">Bitcoin</option>
                     <option value="sol">Solana</option>
                     <option value="tron">Tron</option>
@@ -1354,7 +1390,14 @@ function ProfilePageInner() {
                     id="exchange"
                     className="w-full px-3 py-2 bg-gray-800 rounded text-white text-sm"
                     value={walletMeta.exchangeSource}
-                    onChange={(e) => setWalletMeta({ ...walletMeta, exchangeSource: e.target.value })}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setWalletMeta({
+                        ...walletMeta,
+                        exchangeSource: v,
+                        exchangeOther: v === 'Other' ? walletMeta.exchangeOther : '',
+                      });
+                    }}
                   >
                     <option value="">Select exchange</option>
                     {metadataOptions.exchanges.map((ex) => (
@@ -1362,6 +1405,15 @@ function ProfilePageInner() {
                     ))}
                     <option value="Other">Other</option>
                   </select>
+                  {walletMeta.exchangeSource === 'Other' && (
+                    <input
+                      className="mt-2 w-full px-3 py-2 bg-gray-800 rounded text-white text-sm"
+                      placeholder="Type exchange name"
+                      autoComplete="off"
+                      value={walletMeta.exchangeOther}
+                      onChange={(e) => setWalletMeta({ ...walletMeta, exchangeOther: e.target.value })}
+                    />
+                  )}
                 </div>
                 <div className="md:col-span-1">
                   <label htmlFor="storage" className="block text-xs mb-1 text-slate-300">Wallet type/brand</label>
@@ -1369,7 +1421,14 @@ function ProfilePageInner() {
                     id="storage"
                     className="w-full px-3 py-2 bg-gray-800 rounded text-white text-sm"
                     value={walletMeta.storageType}
-                    onChange={(e) => setWalletMeta({ ...walletMeta, storageType: e.target.value })}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setWalletMeta({
+                        ...walletMeta,
+                        storageType: v,
+                        storageOther: v === 'Other' ? walletMeta.storageOther : '',
+                      });
+                    }}
                   >
                     <option value="">Select wallet</option>
                     {metadataOptions.coldWallets.map((w) => (
@@ -1378,7 +1437,17 @@ function ProfilePageInner() {
                     {metadataOptions.softWallets.map((w) => (
                       <option key={w} value={`soft:${w}`}>Soft - {w}</option>
                     ))}
+                    <option value="Other">Other</option>
                   </select>
+                  {walletMeta.storageType === 'Other' && (
+                    <input
+                      className="mt-2 w-full px-3 py-2 bg-gray-800 rounded text-white text-sm"
+                      placeholder="Type wallet brand/type"
+                      autoComplete="off"
+                      value={walletMeta.storageOther}
+                      onChange={(e) => setWalletMeta({ ...walletMeta, storageOther: e.target.value })}
+                    />
+                  )}
                 </div>
               </div>
               <button
