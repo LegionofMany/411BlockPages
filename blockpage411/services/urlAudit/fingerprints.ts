@@ -8,13 +8,18 @@ export interface KnownGoodFingerprint {
   sha256Normalized: string;
 }
 
+let cached: { loadedAtMs: number; fps: KnownGoodFingerprint[] } | null = null;
+const CACHE_TTL_MS = 60_000;
+
 export async function loadKnownGoodFingerprints(): Promise<KnownGoodFingerprint[]> {
+  if (cached && Date.now() - cached.loadedAtMs < CACHE_TTL_MS) return cached.fps;
+
   const fpPath = path.join(process.cwd(), 'data', 'url-fingerprints.known-good.json');
   try {
     const raw = await fs.readFile(fpPath, 'utf8');
     const parsed = JSON.parse(raw) as { fingerprints?: KnownGoodFingerprint[] };
     const fps = Array.isArray(parsed.fingerprints) ? parsed.fingerprints : [];
-    return fps
+    const normalized = fps
       .filter((f) => f && typeof f.sha256Normalized === 'string' && f.sha256Normalized.length > 0)
       .map((f) => ({
         id: String(f.id || f.sha256Normalized.slice(0, 10)),
@@ -22,9 +27,21 @@ export async function loadKnownGoodFingerprints(): Promise<KnownGoodFingerprint[
         hostname: f.hostname ? String(f.hostname) : undefined,
         sha256Normalized: String(f.sha256Normalized),
       }));
+    cached = { loadedAtMs: Date.now(), fps: normalized };
+    return normalized;
   } catch {
+    cached = { loadedAtMs: Date.now(), fps: [] };
     return [];
   }
+}
+
+export function findKnownGoodByHash(fps: KnownGoodFingerprint[], sha256Normalized: string): KnownGoodFingerprint | null {
+  const sha = (sha256Normalized || '').trim();
+  if (!sha) return null;
+  for (const fp of fps) {
+    if (fp.sha256Normalized === sha) return fp;
+  }
+  return null;
 }
 
 export function matchKnownGoodFingerprint(

@@ -166,7 +166,7 @@ export default function UrlThreatScanPage() {
       ) : null}
 
       <section className="w-full max-w-4xl mt-6 text-xs text-slate-200/60">
-        This scanner performs server-side fetching with guardrails to reduce SSRF risk. For deep dynamic sandboxing (Playwright), run in an isolated worker environment.
+        This scanner performs server-side fetching with guardrails to reduce SSRF risk. Optional dynamic sandboxing (Playwright) is environment-gated and skipped on Vercel.
       </section>
     </div>
   );

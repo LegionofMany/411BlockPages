@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import dns from 'dns/promises';
 import net from 'net';
+import { runDynamicSandbox } from './dynamicSandbox';
+import { findKnownGoodByHash, loadKnownGoodFingerprints } from './fingerprints';
 
 export type UrlRiskCategory = 'green' | 'yellow' | 'red';
 
@@ -13,6 +15,14 @@ export interface UrlAuditSignals {
   contentType?: string;
   truncated: boolean;
   sha256?: string;
+  sha256Normalized?: string;
+  knownGood?: {
+    id: string;
+    label: string;
+    hostname?: string;
+    hostnameMismatch?: boolean;
+  };
+  dynamic?: any;
   matches: Array<{ id: string; label: string; count: number }>;
 }
 
@@ -123,6 +133,18 @@ function countMatches(haystack: string, re: RegExp): number {
   return m ? m.length : 0;
 }
 
+function normalizeHtmlForFingerprint(html: string): string {
+  const input = (html || '').toString();
+  // Keep this conservative: strip scripts/styles/comments, normalize whitespace, lowercase.
+  return input
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 export async function auditUrl(inputUrl: string): Promise<UrlAuditResult> {
   const normalized = normalizeUrl(inputUrl);
   const url = new URL(normalized);
@@ -150,6 +172,11 @@ export async function auditUrl(inputUrl: string): Promise<UrlAuditResult> {
   const html = text || '';
 
   const sha256 = crypto.createHash('sha256').update(html).digest('hex');
+  const normalizedHtml = normalizeHtmlForFingerprint(html);
+  const sha256Normalized = crypto.createHash('sha256').update(normalizedHtml).digest('hex');
+
+  const fps = await loadKnownGoodFingerprints();
+  const knownGood = findKnownGoodByHash(fps, sha256Normalized);
 
   const matchDefs: Array<{ id: string; label: string; re: RegExp; weight: number; reason: string }> = [
     {
@@ -220,6 +247,53 @@ export async function auditUrl(inputUrl: string): Promise<UrlAuditResult> {
     reasons.push('Suspicious TLD: .xyz');
   }
 
+  // Clone / fingerprint detection.
+  let knownGoodSignal: UrlAuditSignals['knownGood'] | undefined;
+  if (knownGood) {
+    const knownHost = (knownGood.hostname || '').toLowerCase().trim();
+    const mismatch = !!knownHost && knownHost !== hostLower;
+    knownGoodSignal = {
+      id: knownGood.id,
+      label: knownGood.label,
+      hostname: knownGood.hostname,
+      hostnameMismatch: mismatch,
+    };
+
+    if (mismatch) {
+      score += 45;
+      reasons.push(`Page content matches known-good fingerprint (${knownGood.label}) but hostname differs (possible clone)`);
+    } else if (knownHost) {
+      // If the content matches a known-good fingerprint on the expected host, reduce risk slightly.
+      score = Math.max(0, score - 15);
+    }
+  }
+
+  // Optional dynamic sandboxing (gated by env and skipped on Vercel).
+  const dynamic = await runDynamicSandbox(res.url || url.toString());
+  if (dynamic && dynamic.enabled) {
+    const methods = new Set((dynamic.walletRequests || []).map((w: any) => String(w?.method || '').trim()).filter(Boolean));
+    if (methods.size > 0) {
+      score += 10;
+      reasons.push('Dynamic analysis: page attempted wallet provider calls');
+    }
+    if (methods.has('eth_sendTransaction') || methods.has('wallet_sendTransaction')) {
+      score += 35;
+      reasons.push('Dynamic analysis: attempted transaction send');
+    }
+    if (methods.has('personal_sign') || methods.has('eth_sign') || methods.has('eth_signTypedData') || methods.has('eth_signTypedData_v4')) {
+      score += 25;
+      reasons.push('Dynamic analysis: attempted signing');
+    }
+    if (methods.has('wallet_requestPermissions') || methods.has('eth_requestAccounts')) {
+      score += 15;
+      reasons.push('Dynamic analysis: attempted account connection');
+    }
+    if (Array.isArray(dynamic.clicked) && dynamic.clicked.length > 0) {
+      score += 6;
+      reasons.push('Dynamic analysis: clicked CTA-like elements');
+    }
+  }
+
   if (res.status >= 400) {
     score = Math.max(score - 10, 0);
   }
@@ -242,6 +316,9 @@ export async function auditUrl(inputUrl: string): Promise<UrlAuditResult> {
     contentType,
     truncated,
     sha256,
+    sha256Normalized,
+    knownGood: knownGoodSignal,
+    dynamic,
     matches,
   };
 
