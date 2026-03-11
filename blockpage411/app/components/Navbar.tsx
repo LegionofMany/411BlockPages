@@ -61,6 +61,7 @@ export default function Navbar({ variant: _variant }: { variant?: string } = {})
     { href: '/', label: 'Home', Icon: IconHome },
     { href: '/wallet-analysis', label: 'Wallet Analysis', Icon: IconSearch },
     { href: '/phone-book', label: 'Phone Book', Icon: IconPhoneBook },
+    { href: '/url-threat-scan', label: 'URL Threat Scan', Icon: IconSearch },
     { href: '/charities', label: 'Charities', Icon: IconFund },
     { href: '/fundraisers', label: 'Fundraisers', Icon: IconFund },
     { href: '/transactions/live', label: 'Live Feed', Icon: IconTrending },

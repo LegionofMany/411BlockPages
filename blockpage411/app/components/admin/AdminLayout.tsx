@@ -11,6 +11,7 @@ const adminNav: Array<{ href: string; label: string }> = [
   { href: "/admin/kyc", label: "KYC" },
   { href: "/admin/kyc-review", label: "KYC Review" },
   { href: "/admin/risk", label: "Wallet Risk Scores" },
+  { href: "/admin/url-audits", label: "URL Audits" },
   { href: "/admin/alerts", label: "Flags / Reports" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/appeals", label: "Appeals" },
