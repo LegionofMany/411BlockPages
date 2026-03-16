@@ -220,6 +220,13 @@ export default function AdminUrlAuditsPage() {
                     Final: <span className="font-mono">{selected.finalUrl}</span>
                   </div>
                 ) : null}
+
+                <div className="mt-2 text-xs text-white/70">
+                  Dynamic worker:{" "}
+                  <span className="font-mono">
+                    {String(selected.signals?.dynamic?.worker?.status || "(n/a)")}
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

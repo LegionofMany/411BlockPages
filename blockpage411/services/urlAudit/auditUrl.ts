@@ -3,6 +3,7 @@ import dns from 'dns/promises';
 import net from 'net';
 import { runDynamicSandbox } from './dynamicSandbox';
 import { findKnownGoodByHash, loadKnownGoodFingerprints } from './fingerprints';
+import { scoreDynamicSignals } from './dynamicScoring';
 
 export type UrlRiskCategory = 'green' | 'yellow' | 'red';
 
@@ -16,6 +17,10 @@ export interface UrlAuditSignals {
   truncated: boolean;
   sha256?: string;
   sha256Normalized?: string;
+  scoreBase?: number;
+  scoreDynamicDelta?: number;
+  reasonsBase?: string[];
+  reasonsDynamic?: string[];
   knownGood?: {
     id: string;
     label: string;
@@ -268,31 +273,15 @@ export async function auditUrl(inputUrl: string): Promise<UrlAuditResult> {
     }
   }
 
+  const baseScore = score;
+  const baseReasons = Array.from(new Set(reasons));
+
   // Optional dynamic sandboxing (gated by env and skipped on Vercel).
   const dynamic = await runDynamicSandbox(res.url || url.toString());
-  if (dynamic && dynamic.enabled) {
-    const methods = new Set((dynamic.walletRequests || []).map((w: any) => String(w?.method || '').trim()).filter(Boolean));
-    if (methods.size > 0) {
-      score += 10;
-      reasons.push('Dynamic analysis: page attempted wallet provider calls');
-    }
-    if (methods.has('eth_sendTransaction') || methods.has('wallet_sendTransaction')) {
-      score += 35;
-      reasons.push('Dynamic analysis: attempted transaction send');
-    }
-    if (methods.has('personal_sign') || methods.has('eth_sign') || methods.has('eth_signTypedData') || methods.has('eth_signTypedData_v4')) {
-      score += 25;
-      reasons.push('Dynamic analysis: attempted signing');
-    }
-    if (methods.has('wallet_requestPermissions') || methods.has('eth_requestAccounts')) {
-      score += 15;
-      reasons.push('Dynamic analysis: attempted account connection');
-    }
-    if (Array.isArray(dynamic.clicked) && dynamic.clicked.length > 0) {
-      score += 6;
-      reasons.push('Dynamic analysis: clicked CTA-like elements');
-    }
-  }
+
+  const dyn = scoreDynamicSignals(dynamic);
+  score += dyn.delta;
+  for (const r of dyn.reasons) reasons.push(r);
 
   if (res.status >= 400) {
     score = Math.max(score - 10, 0);
@@ -306,6 +295,7 @@ export async function auditUrl(inputUrl: string): Promise<UrlAuditResult> {
 
   // de-dupe reasons
   const uniqueReasons = Array.from(new Set(reasons));
+  const dynamicReasons = uniqueReasons.filter(r => !baseReasons.includes(r));
 
   const signals: UrlAuditSignals = {
     inputUrl,
@@ -317,6 +307,10 @@ export async function auditUrl(inputUrl: string): Promise<UrlAuditResult> {
     truncated,
     sha256,
     sha256Normalized,
+    scoreBase: baseScore,
+    scoreDynamicDelta: dyn.delta,
+    reasonsBase: baseReasons,
+    reasonsDynamic: dynamicReasons,
     knownGood: knownGoodSignal,
     dynamic,
     matches,

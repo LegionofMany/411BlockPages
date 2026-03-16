@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: blockpage411-dynamic-worker
+    env: docker
+    rootDir: .
+    dockerfilePath: Dockerfile.dynamic-worker
+    healthCheckPath: /healthz
+    envVars:
+      - key: DYNAMIC_WORKER_SECRET
+        sync: false
+      - key: ENABLE_URL_AUDIT_DYNAMIC
+        value: "true"

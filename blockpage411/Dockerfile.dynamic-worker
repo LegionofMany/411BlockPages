@@ -1,0 +1,21 @@
+# Dynamic URL audit worker (Playwright) for Option B
+# Deploy this container to Render/Fly/etc. and point DYNAMIC_WORKER_URL at it.
+
+FROM node:20.19-bookworm
+
+WORKDIR /app
+
+# Install dependencies (includes devDependencies so "playwright" + "ts-node" are present)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Install Chromium + system deps for Playwright
+RUN npx playwright install --with-deps chromium
+
+# Copy app code
+COPY . .
+
+ENV NODE_ENV=production
+
+# Render provides PORT; default is 8787 in the worker.
+CMD ["npx", "ts-node", "scripts/url_audit_dynamic_worker.ts"]

@@ -150,7 +150,7 @@ This repository is focused on the web app and internal APIs. The most important 
 - `POST /api/webhooks/givingblock` – encrypted webhook receiver.
 - `GET /api/admin/check` – server-side admin verification.
 
-These endpoints are primarily consumed by the Next.js app itself. If you want to build external integrations, start by reviewing docs/api-routes.md and the handlers under `/api` in the codebase.
+These endpoints are primarily consumed by the Next.js app itself. If you want to build external integrations, start by reviewing docs/project-structure.md (API Index section) and the handlers under `/api` in the codebase.
 
 ---
 
@@ -161,7 +161,7 @@ If you want to contribute to Blockpage411:
 ### 5.1 Read the docs
 
 - docs/env-setup.md – environment variables, MongoDB, Redis, and Vercel.
-- docs/api-routes.md – overview of API handlers and expected behavior.
+- docs/project-structure.md – repository layout + API Index.
 - docs/webhooks.md – Giving Block webhook flow and security.
 - docs/security.md – security posture and expectations.
 
